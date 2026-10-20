@@ -31,6 +31,6 @@ Solution, Projekte, `Directory.Build.props`, `Directory.Packages.props`, `nuget.
 
 ## Dokumentation
 
-Die Doku liegt in `docs/`. Wie das Werkzeug gebaut ist und warum, steht in [`docs/architektur.md`](docs/architektur.md). Sie wird im selben Commit nachgezogen wie der Code, den sie beschreibt.
+Die Doku liegt in `docs/`, aufgeteilt nach fachlichen Themen wie Host, Client und Layout. Einstieg mit Überblick, Inhaltsverzeichnis und Regeln ist [`docs/README.md`](docs/README.md). Die Doku wird im selben Commit nachgezogen wie der Code, den sie beschreibt.
 
 Für einen späteren Umstieg auf NativeAOT genügt `<PublishAot>true</PublishAot>` in Host und Client, dazu die Visual-Studio-Workload „Desktopentwicklung mit C++“ auf dem Build-Rechner. Das SDK ist über `global.json` im Wurzelverzeichnis auf .NET 10 festgelegt, die Paketversionen stehen zentral in `source/Directory.Packages.props`.

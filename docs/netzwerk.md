@@ -1,0 +1,11 @@
+# Netzwerk und Sicherheit
+
+Verbindung zwischen [Host](host.md) auf dem PC und dem Dienst des [Clients](client.md) auf dem Notebook.
+
+- **Der Client verbindet sich zum Server.** Das Notebook wechselt die Netze, der PC steht fest. So braucht nur der PC eine Firewall-Regel für eingehende Verbindungen.
+- **TCP mit `NoDelay`**, Frames aus Länge, Typ und Nutzlast. Bei Stau, etwa im WLAN, werden aufeinanderfolgende Mausbewegungen zusammengefasst.
+- **`SslStream`** mit selbstsigniertem Zertifikat je Seite. Kopplung einmalig per Code, danach ist der Zertifikats-Fingerprint fest hinterlegt (Pinning). Das ist sauberer als der gemeinsame Schlüssel des [Vorbilds](vorbild.md).
+- **Heartbeat und automatische Neuverbindung** nach Standby oder Netzwechsel.
+- **Server finden:** zunächst Hostname oder IP, später zusätzlich UDP-Broadcast.
+
+Die Nachrichten und das Framing liegen in `InputFusion.Core`. Dasselbe Framing nutzt auch die [IPC](ipc.md).
