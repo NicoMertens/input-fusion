@@ -1,0 +1,1 @@
+// Win32-APIs, für die CsWin32 Interop-Code erzeugt. Eine API je Zeile.

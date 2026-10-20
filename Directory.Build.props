@@ -1,0 +1,12 @@
+﻿<Project>
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
+    <Product>InputFusion</Product>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+</Project>

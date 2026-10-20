@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>..\..\build\app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\InputFusion.Ipc\InputFusion.Ipc.csproj" />
+    <ProjectReference Include="..\InputFusion.Ui.Shared\InputFusion.Ui.Shared.csproj" />
+  </ItemGroup>
+
+</Project>
