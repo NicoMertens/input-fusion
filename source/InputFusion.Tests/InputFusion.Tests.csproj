@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\InputFusion.Core\InputFusion.Core.csproj" />
+    <ProjectReference Include="..\InputFusion.Core\InputFusion.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

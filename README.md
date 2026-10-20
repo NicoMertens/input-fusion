@@ -20,11 +20,13 @@ Veröffentlicht wird framework-abhängig, beide Rechner brauchen die .NET 10 Des
 ## Bauen
 
 ```
-dotnet build InputFusion.slnx
-dotnet test InputFusion.slnx
-dotnet publish src/InputFusion.Host -c Release
-dotnet publish src/InputFusion.Client -c Release
-dotnet publish src/InputFusion.Settings -c Release
+dotnet build source/InputFusion.slnx
+dotnet test source/InputFusion.slnx
+dotnet publish source/InputFusion.Host -c Release
+dotnet publish source/InputFusion.Client -c Release
+dotnet publish source/InputFusion.Settings -c Release
 ```
 
-Für einen späteren Umstieg auf NativeAOT genügt `<PublishAot>true</PublishAot>` in Host und Client, dazu die Visual-Studio-Workload „Desktopentwicklung mit C++“ auf dem Build-Rechner. Das SDK ist über `global.json` auf .NET 10 festgelegt, die Paketversionen stehen zentral in `Directory.Packages.props`.
+Solution, Projekte, `Directory.Build.props`, `Directory.Packages.props`, `nuget.config` und das gemeinsame `app.manifest` liegen in `source/`. Die Testprojekte liegen als `*.Tests` direkt daneben. Dokumentation gehört nach `docs/`.
+
+Für einen späteren Umstieg auf NativeAOT genügt `<PublishAot>true</PublishAot>` in Host und Client, dazu die Visual-Studio-Workload „Desktopentwicklung mit C++“ auf dem Build-Rechner. Das SDK ist über `global.json` im Wurzelverzeichnis auf .NET 10 festgelegt, die Paketversionen stehen zentral in `source/Directory.Packages.props`.
