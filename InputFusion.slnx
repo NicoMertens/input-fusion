@@ -1,15 +1,9 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/InputFusion.Client.Injector/InputFusion.Client.Injector.csproj" />
-    <Project Path="src/InputFusion.Client.Service/InputFusion.Client.Service.csproj" />
-    <Project Path="src/InputFusion.Client.Settings/InputFusion.Client.Settings.csproj" />
-    <Project Path="src/InputFusion.Host.Agent/InputFusion.Host.Agent.csproj" />
-    <Project Path="src/InputFusion.Host.Settings/InputFusion.Host.Settings.csproj" />
-    <Project Path="src/InputFusion.Ipc/InputFusion.Ipc.csproj" />
-    <Project Path="src/InputFusion.Layout/InputFusion.Layout.csproj" />
-    <Project Path="src/InputFusion.Platform/InputFusion.Platform.csproj" />
-    <Project Path="src/InputFusion.Protocol/InputFusion.Protocol.csproj" />
-    <Project Path="src/InputFusion.Ui.Shared/InputFusion.Ui.Shared.csproj" />
+    <Project Path="src/InputFusion.Client/InputFusion.Client.csproj" />
+    <Project Path="src/InputFusion.Core/InputFusion.Core.csproj" />
+    <Project Path="src/InputFusion.Host/InputFusion.Host.csproj" />
+    <Project Path="src/InputFusion.Settings/InputFusion.Settings.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/InputFusion.Tests/InputFusion.Tests.csproj" />

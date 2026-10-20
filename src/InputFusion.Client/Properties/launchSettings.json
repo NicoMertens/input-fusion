@@ -1,12 +1,16 @@
 {
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "InputFusion.Client.Service": {
+    "Dienst": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development"
       }
+    },
+    "Injector": {
+      "commandName": "Project",
+      "commandLineArgs": "--injector"
     }
   }
 }

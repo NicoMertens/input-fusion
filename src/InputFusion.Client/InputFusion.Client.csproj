@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <PublishAot>true</PublishAot>
+    <ApplicationManifest>..\..\build\app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>
@@ -10,10 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\InputFusion.Layout\InputFusion.Layout.csproj" />
-    <ProjectReference Include="..\InputFusion.Protocol\InputFusion.Protocol.csproj" />
-    <ProjectReference Include="..\InputFusion.Ipc\InputFusion.Ipc.csproj" />
-    <ProjectReference Include="..\InputFusion.Platform\InputFusion.Platform.csproj" />
+    <ProjectReference Include="..\InputFusion.Core\InputFusion.Core.csproj" />
   </ItemGroup>
 
 </Project>

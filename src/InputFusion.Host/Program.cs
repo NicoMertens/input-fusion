@@ -1,4 +1,4 @@
-﻿namespace InputFusion.Client.Injector;
+﻿namespace InputFusion.Host;
 
 internal static class Program
 {

@@ -1,4 +1,4 @@
-﻿namespace InputFusion.Client.Service;
+﻿namespace InputFusion.Client;
 
 public class Worker(ILogger<Worker> logger) : BackgroundService
 {

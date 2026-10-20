@@ -1,6 +1,6 @@
 ﻿using System.Windows;
 
-namespace InputFusion.Client.Settings;
+namespace InputFusion.Settings;
 
 public partial class App : Application
 {

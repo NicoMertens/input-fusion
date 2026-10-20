@@ -1,6 +1,6 @@
 ﻿using System.Windows;
 
-namespace InputFusion.Host.Settings;
+namespace InputFusion.Settings;
 
 public partial class MainWindow : Window
 {

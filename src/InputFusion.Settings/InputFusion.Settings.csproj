@@ -8,8 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\InputFusion.Ipc\InputFusion.Ipc.csproj" />
-    <ProjectReference Include="..\InputFusion.Ui.Shared\InputFusion.Ui.Shared.csproj" />
+    <ProjectReference Include="..\InputFusion.Core\InputFusion.Core.csproj" />
   </ItemGroup>
 
 </Project>
