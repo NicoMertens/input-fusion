@@ -27,6 +27,10 @@ dotnet publish source/InputFusion.Client -c Release
 dotnet publish source/InputFusion.Settings -c Release
 ```
 
-Solution, Projekte, `Directory.Build.props`, `Directory.Packages.props`, `nuget.config` und das gemeinsame `app.manifest` liegen in `source/`. Die Testprojekte liegen als `*.Tests` direkt daneben. Dokumentation gehört nach `docs/`.
+Solution, Projekte, `Directory.Build.props`, `Directory.Packages.props`, `nuget.config` und das gemeinsame `app.manifest` liegen in `source/`. Die Testprojekte liegen als `*.Tests` direkt daneben. Build- und Veröffentlichungsskripte kommen nach `build/` parallel zu `source/`, sobald es welche gibt.
+
+## Dokumentation
+
+Die Doku liegt in `docs/`. Wie das Werkzeug gebaut ist und warum, steht in [`docs/architektur.md`](docs/architektur.md). Sie wird im selben Commit nachgezogen wie der Code, den sie beschreibt.
 
 Für einen späteren Umstieg auf NativeAOT genügt `<PublishAot>true</PublishAot>` in Host und Client, dazu die Visual-Studio-Workload „Desktopentwicklung mit C++“ auf dem Build-Rechner. Das SDK ist über `global.json` im Wurzelverzeichnis auf .NET 10 festgelegt, die Paketversionen stehen zentral in `source/Directory.Packages.props`.
