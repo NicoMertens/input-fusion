@@ -1,0 +1,68 @@
+﻿using InputFusion.Core.Layout;
+
+namespace InputFusion.Tests;
+
+public class LayoutGeometryTests
+{
+    private static readonly MonitorRect Pc = new(0, 0, 1920, 1080, 96, "PC-1");
+    private static readonly MonitorRect Notebook = new(1920, 0, 2560, 1440, 144, "NB-1");
+
+    [Fact]
+    public void MonitorAt_FindsContainingMonitor()
+    {
+        var monitors = new[] { Pc, Notebook };
+        Assert.Equal("PC-1", LayoutGeometry.MonitorAt(monitors, 100, 100)!.Value.DeviceId);
+        Assert.Equal("NB-1", LayoutGeometry.MonitorAt(monitors, 2000, 100)!.Value.DeviceId);
+        Assert.Null(LayoutGeometry.MonitorAt(monitors, -5, 0));
+    }
+
+    [Fact]
+    public void MapProportional_MapsMidpointToMidpoint()
+    {
+        Assert.Equal(50, LayoutGeometry.MapProportional(5, 0, 10, 0, 100));
+    }
+
+    [Fact]
+    public void MapProportional_ClampsOutOfRange()
+    {
+        Assert.Equal(0, LayoutGeometry.MapProportional(-5, 0, 10, 0, 100));
+        Assert.Equal(100, LayoutGeometry.MapProportional(15, 0, 10, 0, 100));
+    }
+
+    [Fact]
+    public void MapProportional_ZeroSourceSpan_ReturnsTargetMidpoint()
+    {
+        Assert.Equal(50, LayoutGeometry.MapProportional(7, 5, 5, 0, 100));
+    }
+
+    [Fact]
+    public void MapAcrossRightEdge_ScalesForDifferentHeights()
+    {
+        // Austritt in der Mitte der PC-Höhe (540 von 1080) -> Mitte der Notebook-Höhe (720 von 1440)
+        var (x, y) = LayoutGeometry.MapAcrossRightEdge(Pc, Notebook, 540);
+        Assert.Equal(Notebook.Left, x);
+        Assert.Equal(720, y);
+    }
+
+    [Fact]
+    public void MapAcrossRightEdge_TopStaysTop()
+    {
+        var (_, y) = LayoutGeometry.MapAcrossRightEdge(Pc, Notebook, Pc.Top);
+        Assert.Equal(Notebook.Top, y);
+    }
+
+    [Fact]
+    public void NormalizeToVirtualDesktop_CornersMapToBounds()
+    {
+        var monitors = new[] { Pc, Notebook };
+        Assert.Equal((ushort)0, LayoutGeometry.NormalizeToVirtualDesktop(monitors, 0, 0).X);
+        var (x, _) = LayoutGeometry.NormalizeToVirtualDesktop(monitors, Notebook.Right, 0);
+        Assert.Equal((ushort)65535, x);
+    }
+
+    [Fact]
+    public void NormalizeToVirtualDesktop_EmptyList_ReturnsZero()
+    {
+        Assert.Equal(((ushort)0, (ushort)0), LayoutGeometry.NormalizeToVirtualDesktop([], 10, 10));
+    }
+}

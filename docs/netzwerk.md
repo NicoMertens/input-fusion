@@ -6,6 +6,6 @@ Verbindung zwischen [Host](host.md) auf dem PC und dem Dienst des [Clients](clie
 - **TCP mit `NoDelay`**, Frames aus Länge, Typ und Nutzlast. Bei Stau, etwa im WLAN, werden aufeinanderfolgende Mausbewegungen zusammengefasst.
 - **`SslStream`** mit selbstsigniertem Zertifikat je Seite. Kopplung einmalig per Code, danach ist der Zertifikats-Fingerprint fest hinterlegt (Pinning). Das ist sauberer als der gemeinsame Schlüssel des [Vorbilds](vorbild.md).
 - **Heartbeat und automatische Neuverbindung** nach Standby oder Netzwechsel.
-- **Server finden:** zunächst Hostname oder IP, später zusätzlich UDP-Broadcast.
+- **Server finden:** Der Rechnername des PCs wird über DNS aufgelöst (`Dns.GetHostEntry`), wie beim [Vorbild](vorbild.md). Zusätzlich kann der Nutzer eine feste IP eintragen, die ergänzend zum DNS-Ergebnis versucht wird. Keine automatische Suche per Broadcast; der PC steht fest, das genügt.
 
 Die Nachrichten und das Framing liegen in `InputFusion.Core`. Dasselbe Framing nutzt auch die [IPC](ipc.md).

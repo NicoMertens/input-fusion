@@ -1,1 +1,19 @@
 // Win32-APIs, für die CsWin32 Interop-Code erzeugt. Eine API je Zeile.
+SetWindowsHookEx
+UnhookWindowsHookEx
+CallNextHookEx
+GetMessage
+PostThreadMessage
+GetCurrentThreadId
+GetModuleHandle
+SetCursorPos
+GetCursorPos
+MonitorFromPoint
+GetMonitorInfo
+SendInput
+GetSystemMetrics
+AllocConsole
+MSLLHOOKSTRUCT
+KBDLLHOOKSTRUCT
+WM_MOUSEMOVE
+WM_QUIT
