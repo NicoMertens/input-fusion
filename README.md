@@ -27,6 +27,20 @@ dotnet publish source/InputFusion.Client -c Release
 dotnet publish source/InputFusion.Settings -c Release
 ```
 
+## Durchstich ausprobieren (Phase 1)
+
+Auf dem PC den Host starten, auf dem Notebook den Client verbinden:
+
+```
+# PC
+InputFusion.Host.exe            # oder --absolute zum Vergleich des Mausgefühls
+
+# Notebook
+InputFusion.Client.exe --connect <pc-name-oder-ip>
+```
+
+Die Maus wechselt an der rechten Bildschirmkante des PCs auf das Notebook; zurück geht es nach links über die Kante oder mit `Strg+Alt+F12`. Noch ohne Verschlüsselung und ohne Layout, nur zum Testen des Mausgefühls.
+
 Solution, Projekte, `Directory.Build.props`, `Directory.Packages.props`, `nuget.config` und das gemeinsame `app.manifest` liegen in `source/`. Die Testprojekte liegen als `*.Tests` direkt daneben. Build- und Veröffentlichungsskripte kommen nach `build/` parallel zu `source/`, sobald es welche gibt.
 
 ## Dokumentation

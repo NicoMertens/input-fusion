@@ -25,6 +25,10 @@ Worker Service mit `AddWindowsService()`, LocalSystem, Starttyp automatisch.
 - **Führt gedrückte Tasten nach** und lässt beim Wechsel oder Verbindungsabbruch alle los.
 - **Absichtlich dumm gehalten:** kein Netzwerk, keine Konfiguration. Wenig Code im SYSTEM-Kontext heißt wenig Angriffsfläche. Der Code liegt zwar in derselben exe wie der Dienst, der Injector-Pfad öffnet aber weder Sockets noch Konfiguration.
 
+## Stand Phase 1 (Durchstich)
+
+Dienst und Injector gibt es noch nicht. Im Durchstich läuft der Client als einfaches Konsolenprogramm: `InputFusion.Client.exe --connect <host>`. Es verbindet sich zum Host, empfängt die Eingaben und spielt sie direkt mit `SendInput` ab. Damit lässt sich das Mausgefühl früh testen, ohne Dienst, Sitzungswechsel und Desktop-Wechsel. Die Aufteilung in Dienst und Injector kommt in Phase 2.
+
 ## Später
 
 **Zwischenablage** braucht auf dem Client zusätzlich einen Prozess im Benutzerkontext: Dateien müssen mit den Rechten des Benutzers in dessen Profil landen, nicht als SYSTEM.

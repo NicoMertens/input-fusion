@@ -11,3 +11,12 @@
 **Bewusst nicht vorgesehen:** Steuerung bei gesperrtem PC. Der Sperrbildschirm liegt auf dem Secure Desktop, dort laufen die Hooks nicht. Ein Dienst auf dem Server würde das lösen, lohnt sich aber kaum.
 
 Fallstricke, die auch den Host betreffen, etwa hängende Tasten und nicht abfangbare Tastenkombinationen, stehen unter [Fallstricke](fallstricke.md).
+
+## Stand Phase 1 (Durchstich)
+
+Der Host läuft im Durchstich als Konsolenprogramm (`AllocConsole`) und lauscht als TCP-Server, abweichend vom Zielbild, in dem der Client sich verbindet. Das vereinfacht den ersten Test.
+
+- Start: `InputFusion.Host.exe`, optional `--absolute` für absolutes statt relatives Senden (zum Vergleich des Mausgefühls).
+- Wechsel in den Remote-Modus an der festen rechten Kante des Hauptmonitors. Dann parkt der Cursor, die Bewegung geht als Delta an den Client, lokale Eingaben werden verschluckt.
+- Zurück: Cursor nach links über die Kante schieben oder `Strg+Alt+F12`.
+- Noch offen: kein Multimonitor-Layout, Austritt und Parken grob, hängende Modifier beim Wechsel werden noch nicht nachgesendet.
