@@ -15,6 +15,7 @@ namespace InputFusion.Host;
 /// </summary>
 internal sealed class RemoteController(MessageConnection connection, bool absolute, bool observe, bool diag)
 {
+    private const ushort VkF11 = 0x7A;
     private const ushort VkF12 = 0x7B;
 
     private int _edgeX, _desktopWidth, _desktopHeight, _desktopLeft, _desktopTop;
@@ -103,7 +104,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         if (!_remote)
         {
             if (move.X >= _edgeX)
-                await EnterRemote(move, ct);
+                await EnterRemote(move.X, move.Y, ct);
             return;
         }
 
@@ -181,9 +182,25 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
     {
         TrackModifier(key);
 
-        if (_remote && key.Down && key.VirtualKey == VkF12 && _ctrlDown && _altDown)
+        if (key.Down && _ctrlDown && _altDown && key.VirtualKey == VkF12 && _remote)
         {
             await ExitRemote(ct);
+            return;
+        }
+
+        // Strg+Alt+F11: Remote an der aktuellen Cursorposition ein-/ausschalten. Zum Testen der Bewegung,
+        // wenn das Parken nicht greift (RDP): Maus vorher an den linken Rand setzen, dann bleibt Platz nach rechts.
+        if (key.Down && _ctrlDown && _altDown && key.VirtualKey == VkF11)
+        {
+            if (_remote)
+            {
+                await ExitRemote(ct);
+            }
+            else
+            {
+                PInvoke.GetCursorPos(out var p);
+                await EnterRemote(p.X, p.Y, ct);
+            }
             return;
         }
 
@@ -200,19 +217,19 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         if (isAlt) _altDown = key.Down;
     }
 
-    private async Task EnterRemote(MouseMoveEvent move, CancellationToken ct)
+    private async Task EnterRemote(int x, int y, CancellationToken ct)
     {
         _parkX = _desktopLeft + _desktopWidth / 2;
         _parkY = _desktopTop + _desktopHeight / 2;
         _virtualX = 0;
-        _virtualY = Math.Clamp(move.Y - _desktopTop, 0, _desktopHeight);
+        _virtualY = Math.Clamp(y - _desktopTop, 0, _desktopHeight);
         _remote = true;
 
         if (observe)
         {
             // Maus nicht kapern: frei laufen lassen, nur die Deltas ab hier verfolgen.
-            _lastX = move.X;
-            _lastY = move.Y;
+            _lastX = x;
+            _lastY = y;
         }
         else
         {

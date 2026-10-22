@@ -32,7 +32,7 @@ internal static class Program
         using var tcp = await listener.AcceptTcpClientAsync(cts.Token);
         listener.Stop();
         using var conn = new MessageConnection(tcp);
-        Console.WriteLine("Client verbunden. Rechte Kante wechselt, Strg+Alt+F12 zurueck, Strg+C beendet.");
+        Console.WriteLine("Client verbunden. Rechte Kante wechselt, Strg+Alt+F11 schaltet hier um (Test), Strg+Alt+F12 zurueck, Strg+C beendet.");
 
         var hooks = new HookListener();
         hooks.Start();
