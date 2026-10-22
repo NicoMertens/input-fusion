@@ -16,7 +16,9 @@ internal static class Program
         // In einer RDP-Sitzung lässt sich die Maus nicht kapern, deshalb dort automatisch nur beobachten.
         // --observe erzwingt das auch lokal, --capture erzwingt das Kapern trotz RDP (zum Ausprobieren).
         bool remoteSession = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_REMOTESESSION) != 0;
-        bool observe = args.Contains("--observe") || (remoteSession && !args.Contains("--capture"));
+        // Die Diagnose misst das Kapern, braucht es also; sie schaltet die Beobachtung ab.
+        bool diag = args.Contains("--diag");
+        bool observe = !diag && (args.Contains("--observe") || (remoteSession && !args.Contains("--capture")));
 
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
@@ -25,7 +27,7 @@ internal static class Program
         listener.Start();
         Console.WriteLine($"InputFusion Host auf Port {Ports.Input}. Modus: {(absolute ? "absolut" : "relativ")}"
             + $"{(observe ? ", Beobachtung (kapert die Maus nicht)" : "")}"
-            + $"{(remoteSession ? " [RDP erkannt]" : "")}. Warte auf Client...");
+            + $"{(diag ? ", Diagnose" : "")}{(remoteSession ? " [RDP erkannt]" : "")}. Warte auf Client...");
 
         using var tcp = await listener.AcceptTcpClientAsync(cts.Token);
         listener.Stop();
@@ -52,7 +54,7 @@ internal static class Program
         hooks.Start();
         try
         {
-            await new RemoteController(conn, absolute, observe).RunAsync(cts.Token);
+            await new RemoteController(conn, absolute, observe, diag).RunAsync(cts.Token);
         }
         catch (Exception ex) when (ex is OperationCanceledException or IOException or SocketException)
         {

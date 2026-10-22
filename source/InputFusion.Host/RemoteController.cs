@@ -1,4 +1,5 @@
-﻿using Windows.Win32;
+﻿using System.IO;
+using Windows.Win32;
 using Windows.Win32.UI.WindowsAndMessaging;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
@@ -12,7 +13,7 @@ namespace InputFusion.Host;
 /// liefert. Zurück nur per Strg+Alt+F12 oder Verbindungsabbruch; das layoutabhängige Austreten an
 /// der Kante kommt mit Phase 3. Kein TLS; das ist Phase 4.
 /// </summary>
-internal sealed class RemoteController(MessageConnection connection, bool absolute, bool observe)
+internal sealed class RemoteController(MessageConnection connection, bool absolute, bool observe, bool diag)
 {
     private const ushort VkF12 = 0x7B;
 
@@ -21,6 +22,9 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
     private double _virtualX, _virtualY;
     private bool _remote;
     private bool _ctrlDown, _altDown;
+
+    private int _recenters, _held, _maxDrift;
+    private readonly string _diagPath = Path.Combine(Path.GetTempPath(), "inputfusion-diag.log");
 
     public async Task RunAsync(CancellationToken ct)
     {
@@ -31,6 +35,8 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         _edgeX = _desktopLeft + _desktopWidth - 1;
         _margin = Math.Min(_desktopWidth, _desktopHeight) / 4;
         Console.WriteLine($"Rechte Kante bei x={_edgeX} (Desktop {_desktopWidth}x{_desktopHeight} ab {_desktopLeft},{_desktopTop}).");
+        if (diag)
+            Console.WriteLine($"Diagnose aktiv, Protokoll in {_diagPath}. Maus an die rechte Kante bewegen.");
 
         await foreach (var e in LowLevelHooks.Events.ReadAllAsync(ct))
         {
@@ -88,6 +94,12 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
                                       (short)Math.Clamp(dy, short.MinValue, short.MaxValue)).ToPayload(), ct);
         }
 
+        if (diag)
+        {
+            Measure(move);
+            return;
+        }
+
         // Im Beobachtungsmodus (z. B. über RDP) läuft die echte Maus frei; nicht zurücksetzen, sonst ruckelt es.
         // Sonst nur zurücksetzen, wenn der Cursor zu weit aus der Mitte läuft, damit er nicht am Rand ansteht.
         if (!observe && (Math.Abs(move.X - _parkX) > _margin || Math.Abs(move.Y - _parkY) > _margin))
@@ -95,6 +107,35 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
             PInvoke.SetCursorPos(_parkX, _parkY);
             _lastX = _parkX;
             _lastY = _parkY;
+        }
+    }
+
+    /// <summary>
+    /// Misst, wie oft SetCursorPos wirklich hält: wie weit der Cursor vor dem Zurücksetzen aus der Mitte
+    /// gelaufen ist (Drift) und ob er direkt nach dem Zurücksetzen tatsächlich in der Mitte steht.
+    /// Bei eingefrorener Maus bleibt die Drift klein; zieht RDP den Cursor weg, wird sie groß.
+    /// </summary>
+    private void Measure(MouseMoveEvent move)
+    {
+        int drift = Math.Max(Math.Abs(move.X - _parkX), Math.Abs(move.Y - _parkY));
+        _maxDrift = Math.Max(_maxDrift, drift);
+
+        PInvoke.SetCursorPos(_parkX, _parkY);
+        PInvoke.GetCursorPos(out var after);
+        bool held = Math.Abs(after.X - _parkX) <= 2 && Math.Abs(after.Y - _parkY) <= 2;
+        if (held)
+            _held++;
+        _recenters++;
+        _lastX = _parkX;
+        _lastY = _parkY;
+
+        if (_recenters % 60 == 0)
+        {
+            string line = $"{DateTime.Now:HH:mm:ss}  SetCursorPos direkt gehalten: {_held}/{_recenters} "
+                + $"({100 * _held / _recenters} %), groesste Drift aus der Mitte: {_maxDrift}px";
+            Console.WriteLine(line);
+            try { File.AppendAllText(_diagPath, line + Environment.NewLine); } catch (IOException) { }
+            _maxDrift = 0;
         }
     }
 
