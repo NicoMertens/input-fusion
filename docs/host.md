@@ -17,6 +17,7 @@ Fallstricke, die auch den Host betreffen, etwa hängende Tasten und nicht abfang
 Der Host läuft im Durchstich als Konsolenprogramm (`AllocConsole`) und lauscht als TCP-Server, abweichend vom Zielbild, in dem der Client sich verbindet. Das vereinfacht den ersten Test.
 
 - Start: `InputFusion.Host.exe`, optional `--absolute` für absolutes statt relatives Senden (zum Vergleich des Mausgefühls).
+- **Beobachtungsmodus:** In einer RDP-Sitzung lässt sich die Maus nicht kapern (siehe [Fallstricke](fallstricke.md)). Der Host erkennt das über `SM_REMOTESESSION` und beobachtet dann nur: Er sendet die Bewegungen, verschluckt und parkt die Maus aber nicht. So lässt sich die Übertragung über RDP mit dem [Simulator](simulator.md) flüssig testen, während die echte Maus normal weiterläuft. `--observe` erzwingt das auch lokal, `--capture` erzwingt das Kapern trotz RDP.
 - Wechsel in den Remote-Modus an der rechten Kante des **gesamten Monitorverbunds** (virtueller Desktop), nicht der des Hauptmonitors. Dann parkt der Cursor in der Mitte und wird nach jeder Bewegung dorthin zurückgesetzt, damit er nicht am Rand ansteht; die Bewegung geht als Delta an den Client, lokale Eingaben werden verschluckt.
 - Beim Wechsel sendet der Host `SwitchToClient` mit der Eintrittshöhe, beim Zurückwechseln `SwitchToHost`.
 - Zurück: `Strg+Alt+F12`. Das layoutabhängige Austreten an der linken Kante kommt mit Phase 3, weil dafür die Monitore des Clients bekannt sein müssen.

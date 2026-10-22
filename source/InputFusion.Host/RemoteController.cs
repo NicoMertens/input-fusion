@@ -12,7 +12,7 @@ namespace InputFusion.Host;
 /// liefert. Zurück nur per Strg+Alt+F12 oder Verbindungsabbruch; das layoutabhängige Austreten an
 /// der Kante kommt mit Phase 3. Kein TLS; das ist Phase 4.
 /// </summary>
-internal sealed class RemoteController(MessageConnection connection, bool absolute)
+internal sealed class RemoteController(MessageConnection connection, bool absolute, bool observe)
 {
     private const ushort VkF12 = 0x7B;
 
@@ -59,7 +59,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         if (!_remote)
         {
             if (move.X >= _edgeX)
-                await EnterRemote(move.Y, ct);
+                await EnterRemote(move, ct);
             return;
         }
 
@@ -88,8 +88,9 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
                                       (short)Math.Clamp(dy, short.MinValue, short.MaxValue)).ToPayload(), ct);
         }
 
-        // Nur zurücksetzen, wenn der Cursor zu weit aus der Mitte läuft, sonst stünde er bald am Rand an.
-        if (Math.Abs(move.X - _parkX) > _margin || Math.Abs(move.Y - _parkY) > _margin)
+        // Im Beobachtungsmodus (z. B. über RDP) läuft die echte Maus frei; nicht zurücksetzen, sonst ruckelt es.
+        // Sonst nur zurücksetzen, wenn der Cursor zu weit aus der Mitte läuft, damit er nicht am Rand ansteht.
+        if (!observe && (Math.Abs(move.X - _parkX) > _margin || Math.Abs(move.Y - _parkY) > _margin))
         {
             PInvoke.SetCursorPos(_parkX, _parkY);
             _lastX = _parkX;
@@ -120,18 +121,28 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         if (isAlt) _altDown = key.Down;
     }
 
-    private async Task EnterRemote(int y, CancellationToken ct)
+    private async Task EnterRemote(MouseMoveEvent move, CancellationToken ct)
     {
         _parkX = _desktopLeft + _desktopWidth / 2;
         _parkY = _desktopTop + _desktopHeight / 2;
-        _lastX = _parkX;
-        _lastY = _parkY;
         _virtualX = 0;
-        _virtualY = Math.Clamp(y - _desktopTop, 0, _desktopHeight);
+        _virtualY = Math.Clamp(move.Y - _desktopTop, 0, _desktopHeight);
         _remote = true;
-        LowLevelHooks.Swallow = true;
-        PInvoke.SetCursorPos(_parkX, _parkY);
-        Console.WriteLine("Remote-Modus an (Strg+Alt+F12 zurueck)");
+
+        if (observe)
+        {
+            // Maus nicht kapern: frei laufen lassen, nur die Deltas ab hier verfolgen.
+            _lastX = move.X;
+            _lastY = move.Y;
+        }
+        else
+        {
+            _lastX = _parkX;
+            _lastY = _parkY;
+            LowLevelHooks.Swallow = true;
+            PInvoke.SetCursorPos(_parkX, _parkY);
+        }
+        Console.WriteLine($"Remote-Modus an{(observe ? " (Beobachtung)" : "")} (Strg+Alt+F12 zurueck)");
 
         ushort entryY = (ushort)(_virtualY / _desktopHeight * ushort.MaxValue);
         await connection.SendAsync(MessageType.SwitchToClient, new SwitchToClient(entryY).ToPayload(), ct);
