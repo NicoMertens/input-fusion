@@ -227,8 +227,11 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
 
         if (observe)
         {
-            // Maus nicht kapern: frei laufen lassen, nur die Deltas ab hier verfolgen.
-            _lastX = x;
+            // Maus nicht kapern, nur die Deltas verfolgen. Zum Testen an den linken Rand setzen, damit
+            // nach rechts die volle Breite bleibt. Über RDP hält das evtl. nicht, dann hilft Strg+Alt+F11.
+            int startX = _desktopLeft + 2;
+            PInvoke.SetCursorPos(startX, y);
+            _lastX = startX;
             _lastY = y;
         }
         else
