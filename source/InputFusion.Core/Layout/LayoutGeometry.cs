@@ -59,6 +59,23 @@ public static class LayoutGeometry
         return (nx, ny);
     }
 
+    /// <summary>Umkehrung von <see cref="NormalizeToVirtualDesktop"/>: 0…65535 zurück auf die Bounding-Box.</summary>
+    public static (int X, int Y) DenormalizeFromVirtualDesktop(IReadOnlyList<MonitorRect> monitors, ushort x, ushort y)
+    {
+        if (monitors.Count == 0)
+            return (0, 0);
+
+        int minX = monitors.Min(m => m.Left);
+        int minY = monitors.Min(m => m.Top);
+        int maxX = monitors.Max(m => m.Right);
+        int maxY = monitors.Max(m => m.Bottom);
+
+        return (Denormalize(x, minX, maxX), Denormalize(y, minY, maxY));
+    }
+
+    private static int Denormalize(ushort value, int min, int max) =>
+        min + (int)Math.Round((double)value / ushort.MaxValue * (max - min));
+
     private static ushort Normalize(int value, int min, int max)
     {
         if (max <= min)

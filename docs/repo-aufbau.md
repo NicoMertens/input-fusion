@@ -21,6 +21,7 @@
 | `InputFusion.Host` | WinExe, AOT-Analyzer an | [Agent](host.md) |
 | `InputFusion.Client` | Worker Service (Konsole), AOT-Analyzer an | [Dienst und Injector](client.md) |
 | `InputFusion.Settings` | WPF | [Einstellungen](einstellungen.md) für beide Seiten |
+| `InputFusion.Simulator` | WPF | [Simulator](simulator.md) für Tests auf einem Rechner; reines Entwicklungswerkzeug, nicht im Installer |
 | `InputFusion.Tests` | xUnit, `net10.0-windows` | Layout-Engine, Kantenumrechnung, Protokoll |
 
 Später kommt der Installer dazu: WiX mit zwei MSIs. Das Server-MSI enthält Host, Settings, die Aufgabe und die Firewall-Regel, das Client-MSI enthält Client, Settings und den Dienst.

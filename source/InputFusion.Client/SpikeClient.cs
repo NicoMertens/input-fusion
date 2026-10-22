@@ -28,6 +28,9 @@ internal static class SpikeClient
             {
                 switch (type)
                 {
+                    case MessageType.SwitchToClient:
+                        player.MoveAbsolute(0, SwitchToClient.FromPayload(payload).Y);
+                        break;
                     case MessageType.MouseMoveRelative:
                         var move = MouseMoveRelative.FromPayload(payload);
                         player.MoveRelative(move.Dx, move.Dy);

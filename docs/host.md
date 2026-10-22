@@ -18,5 +18,8 @@ Der Host läuft im Durchstich als Konsolenprogramm (`AllocConsole`) und lauscht 
 
 - Start: `InputFusion.Host.exe`, optional `--absolute` für absolutes statt relatives Senden (zum Vergleich des Mausgefühls).
 - Wechsel in den Remote-Modus an der festen rechten Kante des Hauptmonitors. Dann parkt der Cursor, die Bewegung geht als Delta an den Client, lokale Eingaben werden verschluckt.
+- Beim Wechsel sendet der Host `SwitchToClient` mit der Eintrittshöhe, beim Zurückwechseln `SwitchToHost`.
 - Zurück: Cursor nach links über die Kante schieben oder `Strg+Alt+F12`.
+- Bricht die Verbindung ab, endet der Remote-Modus sofort, damit die lokale Eingabe nicht verschluckt bleibt.
+- Ohne zweiten Rechner lässt sich das mit dem [Simulator](simulator.md) testen.
 - Noch offen: kein Multimonitor-Layout, Austritt und Parken grob, hängende Modifier beim Wechsel werden noch nicht nachgesendet.

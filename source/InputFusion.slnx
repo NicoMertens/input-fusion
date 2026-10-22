@@ -3,5 +3,6 @@
   <Project Path="InputFusion.Core/InputFusion.Core.csproj" />
   <Project Path="InputFusion.Host/InputFusion.Host.csproj" />
   <Project Path="InputFusion.Settings/InputFusion.Settings.csproj" />
+  <Project Path="InputFusion.Simulator/InputFusion.Simulator.csproj" />
   <Project Path="InputFusion.Tests/InputFusion.Tests.csproj" />
 </Solution>

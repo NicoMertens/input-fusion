@@ -41,6 +41,8 @@ InputFusion.Client.exe --connect <pc-name-oder-ip>
 
 Die Maus wechselt an der rechten Bildschirmkante des PCs auf das Notebook; zurück geht es nach links über die Kante oder mit `Strg+Alt+F12`. Noch ohne Verschlüsselung und ohne Layout, nur zum Testen des Mausgefühls.
 
+Ohne zweiten Rechner: `InputFusion.Simulator.exe` statt des Clients starten. Er zeigt die simulierten Monitore, den Cursor und die gedrückten Tasten in einem Fenster, siehe [`docs/simulator.md`](docs/simulator.md).
+
 Solution, Projekte, `Directory.Build.props`, `Directory.Packages.props`, `nuget.config` und das gemeinsame `app.manifest` liegen in `source/`. Die Testprojekte liegen als `*.Tests` direkt daneben. Build- und Veröffentlichungsskripte kommen nach `build/` parallel zu `source/`, sobald es welche gibt.
 
 ## Dokumentation

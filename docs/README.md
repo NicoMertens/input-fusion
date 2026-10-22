@@ -47,6 +47,7 @@ PC (Server)                                    Notebook (Client)
 | [fallstricke.md](fallstricke.md) | Win32-Fallstricke, die beide Seiten betreffen |
 | [aot-und-speicher.md](aot-und-speicher.md) | AOT-Fähigkeit, Voraussetzungen für NativeAOT, gemessener Speicher |
 | [repo-aufbau.md](repo-aufbau.md) | Ordner, Projekte, Build-Einstellungen und warum es so wenige Projekte sind |
+| [simulator.md](simulator.md) | Entwicklungswerkzeug, das einen Client mit mehreren Monitoren in einem Fenster simuliert |
 
 ## Regeln für diese Doku
 

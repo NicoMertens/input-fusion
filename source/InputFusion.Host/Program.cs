@@ -23,19 +23,36 @@ internal static class Program
         using var conn = new MessageConnection(tcp);
         Console.WriteLine("Client verbunden. Rechte Kante wechselt, Strg+Alt+F12 zurueck, Strg+C beendet.");
 
+        // Bricht die Verbindung ab, muss der Remote-Modus sofort enden, sonst bleibt die lokale Eingabe verschluckt.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await foreach (var _ in conn.ReceiveAsync(cts.Token))
+                {
+                }
+            }
+            catch (Exception ex) when (ex is IOException or SocketException or OperationCanceledException)
+            {
+            }
+            LowLevelHooks.Swallow = false;
+            cts.Cancel();
+        });
+
         var hooks = new HookListener();
         hooks.Start();
         try
         {
             await new RemoteController(conn, absolute).RunAsync(cts.Token);
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (ex is OperationCanceledException or IOException or SocketException)
         {
         }
         finally
         {
             LowLevelHooks.Swallow = false;
             hooks.Stop();
+            Console.WriteLine("Verbindung beendet, Remote-Modus aus.");
         }
     }
 }

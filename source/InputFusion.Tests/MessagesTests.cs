@@ -40,6 +40,13 @@ public class MessagesTests
     }
 
     [Fact]
+    public void SwitchToClient_RoundTrips()
+    {
+        var sw = new SwitchToClient(40000);
+        Assert.Equal(sw, SwitchToClient.FromPayload(sw.ToPayload()));
+    }
+
+    [Fact]
     public void MouseButton_RoundTrips()
     {
         var button = new MouseButton(2, ButtonState.Up);

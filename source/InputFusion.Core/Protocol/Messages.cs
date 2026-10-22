@@ -52,6 +52,19 @@ public readonly record struct MouseButton(byte Button, ButtonState State)
     public static MouseButton FromPayload(ReadOnlySpan<byte> p) => new(p[0], (ButtonState)p[1]);
 }
 
+/// <summary>Der Host gibt die Steuerung ab. <paramref name="Y"/> ist die Eintrittshöhe, auf 0…65535 normiert.</summary>
+public readonly record struct SwitchToClient(ushort Y)
+{
+    public byte[] ToPayload()
+    {
+        var p = new byte[2];
+        BinaryPrimitives.WriteUInt16LittleEndian(p, Y);
+        return p;
+    }
+
+    public static SwitchToClient FromPayload(ReadOnlySpan<byte> p) => new(BinaryPrimitives.ReadUInt16LittleEndian(p));
+}
+
 public readonly record struct KeyEvent(ushort VirtualKey, ushort ScanCode, ButtonState State, bool Extended)
 {
     public byte[] ToPayload()

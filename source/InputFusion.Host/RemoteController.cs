@@ -54,7 +54,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         if (!_remote)
         {
             if (move.X >= _edgeX)
-                EnterRemote(move.Y);
+                await EnterRemote(move.Y, ct);
             return;
         }
 
@@ -67,7 +67,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         _virtualY += dy;
         if (_virtualX <= 0)
         {
-            ExitRemote();
+            await ExitRemote(ct);
             return;
         }
         _virtualY = Math.Clamp(_virtualY, 0, _screenHeight);
@@ -94,7 +94,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
 
         if (_remote && key.Down && key.VirtualKey == VkF12 && _ctrlDown && _altDown)
         {
-            ExitRemote();
+            await ExitRemote(ct);
             return;
         }
 
@@ -111,7 +111,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         if (isAlt) _altDown = key.Down;
     }
 
-    private void EnterRemote(int y)
+    private async Task EnterRemote(int y, CancellationToken ct)
     {
         _parkX = _edgeX - 2;
         _parkY = y;
@@ -121,13 +121,17 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         LowLevelHooks.Swallow = true;
         PInvoke.SetCursorPos(_parkX, _parkY);
         Console.WriteLine("Remote-Modus an");
+
+        ushort entryY = (ushort)(Math.Clamp((double)y / _screenHeight, 0, 1) * ushort.MaxValue);
+        await connection.SendAsync(MessageType.SwitchToClient, new SwitchToClient(entryY).ToPayload(), ct);
     }
 
-    private void ExitRemote()
+    private async Task ExitRemote(CancellationToken ct)
     {
         _remote = false;
         LowLevelHooks.Swallow = false;
         PInvoke.SetCursorPos(_edgeX - 5, _parkY);
         Console.WriteLine("Remote-Modus aus");
+        await connection.SendAsync(MessageType.SwitchToHost, ReadOnlyMemory<byte>.Empty, ct);
     }
 }

@@ -60,6 +60,21 @@ public class LayoutGeometryTests
         Assert.Equal((ushort)65535, x);
     }
 
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(2240, 720)]
+    [InlineData(4480, 1440)]
+    public void DenormalizeFromVirtualDesktop_InvertsNormalize(int x, int y)
+    {
+        var monitors = new[] { Pc, Notebook };
+        var (nx, ny) = LayoutGeometry.NormalizeToVirtualDesktop(monitors, x, y);
+        var (rx, ry) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, nx, ny);
+
+        // Normierung auf 16 Bit kostet höchstens einen Pixel Genauigkeit
+        Assert.InRange(rx, x - 1, x + 1);
+        Assert.InRange(ry, y - 1, y + 1);
+    }
+
     [Fact]
     public void NormalizeToVirtualDesktop_EmptyList_ReturnsZero()
     {
