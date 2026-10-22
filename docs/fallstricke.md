@@ -6,5 +6,6 @@ Fallstricke, die beide Seiten betreffen. Was nur eine Seite betrifft, steht bei 
 - **Relativ oder absolut senden** bestimmt maßgeblich, wie sich die Maus anfühlt. Früh im Durchstich ausprobieren.
 - **Hängende Tasten:** Beim Wechsel auf der alten Seite Key-Up für alle gedrückten Tasten nachsenden.
 - **Nicht abfangbar:** `Strg+Alt+Entf`. `Win+L` sperrt immer den lokalen Rechner.
+- **RDP:** In einer Remotedesktop-Sitzung funktioniert der Host nicht. RDP spielt die Maus über einen eigenen Kanal als absolute Position ein; ein Low-Level-Hook verschluckt sie nicht, und `SetCursorPos` wird vom RDP-Client ständig zurückgesetzt. Der Host muss in der echten Konsolensitzung laufen. Zum Testen gilt dasselbe wie für den Betrieb.
 - **EDR und Virenscanner:** Globale Tastatur-Hooks plus Eingabe-Injection sehen aus wie ein Keylogger. Auf Firmengeräten vorher mit der IT klären.
 - **Interop über CsWin32** statt handgeschriebener P/Invoke-Signaturen. Die Liste der benötigten APIs steht in `source/InputFusion.Core/NativeMethods.txt`.

@@ -17,9 +17,9 @@ Fallstricke, die auch den Host betreffen, etwa hängende Tasten und nicht abfang
 Der Host läuft im Durchstich als Konsolenprogramm (`AllocConsole`) und lauscht als TCP-Server, abweichend vom Zielbild, in dem der Client sich verbindet. Das vereinfacht den ersten Test.
 
 - Start: `InputFusion.Host.exe`, optional `--absolute` für absolutes statt relatives Senden (zum Vergleich des Mausgefühls).
-- Wechsel in den Remote-Modus an der festen rechten Kante des Hauptmonitors. Dann parkt der Cursor, die Bewegung geht als Delta an den Client, lokale Eingaben werden verschluckt.
+- Wechsel in den Remote-Modus an der rechten Kante des **gesamten Monitorverbunds** (virtueller Desktop), nicht der des Hauptmonitors. Dann parkt der Cursor in der Mitte und wird nach jeder Bewegung dorthin zurückgesetzt, damit er nicht am Rand ansteht; die Bewegung geht als Delta an den Client, lokale Eingaben werden verschluckt.
 - Beim Wechsel sendet der Host `SwitchToClient` mit der Eintrittshöhe, beim Zurückwechseln `SwitchToHost`.
-- Zurück: Cursor nach links über die Kante schieben oder `Strg+Alt+F12`.
+- Zurück: `Strg+Alt+F12`. Das layoutabhängige Austreten an der linken Kante kommt mit Phase 3, weil dafür die Monitore des Clients bekannt sein müssen.
 - Bricht die Verbindung ab, endet der Remote-Modus sofort, damit die lokale Eingabe nicht verschluckt bleibt.
 - Ohne zweiten Rechner lässt sich das mit dem [Simulator](simulator.md) testen.
 - Noch offen: kein Multimonitor-Layout, Austritt und Parken grob, hängende Modifier beim Wechsel werden noch nicht nachgesendet.

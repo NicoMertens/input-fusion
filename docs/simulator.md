@@ -29,4 +29,6 @@ Der Simulator verbindet sich neu, sobald der Host wieder erreichbar ist.
 
 Das Mausgefühl auf dem echten Notebook (Zeigerbeschleunigung und DPI beim Abspielen), alles aus dem Dienst und dem Injector des [Clients](client.md), EDR-Verhalten und echte WLAN-Latenz. Dafür bleibt der Test mit zwei Rechnern nötig.
 
+**Nicht über RDP testen.** Der Simulator läuft über RDP, der Host aber nicht (siehe [Fallstricke](fallstricke.md)). Der Test auf einem Rechner muss direkt an der Konsole stattfinden.
+
 **Vorsicht beim Test auf einem Rechner:** Im Remote-Modus verschluckt der Host die lokale Eingabe. Zurück kommt man durch Bewegen nach links über die Kante oder mit `Strg+Alt+F12`. Bricht die Verbindung ab, etwa weil der Simulator geschlossen wird, verlässt der Host den Remote-Modus von selbst.

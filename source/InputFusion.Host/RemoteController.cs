@@ -6,26 +6,31 @@ using InputFusion.Core.Protocol;
 namespace InputFusion.Host;
 
 /// <summary>
-/// Durchstich-Logik für Phase 1: An der festen rechten Bildschirmkante wird in den Remote-Modus
-/// gewechselt, danach parkt der Cursor und die Bewegung geht als Delta an den Client. Zurück geht
-/// es durch Bewegen nach links über die Kante oder per Strg+Alt+F12.
-/// Noch kein Multimonitor-Layout, kein TLS; das sind spätere Phasen.
+/// Durchstich-Logik für Phase 1: An der rechten Kante des gesamten Monitorverbunds wird in den
+/// Remote-Modus gewechselt. Danach parkt der Cursor in der Mitte des Hauptmonitors und wird nach
+/// jeder Bewegung dorthin zurückgesetzt, damit er nicht am Desktop-Rand ansteht und weiter Deltas
+/// liefert. Zurück nur per Strg+Alt+F12 oder Verbindungsabbruch; das layoutabhängige Austreten an
+/// der Kante kommt mit Phase 3. Kein TLS; das ist Phase 4.
 /// </summary>
 internal sealed class RemoteController(MessageConnection connection, bool absolute)
 {
     private const ushort VkF12 = 0x7B;
 
-    private int _edgeX, _screenWidth, _screenHeight;
-    private int _parkX, _parkY;
+    private int _edgeX, _desktopWidth, _desktopHeight, _desktopLeft, _desktopTop;
+    private int _parkX, _parkY, _lastX, _lastY, _margin;
     private double _virtualX, _virtualY;
     private bool _remote;
     private bool _ctrlDown, _altDown;
 
     public async Task RunAsync(CancellationToken ct)
     {
-        _screenWidth = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXSCREEN);
-        _screenHeight = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CYSCREEN);
-        _edgeX = _screenWidth - 1;
+        _desktopLeft = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_XVIRTUALSCREEN);
+        _desktopTop = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_YVIRTUALSCREEN);
+        _desktopWidth = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXVIRTUALSCREEN);
+        _desktopHeight = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CYVIRTUALSCREEN);
+        _edgeX = _desktopLeft + _desktopWidth - 1;
+        _margin = Math.Min(_desktopWidth, _desktopHeight) / 4;
+        Console.WriteLine($"Rechte Kante bei x={_edgeX} (Desktop {_desktopWidth}x{_desktopHeight} ab {_desktopLeft},{_desktopTop}).");
 
         await foreach (var e in LowLevelHooks.Events.ReadAllAsync(ct))
         {
@@ -58,24 +63,22 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
             return;
         }
 
-        int dx = move.X - _parkX;
-        int dy = move.Y - _parkY;
+        // Delta zum letzten Punkt, nicht zur Mitte: Während die Eingabe verschluckt wird, friert der Cursor
+        // in der Mitte ein, aber die gemeldete Position summiert alle Bewegungen auf. Gegen die Mitte zu
+        // rechnen würde deshalb doppelt zählen.
+        int dx = move.X - _lastX;
+        int dy = move.Y - _lastY;
+        _lastX = move.X;
+        _lastY = move.Y;
         if (dx == 0 && dy == 0)
             return;
 
-        _virtualX += dx;
-        _virtualY += dy;
-        if (_virtualX <= 0)
-        {
-            await ExitRemote(ct);
-            return;
-        }
-        _virtualY = Math.Clamp(_virtualY, 0, _screenHeight);
-
         if (absolute)
         {
-            ushort nx = (ushort)(Math.Clamp(_virtualX / _screenWidth, 0, 1) * ushort.MaxValue);
-            ushort ny = (ushort)(Math.Clamp(_virtualY / _screenHeight, 0, 1) * ushort.MaxValue);
+            _virtualX = Math.Clamp(_virtualX + dx, 0, _desktopWidth);
+            _virtualY = Math.Clamp(_virtualY + dy, 0, _desktopHeight);
+            ushort nx = (ushort)(_virtualX / _desktopWidth * ushort.MaxValue);
+            ushort ny = (ushort)(_virtualY / _desktopHeight * ushort.MaxValue);
             await connection.SendAsync(MessageType.MouseMoveAbsolute, new MouseMoveAbsolute(nx, ny).ToPayload(), ct);
         }
         else
@@ -85,7 +88,13 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
                                       (short)Math.Clamp(dy, short.MinValue, short.MaxValue)).ToPayload(), ct);
         }
 
-        PInvoke.SetCursorPos(_parkX, _parkY);
+        // Nur zurücksetzen, wenn der Cursor zu weit aus der Mitte läuft, sonst stünde er bald am Rand an.
+        if (Math.Abs(move.X - _parkX) > _margin || Math.Abs(move.Y - _parkY) > _margin)
+        {
+            PInvoke.SetCursorPos(_parkX, _parkY);
+            _lastX = _parkX;
+            _lastY = _parkY;
+        }
     }
 
     private async Task HandleKey(KeyInputEvent key, CancellationToken ct)
@@ -113,16 +122,18 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
 
     private async Task EnterRemote(int y, CancellationToken ct)
     {
-        _parkX = _edgeX - 2;
-        _parkY = y;
-        _virtualX = 100;
-        _virtualY = y;
+        _parkX = _desktopLeft + _desktopWidth / 2;
+        _parkY = _desktopTop + _desktopHeight / 2;
+        _lastX = _parkX;
+        _lastY = _parkY;
+        _virtualX = 0;
+        _virtualY = Math.Clamp(y - _desktopTop, 0, _desktopHeight);
         _remote = true;
         LowLevelHooks.Swallow = true;
         PInvoke.SetCursorPos(_parkX, _parkY);
-        Console.WriteLine("Remote-Modus an");
+        Console.WriteLine("Remote-Modus an (Strg+Alt+F12 zurueck)");
 
-        ushort entryY = (ushort)(Math.Clamp((double)y / _screenHeight, 0, 1) * ushort.MaxValue);
+        ushort entryY = (ushort)(_virtualY / _desktopHeight * ushort.MaxValue);
         await connection.SendAsync(MessageType.SwitchToClient, new SwitchToClient(entryY).ToPayload(), ct);
     }
 
