@@ -12,4 +12,7 @@ public enum MessageType : byte
     SwitchToClient = 7,
     SwitchToHost = 8,
     Monitors = 9,
+
+    /// <summary>Client → Host: Der Cursor hat die Kante des Clients erreicht, der Host soll zurück übernehmen.</summary>
+    SwitchBackRequest = 10,
 }

@@ -21,7 +21,7 @@ Der Host läuft im Durchstich als Konsolenprogramm (`AllocConsole`) und lauscht 
 - **Diagnose:** `--diag` kapert die Maus und misst nach jedem `SetCursorPos`, ob der Zeiger an der Parkposition bleibt, und wie weit er aus der Mitte läuft. Die Werte stehen in der Konsole und in `%TEMP%\inputfusion-diag.log`. Damit wurde belegt, dass `SetCursorPos` über RDP greift, die Bewegung aber absolut geliefert wird.
 - Wechsel in den Remote-Modus an der rechten Kante des **gesamten Monitorverbunds** (virtueller Desktop), nicht der des Hauptmonitors. Dann parkt der Cursor in der Mitte und wird nach jeder Bewegung dorthin zurückgesetzt, damit er nicht am Rand ansteht; die Bewegung geht als Delta an den Client, lokale Eingaben werden verschluckt.
 - Beim Wechsel sendet der Host `SwitchToClient` mit der Eintrittshöhe, beim Zurückwechseln `SwitchToHost`.
-- Zurück: `Strg+Alt+F12`. Das layoutabhängige Austreten an der linken Kante kommt mit Phase 3, weil dafür die Monitore des Clients bekannt sein müssen.
+- Zurück: `Strg+Alt+F12`, oder der **Client meldet** mit `SwitchBackRequest`, dass sein Cursor die linke Kante erreicht hat. Der Austritt gehört zum Client, weil nur er seine Monitore kennt. Die volle layoutabhängige Zuordnung (welche Kante wohin führt) kommt mit Phase 3.
 - Bricht die Verbindung ab, endet der Remote-Modus sofort, damit die lokale Eingabe nicht verschluckt bleibt.
 - Ohne zweiten Rechner lässt sich das mit dem [Simulator](simulator.md) testen.
 - Noch offen: kein Multimonitor-Layout, Austritt und Parken grob, hängende Modifier beim Wechsel werden noch nicht nachgesendet.

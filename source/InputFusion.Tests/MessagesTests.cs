@@ -47,6 +47,17 @@ public class MessagesTests
     }
 
     [Fact]
+    public void SwitchBackRequest_HasNoPayload()
+    {
+        // Client → Host: reiner Typ ohne Nutzlast, muss sich als leerer Frame rahmen lassen
+        var reader = new FrameReader();
+        reader.Append(FrameCodec.Write(MessageType.SwitchBackRequest, []));
+        Assert.True(reader.TryRead(out var type, out var payload));
+        Assert.Equal(MessageType.SwitchBackRequest, type);
+        Assert.Empty(payload);
+    }
+
+    [Fact]
     public void MouseButton_RoundTrips()
     {
         var button = new MouseButton(2, ButtonState.Up);

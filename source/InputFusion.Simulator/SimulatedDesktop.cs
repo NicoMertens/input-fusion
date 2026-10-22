@@ -15,7 +15,9 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
 
     private readonly Lock _lock = new();
     private readonly SortedSet<string> _pressed = [];
+    private readonly int _leftEdge = monitors.Min(m => m.Left);
     private int _x, _y;
+    private bool _exitRequested;
 
     public IReadOnlyList<MonitorRect> Monitors => monitors;
 
@@ -24,6 +26,18 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
     public long MoveCount { get; private set; }
 
     public event Action<string>? Logged;
+
+    /// <summary>Gibt einmal true zurück, nachdem der Cursor die linke Kante erreicht hat: der Host soll zurück übernehmen.</summary>
+    public bool TryTakeExitRequest()
+    {
+        lock (_lock)
+        {
+            if (!_exitRequested)
+                return false;
+            _exitRequested = false;
+            return true;
+        }
+    }
 
     public (int X, int Y, bool Active, string[] Pressed, long Moves) Snapshot()
     {
@@ -42,7 +56,8 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
                     Active = true;
                     var leftmost = monitors.MinBy(m => m.Left);
                     var (_, vy) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, 0, SwitchToClient.FromPayload(payload).Y);
-                    _x = leftmost.Left;
+                    // einen Pixel innerhalb der Kante, sonst meldet der erste Move sofort wieder den Austritt
+                    _x = leftmost.Left + 1;
                     _y = Math.Clamp(vy, leftmost.Top, leftmost.Bottom - 1);
                     log = $"Steuerung übernommen, Eintritt bei ({_x}, {_y})";
                     break;
@@ -58,6 +73,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
                     var rel = MouseMoveRelative.FromPayload(payload);
                     MoveTo(_x + rel.Dx, _y + rel.Dy);
                     MoveCount++;
+                    log = CheckLeftEdge();
                     break;
 
                 case MessageType.MouseMoveAbsolute:
@@ -65,6 +81,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
                     var (ax, ay) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, abs.X, abs.Y);
                     MoveTo(ax, ay);
                     MoveCount++;
+                    log = CheckLeftEdge();
                     break;
 
                 case MessageType.MouseButton:
@@ -97,15 +114,30 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
             Logged?.Invoke(log);
     }
 
-    /// <summary>Wie Windows: Ein Punkt außerhalb aller Monitore wird je Achse an der letzten gültigen Position gehalten.</summary>
+    private string? CheckLeftEdge()
+    {
+        if (!Active || _x > _leftEdge)
+            return null;
+        Active = false;
+        _exitRequested = true;
+        return "Am linken Rand angekommen, zurück an den Host";
+    }
+
+    /// <summary>
+    /// Liegt das Ziel auf einem Monitor, dorthin. Sonst an die Kante des aktuellen Monitors klemmen,
+    /// damit der Cursor die Kante wirklich erreicht (sonst löst der Austritt links nie aus).
+    /// </summary>
     private void MoveTo(int x, int y)
     {
         if (LayoutGeometry.MonitorAt(monitors, x, y) is not null)
+        {
             (_x, _y) = (x, y);
-        else if (LayoutGeometry.MonitorAt(monitors, x, _y) is not null)
-            _x = x;
-        else if (LayoutGeometry.MonitorAt(monitors, _x, y) is not null)
-            _y = y;
+            return;
+        }
+
+        var current = LayoutGeometry.MonitorAt(monitors, _x, _y) ?? monitors[0];
+        _x = Math.Clamp(x, current.Left, current.Right - 1);
+        _y = Math.Clamp(y, current.Top, current.Bottom - 1);
     }
 
     private void Toggle(string name, bool down)

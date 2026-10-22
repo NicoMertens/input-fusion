@@ -114,7 +114,11 @@ public partial class MainWindow : Window
                     await ReceiveDelayedAsync(conn, ct);
                 else
                     await foreach (var (type, payload) in conn.ReceiveAsync(ct))
+                    {
                         _desktop.Apply(type, payload);
+                        if (_desktop.TryTakeExitRequest())
+                            await conn.SendAsync(MessageType.SwitchBackRequest, default, ct);
+                    }
 
                 _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  Verbindung vom Host beendet");
             }
@@ -143,6 +147,8 @@ public partial class MainWindow : Window
                 if (wait > TimeSpan.Zero)
                     await Task.Delay(wait, ct);
                 _desktop.Apply(type, payload);
+                if (_desktop.TryTakeExitRequest())
+                    await conn.SendAsync(MessageType.SwitchBackRequest, default, ct);
             }
         }, ct);
 

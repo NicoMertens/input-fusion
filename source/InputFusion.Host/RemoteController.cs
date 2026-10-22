@@ -20,7 +20,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
     private int _edgeX, _desktopWidth, _desktopHeight, _desktopLeft, _desktopTop;
     private int _parkX, _parkY, _lastX, _lastY, _margin;
     private double _virtualX, _virtualY;
-    private bool _remote;
+    private volatile bool _remote;
     private bool _ctrlDown, _altDown;
 
     private int _recenters, _held, _maxDrift;
@@ -38,8 +38,13 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         if (diag)
             Console.WriteLine($"Diagnose aktiv, Protokoll in {_diagPath}. Maus an die rechte Kante bewegen.");
 
-        await foreach (var e in LowLevelHooks.Events.ReadAllAsync(ct))
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var incoming = Task.Run(() => PumpIncoming(linked));
+
+        try
         {
+            await foreach (var e in LowLevelHooks.Events.ReadAllAsync(linked.Token))
+            {
             switch (e)
             {
                 case MouseMoveEvent move:
@@ -54,9 +59,42 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
                         new MouseWheel(wheel.Delta, wheel.Horizontal).ToPayload(), ct);
                     break;
                 case KeyInputEvent key:
-                    await HandleKey(key, ct);
+                    await HandleKey(key, linked.Token);
                     break;
+                }
             }
+        }
+        finally
+        {
+            LowLevelHooks.Swallow = false;
+            linked.Cancel();
+            await incoming;
+        }
+    }
+
+    /// <summary>Liest die Gegenrichtung: Der Client meldet mit <see cref="MessageType.SwitchBackRequest"/>, dass er die Kante erreicht hat.</summary>
+    private async Task PumpIncoming(CancellationTokenSource linked)
+    {
+        try
+        {
+            await foreach (var (type, _) in connection.ReceiveAsync(linked.Token))
+            {
+                if (type == MessageType.SwitchBackRequest && _remote)
+                {
+                    _remote = false;
+                    LowLevelHooks.Swallow = false;
+                    PInvoke.SetCursorPos(_edgeX - 5, _parkY);
+                    Console.WriteLine("Remote-Modus aus (Client an der Kante)");
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or OperationCanceledException)
+        {
+        }
+        finally
+        {
+            LowLevelHooks.Swallow = false;
+            linked.Cancel();
         }
     }
 

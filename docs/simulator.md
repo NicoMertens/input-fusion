@@ -24,6 +24,7 @@ Der Simulator verbindet sich neu, sobald der Host wieder erreichbar ist.
 - **Eintritt:** Bei `SwitchToClient` erscheint der Cursor an der linken Kante des linken Monitors, auf der vom Host gemeldeten Höhe.
 - **Bewegung:** Relative Bewegungen werden wie unter Windows an den Monitorgrenzen festgehalten. Absolute Bewegungen werden über die [Normierung](layout.md) zurückgerechnet.
 - **Gedrückte Tasten:** Bleibt beim `SwitchToHost` etwas gedrückt, steht das als Warnung im Protokoll. So fallen hängende Tasten sofort auf, siehe [Fallstricke](fallstricke.md).
+- **Austritt links:** Erreicht der Cursor die linke Kante des linken Monitors, meldet der Simulator das dem Host (`SwitchBackRequest`), und der Host übernimmt zurück. So lässt sich der Hin- und Rückweg testen, ohne Hotkey.
 
 ## Was er nicht testet
 
