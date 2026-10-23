@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using InputFusion.Core.Config;
 using InputFusion.Core.Layout;
 
 namespace InputFusion.Simulator;
@@ -7,9 +8,10 @@ namespace InputFusion.Simulator;
 /// Startparameter:
 /// <c>--host &lt;name&gt;</c> (Standard localhost),
 /// <c>--monitors "x,y,b,h[,dpi];…"</c> (simulierte Monitore des Clients),
-/// <c>--delay &lt;ms&gt;</c> (künstliche Latenz je Nachricht).
+/// <c>--delay &lt;ms&gt;</c> (künstliche Latenz je Nachricht),
+/// <c>--key &lt;schlüssel&gt;</c> (Standard: der Schlüssel aus der Konfiguration des Hosts auf diesem Rechner).
 /// </summary>
-internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> Monitors, int DelayMs)
+internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> Monitors, int DelayMs, string Key)
 {
     private const string DefaultMonitors = "0,0,1920,1200,144;1920,-240,2560,1440,96";
 
@@ -18,6 +20,7 @@ internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> 
         string host = "localhost";
         string monitors = DefaultMonitors;
         int delay = 0;
+        string? key = null;
 
         for (int i = 0; i + 1 < args.Count; i += 2)
         {
@@ -26,11 +29,17 @@ internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> 
                 case "--host": host = args[i + 1]; break;
                 case "--monitors": monitors = args[i + 1]; break;
                 case "--delay": delay = int.Parse(args[i + 1], CultureInfo.InvariantCulture); break;
+                case "--key": key = args[i + 1]; break;
                 default: throw new ArgumentException($"Unbekannter Parameter {args[i]}");
             }
         }
 
-        return new SimulatorOptions(host, ParseMonitors(monitors), delay);
+        // Host und Simulator laufen beim Entwickeln meist auf demselben Rechner und unter demselben Benutzer.
+        key ??= HostConfig.TryLoad()?.Key;
+        if (string.IsNullOrEmpty(key))
+            throw new ArgumentException($"Kein Schlüssel: --key angeben oder den Host auf diesem Rechner einmal starten ({HostConfig.FilePath}).");
+
+        return new SimulatorOptions(host, ParseMonitors(monitors), delay, key);
     }
 
     private static List<MonitorRect> ParseMonitors(string spec)

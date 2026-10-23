@@ -5,14 +5,14 @@ Bis zum WiX-Installer richten PowerShell-Skripte unter `build/` die Rechner ein.
 ## Client auf dem Notebook
 
 ```
-powershell -ExecutionPolicy Bypass -File .\install-client.ps1 -HostName PC-NAME [-Ip 192.168.1.10] [-Source <Ordner>]
+powershell -ExecutionPolicy Bypass -File .\install-client.ps1 -HostName PC-NAME -Key <Schlüssel> [-Ip 192.168.1.10] [-Source <Ordner>]
 ```
 
 Das Skript
 
 1. stoppt einen vorhandenen Dienst `InputFusionClient` und beendet laufende Client-Prozesse,
 2. kopiert die Dateien nach `%ProgramFiles%\InputFusion\Client`. Dort darf nur ein Administrator schreiben; das ist wichtig, weil der Dienst die exe als SYSTEM ausführt.
-3. schreibt `%ProgramData%\InputFusion\client.json` mit `host` und optional `ip`, ACL nur SYSTEM und Administratoren, ohne Vererbung,
+3. schreibt `%ProgramData%\InputFusion\client.json` mit `host`, `key` und optional `ip`, ACL nur SYSTEM und Administratoren, ohne Vererbung. Den Schlüssel zeigen die [Einstellungen](einstellungen.md) des Hosts im Reiter Verbindung; er muss mindestens 16 Zeichen haben.
 4. legt den Dienst an (LocalSystem, Start automatisch, Neustart nach Absturz nach 5 s, 5 s, 30 s) und startet ihn.
 
 `-Source` ist der Ordner mit `InputFusion.Client.exe`. Ohne Angabe nimmt das Skript seinen eigenen Ordner, falls die exe dort liegt, sonst die Build-Ausgabe im Repo (`_out/InputFusion.Client`). Zum Übertragen aufs Notebook genügt es also, die Skripte in den Ordner mit den Client-Dateien zu legen.
@@ -22,6 +22,7 @@ Die Konfiguration liest der Dienst vor jedem Verbindungsversuch neu, eine Änder
 ```json
 {
   "host": "PC-NAME",
+  "key": "<Schlüssel aus den Einstellungen des Hosts>",
   "ip": "192.168.1.10"
 }
 ```

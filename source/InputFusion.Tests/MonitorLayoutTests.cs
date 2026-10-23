@@ -1,4 +1,4 @@
-using InputFusion.Core.Layout;
+﻿using InputFusion.Core.Layout;
 
 namespace InputFusion.Tests;
 

@@ -107,6 +107,12 @@ public partial class MainWindow : Window
                 _connection = $"Verbinde zu {_options.Host}:{Ports.Input} …";
                 await tcp.ConnectAsync(_options.Host, Ports.Input, ct);
                 using var conn = MessageConnection.FromTcp(tcp);
+                if (!await Handshake.ClientAsync(conn, _options.Key, ct))
+                {
+                    _connection = $"{_options.Host}:{Ports.Input} hat die Anmeldung abgelehnt, stimmt der Schlüssel? Neuer Versuch …";
+                    await Task.Delay(3000, ct);
+                    continue;
+                }
                 _connection = $"Verbunden mit {_options.Host}:{Ports.Input}";
                 _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  {_connection}");
 

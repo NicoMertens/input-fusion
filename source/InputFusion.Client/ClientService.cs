@@ -34,17 +34,28 @@ internal static class ClientService
                 problem = connectError;
                 if (tcp is not null)
                 {
+                    bool accepted;
                     using (tcp)
                     using (var conn = MessageConnection.FromTcp(tcp))
                     {
-                        log($"Mit dem Host {tcp.Client.RemoteEndPoint} verbunden.");
-                        await new PipeRelay(conn, log).RunAsync(ct);
+                        accepted = await Handshake.ClientAsync(conn, config.Key, ct);
+                        if (accepted)
+                        {
+                            log($"Mit dem Host {tcp.Client.RemoteEndPoint} verbunden.");
+                            await new PipeRelay(conn, log).RunAsync(ct);
+                        }
                     }
-                    if (!ct.IsCancellationRequested)
-                        log("Verbindung zum Host beendet, verbinde neu.");
-                    delay = MinRetryDelay;
-                    lastProblem = null;
-                    continue;
+                    if (accepted)
+                    {
+                        if (!ct.IsCancellationRequested)
+                            log("Verbindung zum Host beendet, verbinde neu.");
+                        delay = MinRetryDelay;
+                        lastProblem = null;
+                        continue;
+                    }
+                    // Falscher Schlüssel: wie ein nicht erreichbarer Host mit wachsendem Abstand neu versuchen,
+                    // damit eine Korrektur in client.json ohne Neustart greift.
+                    problem = $"Host {config.Host} hat die Anmeldung abgelehnt oder sich nicht ausgewiesen; stimmt der Schlüssel?";
                 }
             }
 

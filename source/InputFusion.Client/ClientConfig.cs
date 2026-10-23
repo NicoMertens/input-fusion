@@ -7,9 +7,10 @@ namespace InputFusion.Client;
 /// <summary>
 /// Konfiguration des Dienstes in <c>%ProgramData%\InputFusion\client.json</c>, ACL nur für SYSTEM und
 /// Administratoren (setzt das Installationsskript). <see cref="Host"/> ist der Rechnername des PCs, per DNS
-/// aufgelöst; <see cref="Ip"/> eine optionale feste Adresse, die zusätzlich versucht wird.
+/// aufgelöst; <see cref="Ip"/> eine optionale feste Adresse, die zusätzlich versucht wird. <see cref="Key"/> ist
+/// der gemeinsame Schlüssel aus den Einstellungen des Hosts, siehe <c>Handshake</c>.
 /// </summary>
-public sealed record ClientConfig(string Host, string? Ip = null)
+public sealed record ClientConfig(string Host, string Key, string? Ip = null)
 {
     public static string FilePath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "InputFusion", "client.json");
@@ -25,6 +26,11 @@ public sealed record ClientConfig(string Host, string? Ip = null)
             if (config is null || string.IsNullOrWhiteSpace(config.Host))
             {
                 error = $"{FilePath}: \"host\" fehlt";
+                return null;
+            }
+            if (string.IsNullOrEmpty(config.Key))
+            {
+                error = $"{FilePath}: \"key\" fehlt";
                 return null;
             }
             error = null;

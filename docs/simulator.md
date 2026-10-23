@@ -8,7 +8,7 @@ Damit lässt sich der ganze Ablauf auf einem einzigen Rechner testen. Host und S
 
 ```
 InputFusion.Host.exe
-InputFusion.Simulator.exe [--host <name>] [--monitors "x,y,b,h[,dpi];…"] [--delay <ms>]
+InputFusion.Simulator.exe [--host <name>] [--monitors "x,y,b,h[,dpi];…"] [--delay <ms>] [--key <schlüssel>]
 ```
 
 | Parameter | Standard | Bedeutung |
@@ -16,6 +16,7 @@ InputFusion.Simulator.exe [--host <name>] [--monitors "x,y,b,h[,dpi];…"] [--de
 | `--host` | `localhost` | Rechnername oder IP des Hosts |
 | `--monitors` | `0,0,1920,1200,144;1920,-240,2560,1440,96` | simulierte Monitore in physischen Pixeln, je Monitor `x,y,breite,höhe` und optional die DPI |
 | `--delay` | `0` | künstliche Latenz je Nachricht in Millisekunden, etwa zum Nachstellen von WLAN |
+| `--key` | aus `%LOCALAPPDATA%\InputFusion\config.json` | gemeinsamer Schlüssel für die [Anmeldung](netzwerk.md); ohne Angabe der des Hosts auf diesem Rechner und Benutzer |
 
 Der Simulator verbindet sich neu, sobald der Host wieder erreichbar ist.
 

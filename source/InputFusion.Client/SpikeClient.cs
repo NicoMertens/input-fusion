@@ -11,7 +11,7 @@ namespace InputFusion.Client;
 /// </summary>
 internal static class SpikeClient
 {
-    public static async Task RunAsync(string host)
+    public static async Task RunAsync(string host, string key)
     {
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
@@ -20,6 +20,11 @@ internal static class SpikeClient
         Console.WriteLine($"Verbinde zu {host}:{Ports.Input}...");
         await tcp.ConnectAsync(host, Ports.Input, cts.Token);
         using var conn = MessageConnection.FromTcp(tcp);
+        if (!await Handshake.ClientAsync(conn, key, cts.Token))
+        {
+            Console.WriteLine("Anmeldung abgelehnt; stimmt der Schlüssel?");
+            return;
+        }
         var dispatcher = new InputDispatcher(new InputPlayer());
         Console.WriteLine("Verbunden. Spiele Eingaben ab. Strg+C beendet.");
 

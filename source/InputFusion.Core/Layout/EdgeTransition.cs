@@ -1,4 +1,4 @@
-namespace InputFusion.Core.Layout;
+﻿namespace InputFusion.Core.Layout;
 
 /// <summary>
 /// Ein Kantenabschnitt, an dem die Maus vom Host auf den Client wechselt. <paramref name="Side"/> ist die

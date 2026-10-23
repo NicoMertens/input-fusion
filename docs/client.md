@@ -16,7 +16,7 @@ Worker Service mit `AddWindowsService()`, LocalSystem, Starttyp automatisch.
   3. `CreateProcessAsUser` auf die eigene exe mit `--injector` und `lpDesktop = "winsta0\\default"`.
 
   Die exe ist eine Konsolenanwendung, damit der Dienst beim Entwickeln ins Terminal loggt. Deshalb braucht der Start `CREATE_NO_WINDOW`, sonst öffnet sich in der Benutzersitzung ein Konsolenfenster.
-- **Konfiguration** in `%ProgramData%\InputFusion\client.json` (Rechnername des PCs, optional feste IP), ACL nur für SYSTEM und Administratoren. Der Dienst ist ihr einziger Besitzer; die [Einstellungen](einstellungen.md) ändern sie später nur über IPC. Bis dahin schreibt sie das Installationsskript, siehe [Installation](installation.md).
+- **Konfiguration** in `%ProgramData%\InputFusion\client.json` (Rechnername des PCs, gemeinsamer Schlüssel, optional feste IP), ACL nur für SYSTEM und Administratoren. Der Dienst ist ihr einziger Besitzer; die [Einstellungen](einstellungen.md) ändern sie später nur über IPC. Bis dahin schreibt sie das Installationsskript, siehe [Installation](installation.md).
 - **`Strg+Alt+Entf`** optional über `SendSAS` (sas.dll). Setzt die Richtlinie *SoftwareSASGeneration* voraus, die Diensten das erlauben muss.
 
 ## Injector
@@ -28,7 +28,7 @@ Worker Service mit `AddWindowsService()`, LocalSystem, Starttyp automatisch.
 
 ## Stand Phase 1 (Durchstich)
 
-Im Durchstich läuft der Client als einfaches Konsolenprogramm: `InputFusion.Client.exe --connect <host>`. Es verbindet sich zum Host, empfängt die Eingaben und spielt sie direkt mit `SendInput` ab. Damit lässt sich das Mausgefühl früh testen, ohne Dienst, Sitzungswechsel und Desktop-Wechsel.
+Im Durchstich läuft der Client als einfaches Konsolenprogramm: `InputFusion.Client.exe --connect <host> --key <schlüssel>`. Es verbindet sich zum Host, empfängt die Eingaben und spielt sie direkt mit `SendInput` ab. Damit lässt sich das Mausgefühl früh testen, ohne Dienst, Sitzungswechsel und Desktop-Wechsel.
 
 ## Stand Phase 2 (Schritt 1: IPC und Injector)
 
@@ -43,7 +43,7 @@ Die Aufteilung in Dienst und Injector ist begonnen. Umgesetzt und über Unit-Tes
 
 Der Client läuft als Windows-Dienst `InputFusionClient`, eingerichtet per Skript, siehe [Installation](installation.md).
 
-- **Ein Ablauf für Dienst und Entwicklung:** `ClientService` hält den Injector am Leben (`InjectorSupervisor`) und die Verbindung zum Host, mit Neuverbindung. Im Dienst kommt die Host-Adresse aus `client.json`, und der Injector startet per `CreateProcessAsUser` als SYSTEM in der aktiven Sitzung (`SessionLauncher`), wie oben unter [Dienst](#dienst) beschrieben. Mit `--relay <host>` läuft derselbe Ablauf als Konsole, mit dem Host aus dem Argument und dem Injector als Kindprozess. Ohne Argument aus einer Konsole gestartet, läuft der Dienst-Ablauf sichtbar mit, aber ebenfalls mit Kindprozess, weil nur SYSTEM die Sitzung eines Tokens umsetzen darf.
+- **Ein Ablauf für Dienst und Entwicklung:** `ClientService` hält den Injector am Leben (`InjectorSupervisor`) und die Verbindung zum Host, mit Neuverbindung. Im Dienst kommt die Host-Adresse aus `client.json`, und der Injector startet per `CreateProcessAsUser` als SYSTEM in der aktiven Sitzung (`SessionLauncher`), wie oben unter [Dienst](#dienst) beschrieben. Mit `--relay <host> --key <schlüssel>` läuft derselbe Ablauf als Konsole, mit Host und Schlüssel aus den Argumenten und dem Injector als Kindprozess. Ohne Argument aus einer Konsole gestartet, läuft der Dienst-Ablauf sichtbar mit, aber ebenfalls mit Kindprozess, weil nur SYSTEM die Sitzung eines Tokens umsetzen darf.
 - **Verifiziert auf dem PC** mit einem Test-Host: Dienst per Skript installiert, Injector läuft in Sitzung 1, Dienst in Sitzung 0; Verbindung nach Start des Hosts innerhalb des Wiederholungsabstands; Austritt über Dienst und Injector kommt beim Host an; nach Verbindungsabbruch neu verbunden; ein beendeter Injector wird binnen einer Sekunde neu gestartet und übernimmt die Pipe; Deinstallation ohne Reste.
 - **Noch offen:** der Desktop-Wechsel für Sperrbildschirm und UAC-Abfrage (siehe [Injector](#injector)); der Test des Sitzungswechsels (Abmelden, Benutzerwechsel) am Notebook; die Prüfung, dass der SYSTEM-Injector nur mit dem eigenen Dienst spricht. Bisher könnte ein Prozess, der die Pipe vor dem Dienst anlegt, dem Injector Eingaben unterschieben.
 

@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using Windows.Win32;
 using Windows.Win32.UI.WindowsAndMessaging;
+using InputFusion.Core.Config;
 using InputFusion.Core.Net;
 
 namespace InputFusion.Host;
@@ -23,7 +24,8 @@ internal static class Program
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
-        Console.WriteLine($"InputFusion Host auf Port {Ports.Input}. Modus: {(absolute ? "absolut" : "relativ")}"
+        var config = HostConfig.LoadOrCreate();
+        Console.WriteLine($"InputFusion Host auf Port {Ports.Input}, Schlüssel {config.Key} (aus {HostConfig.FilePath}). Modus: {(absolute ? "absolut" : "relativ")}"
             + $"{(observe ? ", Beobachtung (kapert die Maus nicht)" : "")}"
             + $"{(diag ? ", Diagnose" : "")}{(remoteSession ? " [RDP erkannt]" : "")}.");
 
@@ -50,14 +52,28 @@ internal static class Program
                 listener.Stop();
             }
 
-            await ServeAsync(tcp, absolute, observe, diag, cts.Token);
+            await ServeAsync(tcp, config.Key, absolute, observe, diag, cts.Token);
         }
     }
 
-    private static async Task ServeAsync(TcpClient tcp, bool absolute, bool observe, bool diag, CancellationToken ct)
+    private static async Task ServeAsync(TcpClient tcp, string key, bool absolute, bool observe, bool diag, CancellationToken ct)
     {
         using var _ = tcp;
         using var conn = MessageConnection.FromTcp(tcp);
+        bool accepted;
+        try
+        {
+            accepted = await Handshake.HostAsync(conn, key, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        if (!accepted)
+        {
+            Console.WriteLine($"Client {tcp.Client.RemoteEndPoint} abgewiesen: Anmeldung mit dem Schlüssel fehlgeschlagen.");
+            return;
+        }
         Console.WriteLine($"Client {tcp.Client.RemoteEndPoint} verbunden. Rechte Kante wechselt, Strg+Alt+F11 schaltet hier um (Test), "
             + "Strg+Alt+F12 zurueck, Strg+C beendet.");
 

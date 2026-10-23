@@ -12,6 +12,9 @@
 .PARAMETER HostName
     Rechnername des PCs mit dem InputFusion-Host, wird per DNS aufgelöst.
 
+.PARAMETER Key
+    Gemeinsamer Schlüssel aus den Einstellungen des Hosts (Reiter Verbindung), mindestens 16 Zeichen.
+
 .PARAMETER Ip
     Optionale feste IP des PCs, die zusätzlich zum DNS-Ergebnis versucht wird.
 
@@ -20,15 +23,17 @@
     sonst die Build-Ausgabe im Repo (_out\InputFusion.Client).
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File .\install-client.ps1 -HostName PC-NAME
+    powershell -ExecutionPolicy Bypass -File .\install-client.ps1 -HostName PC-NAME -Key <Schlüssel>
 #>
 param(
     [Parameter(Mandatory = $true)][string]$HostName,
+    [Parameter(Mandatory = $true)][string]$Key,
     [string]$Ip,
     [string]$Source
 )
 
 $ErrorActionPreference = 'Stop'
+if ($Key.Length -lt 16) { throw 'Der Schlüssel braucht mindestens 16 Zeichen.' }
 $serviceName = 'InputFusionClient'
 $target = Join-Path $env:ProgramFiles 'InputFusion\Client'
 $configDir = Join-Path $env:ProgramData 'InputFusion'
@@ -62,7 +67,7 @@ Copy-Item -Path (Join-Path $Source '*') -Destination $target -Recurse -Force
 # Konfiguration schreiben, ACL nur SYSTEM und Administratoren (Vererbung aus).
 New-Item -ItemType Directory -Path $configDir -Force | Out-Null
 $configFile = Join-Path $configDir 'client.json'
-$config = [ordered]@{ host = $HostName }
+$config = [ordered]@{ host = $HostName; key = $Key }
 if ($Ip) { $config.ip = $Ip }
 $json = $config | ConvertTo-Json
 [System.IO.File]::WriteAllText($configFile, $json, (New-Object System.Text.UTF8Encoding $false))

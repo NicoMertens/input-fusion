@@ -1,4 +1,4 @@
-namespace InputFusion.Core.Layout;
+﻿namespace InputFusion.Core.Layout;
 
 /// <summary>Eine Kante eines Monitors. Die Werte gehen als Byte über das Netz und bleiben deshalb fest.</summary>
 public enum EdgeSide : byte

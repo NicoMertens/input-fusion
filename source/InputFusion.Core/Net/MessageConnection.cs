@@ -68,6 +68,10 @@ public sealed class MessageConnection : IDisposable
     public async IAsyncEnumerable<(MessageType Type, byte[] Payload)> ReceiveAsync(
         [EnumeratorCancellation] CancellationToken ct = default)
     {
+        // Frames, die beim vorigen Lesen schon mitkamen (etwa direkt nach der Anmeldung), zuerst ausliefern.
+        while (_reader.TryRead(out var bufferedType, out var bufferedPayload))
+            yield return (bufferedType, bufferedPayload);
+
         var buffer = new byte[4096];
         while (!ct.IsCancellationRequested)
         {
