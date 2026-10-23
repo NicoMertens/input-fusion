@@ -26,3 +26,10 @@ RAWINPUT
 WM_INPUT
 HWND_MESSAGE
 RID_DEVICE_INFO_TYPE
+WTSGetActiveConsoleSessionId
+OpenProcessToken
+DuplicateTokenEx
+SetTokenInformation
+CreateProcessAsUser
+GetCurrentProcess
+CloseHandle

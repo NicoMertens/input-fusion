@@ -27,10 +27,20 @@ public sealed class MessageConnection : IDisposable
         _owner = owner;
     }
 
-    /// <summary>Über einer TCP-Verbindung mit abgeschaltetem Nagle-Algorithmus (kleine Pakete sofort senden).</summary>
+    /// <summary>
+    /// Über einer TCP-Verbindung mit abgeschaltetem Nagle-Algorithmus (kleine Pakete sofort senden) und
+    /// Keepalive. Ohne Keepalive bemerkt eine Seite, die nur liest, nie, dass die andere weg ist, etwa nach
+    /// Standby oder Netzwechsel des Notebooks: Der Client verbände sich nie neu. So fällt eine stille
+    /// Verbindung nach rund 11 s auf (5 s Ruhe, dann 3 Proben im Abstand von 2 s).
+    /// </summary>
     public static MessageConnection FromTcp(TcpClient client)
     {
         client.NoDelay = true;
+        var socket = client.Client;
+        socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+        socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, 5);
+        socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, 2);
+        socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3);
         return new MessageConnection(client.GetStream(), client);
     }
 
