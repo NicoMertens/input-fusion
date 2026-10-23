@@ -26,6 +26,8 @@ internal static class Injector
 
         InputPlayer player = new InputPlayer();
         InputDispatcher dispatcher = new InputDispatcher(player);
+        // Abgespielt wird auf einem eigenen Thread, der dem Eingabe-Desktop folgt: Sperrbildschirm, Anmeldung, UAC.
+        using PlaybackThread playback = new PlaybackThread();
         Console.WriteLine($"Injector gestartet. Warte auf Pipe \\\\.\\pipe\\{InputPipe.Name}. Strg+C beendet.");
 
         // Bricht die Pipe ab (Dienst neu gestartet, Sitzungswechsel), erneut verbinden. Nach jedem Abbruch
@@ -46,10 +48,13 @@ internal static class Injector
                     // Den Austritt an der Kante meldet der Injector über die Pipe; der Dienst reicht ihn weiter.
                     await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(cts.Token))
                     {
-                        if (dispatcher.Dispatch(type, payload) is { } exit)
+                        playback.Post(() =>
                         {
-                            await conn.SendAsync(MessageType.SwitchBackRequest, exit.ToPayload(), cts.Token);
-                        }
+                            if (dispatcher.Dispatch(type, payload) is { } exit)
+                            {
+                                _ = SendExitAsync(conn, exit, cts.Token);
+                            }
+                        });
                     }
                 }
                 finally
@@ -67,7 +72,7 @@ internal static class Injector
                 // Pipe weg; gleich neu verbinden.
             }
 
-            player.ReleaseAll();
+            playback.Post(player.ReleaseAll);
             if (!cts.IsCancellationRequested)
             {
                 try { await Task.Delay(500, cts.Token); }
@@ -75,7 +80,19 @@ internal static class Injector
             }
         }
 
-        player.ReleaseAll();
+        playback.Post(player.ReleaseAll);
         Console.WriteLine("Injector beendet.");
+    }
+
+    /// <summary>Vom Abspiel-Thread aus, ohne auf das Senden zu warten; eine weggebrochene Pipe merkt die Empfangsschleife.</summary>
+    private static async Task SendExitAsync(MessageConnection conn, SwitchBackRequest exit, CancellationToken ct)
+    {
+        try
+        {
+            await conn.SendAsync(MessageType.SwitchBackRequest, exit.ToPayload(), ct);
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or OperationCanceledException)
+        {
+        }
     }
 }

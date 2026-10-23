@@ -47,11 +47,21 @@ Der Client läuft als Windows-Dienst `InputFusionClient`, eingerichtet per Skrip
 
 - **Ein Ablauf für Dienst und Entwicklung:** `ClientService` hält den Injector am Leben (`InjectorSupervisor`) und die Verbindung zum Host, mit Neuverbindung. Im Dienst kommt die Host-Adresse aus `client.json`, und der Injector startet per `CreateProcessAsUser` als SYSTEM in der aktiven Sitzung (`SessionLauncher`), wie oben unter [Dienst](#dienst) beschrieben. Mit `--relay <host> --key <schlüssel>` läuft derselbe Ablauf als Konsole, mit Host und Schlüssel aus den Argumenten und dem Injector als Kindprozess. Ohne Argument aus einer Konsole im Installationsordner gestartet, läuft der Dienst-Ablauf sichtbar mit (anderswo fragt die exe stattdessen, ob sie sich installieren soll), aber ebenfalls mit Kindprozess, weil nur SYSTEM die Sitzung eines Tokens umsetzen darf.
 - **Verifiziert auf dem PC** mit einem Test-Host: Dienst per Skript installiert, Injector läuft in Sitzung 1, Dienst in Sitzung 0; Verbindung nach Start des Hosts innerhalb des Wiederholungsabstands; Austritt über Dienst und Injector kommt beim Host an; nach Verbindungsabbruch neu verbunden; ein beendeter Injector wird binnen einer Sekunde neu gestartet und übernimmt die Pipe; Deinstallation ohne Reste.
-- **Noch offen:** der Desktop-Wechsel für Sperrbildschirm und UAC-Abfrage (siehe [Injector](#injector)); der Test des Sitzungswechsels (Abmelden, Benutzerwechsel) am Notebook; die Prüfung, dass der SYSTEM-Injector nur mit dem eigenen Dienst spricht. Bisher könnte ein Prozess, der die Pipe vor dem Dienst anlegt, dem Injector Eingaben unterschieben.
+- **Noch offen:** der Test des Sitzungswechsels (Abmelden, Benutzerwechsel) am Notebook; die Prüfung, dass der SYSTEM-Injector nur mit dem eigenen Dienst spricht. Bisher könnte ein Prozess, der die Pipe vor dem Dienst anlegt, dem Injector Eingaben unterschieben.
 
 ## Updates
 
 Der Dienst aktualisiert sich selbst aus den GitHub-Releases, ohne Velopack; Ablauf, Prüfsumme und Rückfall auf die alte Version stehen unter [Updates](updates.md#client). Weicht die Protokollversion des Hosts ab, sucht er sofort.
+
+## Stand: Desktop-Wechsel
+
+Umgesetzt wie unter [Injector](#injector) geplant, weil am gesperrten Notebook Maus und Tastatur nichts taten: Sperrbildschirm und Anmeldung liegen auf dem Desktop „Winlogon“, `SendInput` wirkt aber nur auf den Desktop des aufrufenden Threads.
+
+- **Eigener Abspiel-Thread** (`PlaybackThread`): Der Injector empfängt weiter asynchron, spielt aber alles auf einem festen Thread ab (Eingaben, Cursor setzen, `GetCursorPos` für die Rückkehrkanten, Tasten lösen). `SetThreadDesktop` wirkt pro Thread, und asynchroner Code springt zwischen Threadpool-Threads. Der Thread hat weder Fenster noch Hooks, sonst verweigert Windows den Wechsel. Eine Ausnahme beim Abspielen eines Ereignisses beendet ihn nicht.
+- **Folgen** (`InputDesktop.Follow`): vor jedem Ereignis, höchstens alle 200 ms, `OpenInputDesktop` mit vollen Rechten; heißt der Eingabe-Desktop anders als der des Threads, `SetThreadDesktop`. Den vorher geöffneten Desktop schließt er erst danach. Der Austritt über eine Rückkehrkante geht vom Abspiel-Thread aus an die Pipe, ohne auf das Senden zu warten.
+- **Nur als SYSTEM:** Als Benutzer verweigert Windows den Zugriff auf „Winlogon“. Mit `--relay` oder `--connect` als Benutzer bleibt der Sperrbildschirm deshalb weiter unerreichbar; der installierte Dienst startet den Injector als SYSTEM.
+- **`Strg+Alt+Entf`** lässt sich so nicht einspielen. Verlangt das Notebook es zum Entsperren (Richtlinie „Interaktive Anmeldung: Kein STRG+ALT+ENTF erforderlich“ aus, auf Firmengeräten üblich), braucht es weiter `SendSAS`, siehe [Dienst](#dienst).
+- **Noch nicht am Notebook geprüft.**
 
 ## Selbstinstallation
 

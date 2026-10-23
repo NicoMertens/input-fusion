@@ -69,3 +69,8 @@ ConvertStringSecurityDescriptorToSecurityDescriptor
 LocalFree
 PIPE_UNLIMITED_INSTANCES
 SDDL_REVISION_1
+OpenInputDesktop
+GetThreadDesktop
+SetThreadDesktop
+CloseDesktop
+GetUserObjectInformation
