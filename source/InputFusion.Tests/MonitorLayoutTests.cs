@@ -69,6 +69,22 @@ public class MonitorLayoutTests
     }
 
     [Fact]
+    public void TryLeaveHost_PushOnEdgePixelWithoutMovement_Leaves()
+    {
+        // Windows hat die Zielposition auf den Rand geklemmt: Ereignis ohne Bewegung auf dem Randpixel.
+        var layout = new MonitorLayout(Host, Client, HostRight.Right, -200);
+        Assert.True(layout.TryLeaveHost(HostRight.Right - 1, 500, 0, 0, out _, out var entry));
+        Assert.Equal((0, 700), entry);
+    }
+
+    [Fact]
+    public void TryLeaveHost_StillInsideTheMonitor_StaysOnHost()
+    {
+        var layout = new MonitorLayout(Host, Client, HostRight.Right, -200);
+        Assert.False(layout.TryLeaveHost(HostRight.Right - 2, 500, 0, 0, out _, out _));
+    }
+
+    [Fact]
     public void TryLeaveHost_ClientAbove_EntersAtBottomOfClient()
     {
         // Notebook über dem linken Host-Monitor, links bündig.

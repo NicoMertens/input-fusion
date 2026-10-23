@@ -102,6 +102,9 @@ public sealed class MonitorLayout
     public bool TryLeaveHost(int x, int y, int dx, int dy, out EdgeTransition transition, out (int X, int Y) clientPoint)
     {
         int px = x - dx, py = y - dy;
+        // Klemmt Windows die Zielposition schon auf den Rand, kommt beim Drücken gegen die Kante ein Ereignis ganz
+        // ohne Bewegung an. Das zählt auf dem Randpixel als Drücken nach außen, eine Bewegung entlang der Kante nicht.
+        bool still = dx == 0 && dy == 0;
         foreach (var t in Transitions)
         {
             var h = t.HostMonitor;
@@ -110,10 +113,10 @@ public sealed class MonitorLayout
 
             bool crossing = t.Side switch
             {
-                EdgeSide.Right => dx > 0 && x >= h.Right - 1 && py >= t.From && py < t.To,
-                EdgeSide.Left => dx < 0 && x <= h.Left && py >= t.From && py < t.To,
-                EdgeSide.Bottom => dy > 0 && y >= h.Bottom - 1 && px >= t.From && px < t.To,
-                _ => dy < 0 && y <= h.Top && px >= t.From && px < t.To,
+                EdgeSide.Right => (dx > 0 || still) && x >= h.Right - 1 && py >= t.From && py < t.To,
+                EdgeSide.Left => (dx < 0 || still) && x <= h.Left && py >= t.From && py < t.To,
+                EdgeSide.Bottom => (dy > 0 || still) && y >= h.Bottom - 1 && px >= t.From && px < t.To,
+                _ => (dy < 0 || still) && y <= h.Top && px >= t.From && px < t.To,
             };
             if (!crossing)
                 continue;
