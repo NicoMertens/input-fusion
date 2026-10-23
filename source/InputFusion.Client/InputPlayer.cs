@@ -11,7 +11,7 @@ namespace InputFusion.Client;
 /// </summary>
 public sealed class InputPlayer
 {
-    private static readonly int InputSize = Marshal.SizeOf<INPUT>();
+    private static readonly int _inputSize = Marshal.SizeOf<INPUT>();
 
     // Was gerade gedrückt ist, damit sich beim Verbindungsabbruch alles lösen lässt (keine hängenden
     // Tasten). Einfädrig genutzt: ein Abspiel-Thread je Player.
@@ -114,6 +114,6 @@ public sealed class InputPlayer
     private void Send(INPUT input)
     {
         Span<INPUT> inputs = [input];
-        PInvoke.SendInput(inputs, InputSize);
+        PInvoke.SendInput(inputs, _inputSize);
     }
 }

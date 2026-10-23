@@ -5,16 +5,16 @@ namespace InputFusion.Client;
 
 /// <summary>
 /// Die Dienst-Rolle: hält den Injector am Leben und die Verbindung zum Host. Ist der Host nicht erreichbar
-/// oder bricht die Verbindung ab, wird es mit wachsendem Abstand bis <see cref="MaxRetryDelay"/> erneut
+/// oder bricht die Verbindung ab, wird es mit wachsendem Abstand bis <see cref="_maxRetryDelay"/> erneut
 /// versucht. Läuft im Windows-Dienst (<see cref="Worker"/>) und zum Entwickeln als Konsole (<c>--relay</c>).
 /// </summary>
 internal static class ClientService
 {
     public const string ServiceName = "InputFusionClient";
 
-    private static readonly TimeSpan MinRetryDelay = TimeSpan.FromSeconds(1);
-    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(15);
-    private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan _minRetryDelay = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan _maxRetryDelay = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(5);
 
     public delegate ClientConfig? ConfigLoader(out string? error);
 
@@ -22,7 +22,7 @@ internal static class ClientService
     {
         Task supervisor = new InjectorSupervisor(asService, log).RunAsync(ct);
 
-        TimeSpan delay = MinRetryDelay;
+        TimeSpan delay = _minRetryDelay;
         string? lastProblem = null;
         while (!ct.IsCancellationRequested)
         {
@@ -52,7 +52,7 @@ internal static class ClientService
                             log("Verbindung zum Host beendet, verbinde neu.");
                         }
 
-                        delay = MinRetryDelay;
+                        delay = _minRetryDelay;
                         lastProblem = null;
                         continue;
                     }
@@ -65,14 +65,14 @@ internal static class ClientService
             // Dieselbe Störung nur einmal melden, sonst läuft das Ereignisprotokoll über, solange der PC aus ist.
             if (problem != lastProblem)
             {
-                log($"{problem} Neuer Versuch spätestens alle {MaxRetryDelay.TotalSeconds:0} s.");
+                log($"{problem} Neuer Versuch spätestens alle {_maxRetryDelay.TotalSeconds:0} s.");
             }
 
             lastProblem = problem;
 
             try { await Task.Delay(delay, ct); }
             catch (OperationCanceledException) { break; }
-            delay = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, MaxRetryDelay.Ticks));
+            delay = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, _maxRetryDelay.Ticks));
         }
 
         await supervisor;
@@ -86,7 +86,7 @@ internal static class ClientService
         {
             TcpClient tcp = new TcpClient();
             using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(ConnectTimeout);
+            timeout.CancelAfter(_connectTimeout);
             try
             {
                 await tcp.ConnectAsync(target, Ports.Input, timeout.Token);

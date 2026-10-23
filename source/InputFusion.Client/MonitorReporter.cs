@@ -14,7 +14,7 @@ namespace InputFusion.Client;
 /// </summary>
 internal static class MonitorReporter
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(2);
 
     public static async Task RunAsync(MessageConnection connection, CancellationToken ct)
     {
@@ -29,7 +29,7 @@ internal static class MonitorReporter
                     await connection.SendAsync(MessageType.Monitors, MonitorList.ToPayload(monitors), ct);
                     last = monitors;
                 }
-                await Task.Delay(PollInterval, ct);
+                await Task.Delay(_pollInterval, ct);
             }
         }
         catch (Exception ex) when (ex is OperationCanceledException or IOException or SocketException or ObjectDisposedException)

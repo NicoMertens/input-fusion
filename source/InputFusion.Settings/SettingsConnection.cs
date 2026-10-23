@@ -13,7 +13,7 @@ namespace InputFusion.Settings;
 /// </summary>
 internal sealed class SettingsConnection(Dispatcher dispatcher)
 {
-    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan _retryDelay = TimeSpan.FromSeconds(1);
 
     private volatile MessageConnection? _connection;
 
@@ -28,7 +28,7 @@ internal sealed class SettingsConnection(Dispatcher dispatcher)
             try
             {
                 using NamedPipeClientStream pipe = SettingsPipe.CreateClient();
-                await pipe.ConnectAsync((int)RetryDelay.TotalMilliseconds, ct);
+                await pipe.ConnectAsync((int)_retryDelay.TotalMilliseconds, ct);
                 using MessageConnection connection = new MessageConnection(pipe);
                 _connection = connection;
                 Post(() => ConnectedChanged?.Invoke(true));
@@ -65,7 +65,7 @@ internal sealed class SettingsConnection(Dispatcher dispatcher)
                 _connection = null;
                 Post(() => ConnectedChanged?.Invoke(false));
             }
-            try { await Task.Delay(RetryDelay, ct); }
+            try { await Task.Delay(_retryDelay, ct); }
             catch (OperationCanceledException) { return; }
         }
     }

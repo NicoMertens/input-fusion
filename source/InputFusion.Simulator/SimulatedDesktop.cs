@@ -11,7 +11,7 @@ namespace InputFusion.Simulator;
 /// </summary>
 internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
 {
-    private static readonly string[] ButtonNames = ["Links", "Rechts", "Mitte", "X1", "X2"];
+    private static readonly string[] _buttonNames = ["Links", "Rechts", "Mitte", "X1", "X2"];
 
     private readonly Lock _lock = new();
     private readonly SortedSet<string> _pressed = [];
@@ -95,7 +95,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
 
                 case MessageType.MouseButton:
                     MouseButton button = MouseButton.FromPayload(payload);
-                    string name = $"Maus {(button.Button < ButtonNames.Length ? ButtonNames[button.Button] : button.Button.ToString())}";
+                    string name = $"Maus {(button.Button < _buttonNames.Length ? _buttonNames[button.Button] : button.Button.ToString())}";
                     Toggle(name, button.State == ButtonState.Down);
                     log = $"{name} {(button.State == ButtonState.Down ? "gedrückt" : "losgelassen")} bei ({_x}, {_y})";
                     break;
