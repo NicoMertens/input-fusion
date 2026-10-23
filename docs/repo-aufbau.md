@@ -2,7 +2,7 @@
 
 ## Ordner
 
-- **Im Wurzelverzeichnis** liegen nur `source/`, `docs/`, `README.md`, `global.json`, `.gitignore` und `.gitattributes`. Build- und Veröffentlichungsskripte kommen nach `build/` parallel zu `source/`, sobald es welche gibt.
+- **Im Wurzelverzeichnis** liegen nur `source/`, `docs/`, `build/`, `README.md`, `global.json`, `.editorconfig`, `.gitignore` und `.gitattributes`. Build- und Installationsskripte liegen in `build/` parallel zu `source/`.
 - **`source/`** enthält flach nebeneinander alle Projekte einschließlich der Testprojekte (`*.Tests`, kein eigener Unterordner), dazu `InputFusion.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `nuget.config`, das gemeinsame `app.manifest` und das Programmsymbol `InputFusion.ico` für Host und Einstellungen.
 - **`docs/`** enthält diese Doku, Einstieg und Regeln in [README.md](README.md).
 - **`_out/`** sammelt die Build-Ausgaben, parallel zu `source/`, je Projekt ein eigener Ordner (`_out/InputFusion.Host/` …) ohne Configuration- und TargetFramework-Unterordner. Wird erzeugt und ist per `.gitignore` ausgenommen; die Zwischendateien (`obj/`) bleiben beim jeweiligen Projekt.
@@ -10,7 +10,8 @@
 ## Build-Einstellungen
 
 - `global.json` liegt im Wurzelverzeichnis und legt das SDK auf .NET 10 fest. Das SDK sucht die Datei vom Arbeitsverzeichnis aufwärts, deshalb greift sie auch für `source/`.
-- `Directory.Build.props` setzt Nullable, ImplicitUsings und Nullable-Warnungen als Fehler und lenkt die Build-Ausgabe aller Projekte nach `_out/<Projektname>/` (siehe oben).
+- `Directory.Build.props` setzt Nullable, ImplicitUsings und Nullable-Warnungen als Fehler und lenkt die Build-Ausgabe aller Projekte nach `_out/<Projektname>/` (siehe oben). Mit `EnforceCodeStyleInBuild` meldet jeder Build Verstöße gegen die Stilregeln.
+- `.editorconfig` legt den Code-Stil fest und macht ihn zur Warnung: Zugriffsmodifizierer immer (IDE0040), explizite Typen statt `var` (IDE0008), geschweifte Klammern auch bei einzeiligen Blöcken (IDE0011), private Felder einschließlich `static readonly` als `_camelCase` und Konstanten in PascalCase (IDE1006). Bezeichner sind englisch, Kommentare deutsch. Bestehende Verstöße behebt `dotnet format style source --diagnostics <ID> --severity warn`; beim Typ-Umbau setzt es bei Dekonstruktionen und `out`-Variablen auch dort `?`, wo der Wert nie null ist, das ist danach von Hand zu bereinigen.
 - `Directory.Packages.props` verwaltet die Paketversionen zentral.
 - `nuget.config` kennt nur nuget.org, damit der Restore nicht von rechnerweit eingetragenen Feeds abhängt.
 
