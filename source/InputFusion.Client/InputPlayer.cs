@@ -21,6 +21,10 @@ public sealed class InputPlayer
     public void MoveRelative(short dx, short dy) =>
         SendMouse(dx, dy, 0, MOUSE_EVENT_FLAGS.MOUSEEVENTF_MOVE);
 
+    /// <summary>Setzt den Cursor genau auf den Eintrittspunkt. Über <c>SendInput</c> absolut ginge das nur auf
+    /// 0…65535 normiert und damit um einen Pixel ungenau, womöglich auf den Nachbarmonitor.</summary>
+    public void SetCursor(int x, int y) => PInvoke.SetCursorPos(x, y);
+
     public void MoveAbsolute(ushort x, ushort y) =>
         SendMouse(x, y, 0, MOUSE_EVENT_FLAGS.MOUSEEVENTF_MOVE
             | MOUSE_EVENT_FLAGS.MOUSEEVENTF_ABSOLUTE

@@ -37,12 +37,22 @@ internal static class Injector
                 await pipe.ConnectAsync(cts.Token);
                 using var conn = new MessageConnection(pipe);
                 Console.WriteLine("Mit dem Dienst verbunden, spiele Eingaben ab.");
+                using var session = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
+                var monitors = MonitorReporter.RunAsync(conn, session.Token);
 
-                // Den Austritt an der Kante meldet der Injector über die Pipe; der Dienst reicht ihn weiter.
-                await foreach (var (type, payload) in conn.ReceiveAsync(cts.Token))
+                try
                 {
-                    if (dispatcher.Dispatch(type, payload))
-                        await conn.SendAsync(MessageType.SwitchBackRequest, default, cts.Token);
+                    // Den Austritt an der Kante meldet der Injector über die Pipe; der Dienst reicht ihn weiter.
+                    await foreach (var (type, payload) in conn.ReceiveAsync(cts.Token))
+                    {
+                        if (dispatcher.Dispatch(type, payload) is { } exit)
+                            await conn.SendAsync(MessageType.SwitchBackRequest, exit.ToPayload(), cts.Token);
+                    }
+                }
+                finally
+                {
+                    session.Cancel();
+                    await monitors;
                 }
             }
             catch (OperationCanceledException)

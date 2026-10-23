@@ -15,9 +15,9 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
 
     private readonly Lock _lock = new();
     private readonly SortedSet<string> _pressed = [];
-    private readonly int _leftEdge = monitors.Min(m => m.Left);
     private int _x, _y;
-    private bool _exitRequested;
+    private ReturnEdge[] _returnEdges = [];
+    private SwitchBackRequest? _exitRequest;
 
     public IReadOnlyList<MonitorRect> Monitors => monitors;
 
@@ -27,15 +27,14 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
 
     public event Action<string>? Logged;
 
-    /// <summary>Gibt einmal true zurück, nachdem der Cursor die linke Kante erreicht hat: der Host soll zurück übernehmen.</summary>
-    public bool TryTakeExitRequest()
+    /// <summary>Liefert einmal den Austritt, nachdem der Cursor eine Rückkehrkante erreicht hat: der Host soll zurück übernehmen.</summary>
+    public SwitchBackRequest? TryTakeExitRequest()
     {
         lock (_lock)
         {
-            if (!_exitRequested)
-                return false;
-            _exitRequested = false;
-            return true;
+            var request = _exitRequest;
+            _exitRequest = null;
+            return request;
         }
     }
 
@@ -54,12 +53,16 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
             {
                 case MessageType.SwitchToClient:
                     Active = true;
-                    var leftmost = monitors.MinBy(m => m.Left);
-                    var (_, vy) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, 0, SwitchToClient.FromPayload(payload).Y);
-                    // einen Pixel innerhalb der Kante, sonst meldet der erste Move sofort wieder den Austritt
-                    _x = leftmost.Left + 1;
-                    _y = Math.Clamp(vy, leftmost.Top, leftmost.Bottom - 1);
+                    var entry = SwitchToClient.FromPayload(payload);
+                    MoveTo(entry.X, entry.Y);
                     log = $"Steuerung übernommen, Eintritt bei ({_x}, {_y})";
+                    break;
+
+                case MessageType.ReturnEdges:
+                    _returnEdges = ReturnEdgeList.FromPayload(payload);
+                    log = _returnEdges.Length == 0
+                        ? "Keine Rückkehrkanten"
+                        : "Rückkehrkanten: " + string.Join(", ", _returnEdges.Select(e => $"{e.Side} {e.Edge} [{e.From}, {e.To})"));
                     break;
 
                 case MessageType.Heartbeat:
@@ -76,15 +79,16 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
                     var rel = MouseMoveRelative.FromPayload(payload);
                     MoveTo(_x + rel.Dx, _y + rel.Dy);
                     MoveCount++;
-                    log = CheckLeftEdge();
+                    log = CheckExit(rel.Dx, rel.Dy);
                     break;
 
                 case MessageType.MouseMoveAbsolute:
                     var abs = MouseMoveAbsolute.FromPayload(payload);
                     var (ax, ay) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, abs.X, abs.Y);
+                    var (bx, by) = (_x, _y);
                     MoveTo(ax, ay);
                     MoveCount++;
-                    log = CheckLeftEdge();
+                    log = CheckExit(_x - bx, _y - by);
                     break;
 
                 case MessageType.MouseButton:
@@ -123,18 +127,19 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
         lock (_lock)
         {
             Active = false;
-            _exitRequested = false;
+            _exitRequest = null;
+            _returnEdges = [];
             _pressed.Clear();
         }
     }
 
-    private string? CheckLeftEdge()
+    private string? CheckExit(int dx, int dy)
     {
-        if (!Active || _x > _leftEdge)
+        if (!Active || ReturnEdge.Find(_returnEdges, _x, _y, dx, dy) is not { } edge)
             return null;
         Active = false;
-        _exitRequested = true;
-        return "Am linken Rand angekommen, zurück an den Host";
+        _exitRequest = new SwitchBackRequest(edge.Side, _x, _y);
+        return $"An der Rückkehrkante ({edge.Side}) angekommen, zurück an den Host";
     }
 
     /// <summary>

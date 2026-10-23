@@ -126,7 +126,7 @@ internal static class Program
         hooks.Start();
         try
         {
-            await new RemoteController(conn, absolute, observe, diag).RunAsync(ct);
+            await new RemoteController(conn, state, absolute, observe, diag).RunAsync(ct);
         }
         catch (Exception ex) when (ex is OperationCanceledException or IOException or SocketException)
         {

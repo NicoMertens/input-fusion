@@ -2,7 +2,7 @@
 
 Maus und Tastatur eines PCs steuern zusätzlich ein Notebook, wie Mouse Without Borders aus den PowerToys, aber schlanker und mit einem Layout je Monitor statt je Rechner. C# mit .NET 10, Einstellungen in WPF, nur Windows.
 
-**Stand:** Projektgerüst, noch keine Funktion.
+**Stand:** Durchstich: Host als Tray-Agent mit Einstellungen und Monitor-Layout, Client als Windows-Dienst, Anmeldung mit gemeinsamem Schlüssel. Noch ohne Verschlüsselung und ohne Installer.
 
 ## Aufbau
 
@@ -39,7 +39,7 @@ InputFusion.Host.exe            # oder --absolute zum Vergleich des Mausgefühls
 InputFusion.Client.exe --connect <pc-name-oder-ip> --key <schlüssel>
 ```
 
-Die Maus wechselt an der rechten Bildschirmkante des PCs auf das Notebook; zurück geht es nach links über die Kante oder mit `Strg+Alt+F12`. Der Host läuft als Tray-Symbol; den Schlüssel zeigen seine Einstellungen (Doppelklick auf das Symbol). Noch ohne Verschlüsselung und ohne Layout, nur zum Testen des Mausgefühls.
+Der Host läuft als Tray-Symbol; seine Einstellungen (Doppelklick auf das Symbol) zeigen PC-Name, IP und Schlüssel und im Reiter Anordnung die Monitore beider Rechner. Dort wird das Notebook an eine Kante der eigenen Monitore gezogen, anfangs liegt es rechts. An den anliegenden Kanten wechselt die Maus hin und zurück, außerdem zurück mit `Strg+Alt+F12`. Noch ohne Verschlüsselung.
 
 Ohne zweiten Rechner: `InputFusion.Simulator.exe` statt des Clients starten. Er zeigt die simulierten Monitore, den Cursor und die gedrückten Tasten in einem Fenster, siehe [`docs/simulator.md`](docs/simulator.md).
 

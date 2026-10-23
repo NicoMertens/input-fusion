@@ -1,24 +1,27 @@
 ﻿using System.IO;
 using Windows.Win32;
 using Windows.Win32.UI.WindowsAndMessaging;
+using InputFusion.Core.Layout;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
 
 namespace InputFusion.Host;
 
 /// <summary>
-/// Durchstich-Logik für Phase 1: An der rechten Kante des gesamten Monitorverbunds wird in den
-/// Remote-Modus gewechselt. Danach parkt der Cursor in der Mitte des virtuellen Desktops und bleibt
-/// dort eingefroren, weil der Hook die Eingabe verschluckt; die Bewegung kommt dann aus Raw Input. Zurück nur per Strg+Alt+F12 oder Verbindungsabbruch; das layoutabhängige Austreten an
-/// der Kante kommt mit Phase 3. Kein TLS; das ist Phase 4.
+/// Steuert eine Verbindung: Überschreitet die Maus eine Übergangskante aus dem <see cref="MonitorLayout"/>, wird in
+/// den Remote-Modus gewechselt. Danach parkt der Cursor in der Mitte des virtuellen Desktops und bleibt dort
+/// eingefroren, weil der Hook die Eingabe verschluckt; die Bewegung kommt dann aus Raw Input. Zurück über eine
+/// Rückkehrkante des Clients, per Strg+Alt+F12 oder bei Verbindungsabbruch. Kein TLS; das ist Phase 4.
 /// </summary>
-internal sealed class RemoteController(MessageConnection connection, bool absolute, bool observe, bool diag)
+internal sealed class RemoteController(MessageConnection connection, HostState state, bool absolute, bool observe, bool diag)
 {
     private const ushort VkF11 = 0x7A;
     private const ushort VkF12 = 0x7B;
 
-    private int _edgeX, _desktopWidth, _desktopHeight, _desktopLeft, _desktopTop;
+    private int _desktopWidth, _desktopHeight, _desktopLeft, _desktopTop;
     private int _parkX, _parkY;
+    // Wo der Host-Cursor beim Verlassen stand; dorthin kehrt er bei Strg+Alt+F12 oder Verbindungsabbruch zurück.
+    private int _returnX, _returnY;
     private double _virtualX, _virtualY;
     private volatile bool _remote;
     private bool _ctrlDown, _altDown;
@@ -39,15 +42,15 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         _desktopTop = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_YVIRTUALSCREEN);
         _desktopWidth = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXVIRTUALSCREEN);
         _desktopHeight = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CYVIRTUALSCREEN);
-        _edgeX = _desktopLeft + _desktopWidth - 1;
-        Log.Write($"Rechte Kante bei x={_edgeX} (Desktop {_desktopWidth}x{_desktopHeight} ab {_desktopLeft},{_desktopTop}).");
         if (diag)
-            Log.Write($"Diagnose aktiv, Protokoll in {_diagPath}. Maus an die rechte Kante bewegen.");
+            Log.Write($"Diagnose aktiv, Protokoll in {_diagPath}. Maus über eine Übergangskante bewegen.");
 
         // Alles läuft über ein gemeinsames Token: Endet die Verbindung oder schweigt der Client, bricht das
         // auch ein Senden ab, das im vollen Puffer hängt. Sonst blieben die Eingaben verschluckt.
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var token = linked.Token;
+        Action<MonitorLayout?> layoutChanged = layout => _ = SendReturnEdgesAsync(layout, token);
+        state.LayoutChanged += layoutChanged;
         var incoming = Task.Run(() => PumpIncoming(linked));
         var monitor = WatchClient(linked);
 
@@ -55,40 +58,53 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         {
             await foreach (var e in LowLevelHooks.Events.ReadAllAsync(token))
             {
-            switch (e)
-            {
-                case MouseMoveEvent move:
-                    await HandleMove(move, token);
-                    break;
-                case RawMouseMoveEvent raw when _remote && !observe:
-                    await SendMove(raw.Dx, raw.Dy, token);
-                    break;
-                case MouseButtonEvent button when _remote:
-                    await connection.SendAsync(MessageType.MouseButton,
-                        new MouseButton(button.Button, button.Down ? ButtonState.Down : ButtonState.Up).ToPayload(), token);
-                    break;
-                case MouseWheelEvent wheel when _remote:
-                    await connection.SendAsync(MessageType.MouseWheel,
-                        new MouseWheel(wheel.Delta, wheel.Horizontal).ToPayload(), token);
-                    break;
-                case KeyInputEvent key:
-                    await HandleKey(key, token);
-                    break;
+                switch (e)
+                {
+                    case MouseMoveEvent move:
+                        await HandleMove(move, token);
+                        break;
+                    case RawMouseMoveEvent raw when _remote && !observe:
+                        await SendMove(raw.Dx, raw.Dy, token);
+                        break;
+                    case MouseButtonEvent button when _remote:
+                        await connection.SendAsync(MessageType.MouseButton,
+                            new MouseButton(button.Button, button.Down ? ButtonState.Down : ButtonState.Up).ToPayload(), token);
+                        break;
+                    case MouseWheelEvent wheel when _remote:
+                        await connection.SendAsync(MessageType.MouseWheel,
+                            new MouseWheel(wheel.Delta, wheel.Horizontal).ToPayload(), token);
+                        break;
+                    case KeyInputEvent key:
+                        await HandleKey(key, token);
+                        break;
                 }
             }
         }
         finally
         {
+            state.LayoutChanged -= layoutChanged;
             LowLevelHooks.Swallow = false;
-            // Brach die Verbindung im Remote-Modus ab, die Maus an der Kante zurückgeben statt in der Mitte.
+            // Brach die Verbindung im Remote-Modus ab, die Maus dort zurückgeben, wo sie den Host verlassen hat.
             if (_remote)
             {
                 _remote = false;
-                PInvoke.SetCursorPos(_edgeX - 5, _parkY);
+                PInvoke.SetCursorPos(_returnX, _returnY);
             }
             linked.Cancel();
             await incoming;
             await monitor;
+        }
+    }
+
+    /// <summary>Schickt dem Client die Kanten, über die er zurückkehrt. Ohne Layout keine, dann bleibt nur Strg+Alt+F12.</summary>
+    private async Task SendReturnEdgesAsync(MonitorLayout? layout, CancellationToken ct)
+    {
+        try
+        {
+            await connection.SendAsync(MessageType.ReturnEdges, ReturnEdgeList.ToPayload(layout?.ReturnEdges ?? []), ct);
+        }
+        catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or OperationCanceledException or ObjectDisposedException)
+        {
         }
     }
 
@@ -103,20 +119,28 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         }
     }
 
-    /// <summary>Liest die Gegenrichtung: Der Client meldet mit <see cref="MessageType.SwitchBackRequest"/>, dass er die Kante erreicht hat.</summary>
+    /// <summary>Liest die Gegenrichtung: die Monitore des Clients und den Austritt über eine Rückkehrkante.</summary>
     private async Task PumpIncoming(CancellationTokenSource linked)
     {
         try
         {
-            await foreach (var (type, _) in connection.ReceiveAsync(linked.Token))
+            await foreach (var (type, payload) in connection.ReceiveAsync(linked.Token))
             {
-                if (type == MessageType.SwitchBackRequest && _remote)
+                if (type == MessageType.Monitors)
+                {
+                    state.ClientMonitorsReported(MonitorList.FromPayload(payload));
+                }
+                else if (type == MessageType.SwitchBackRequest && _remote)
                 {
                     _remote = false;
                     LowLevelHooks.Swallow = false;
                     await ReleaseClientKeysAsync(linked.Token);
-                    PInvoke.SetCursorPos(_edgeX - 5, _parkY);
-                    Log.Write("Remote-Modus aus (Client an der Kante)");
+                    var request = SwitchBackRequest.FromPayload(payload);
+                    var (x, y) = state.Layout is { } layout && layout.TryReturn(request.Side, request.X, request.Y, out var point)
+                        ? point
+                        : (_returnX, _returnY);
+                    PInvoke.SetCursorPos(x, y);
+                    Log.Write($"Remote-Modus aus (Client an der Kante {request.Side}), zurück bei ({x}, {y})");
                 }
             }
         }
@@ -134,8 +158,9 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
     {
         if (!_remote)
         {
-            if (move.X >= _edgeX)
-                await EnterRemote(move.X, move.Y, ct);
+            // Ohne gemeldete Client-Monitore gibt es kein Layout und damit keinen Übergang.
+            if (state.Layout is { } layout && layout.TryLeaveHost(move.X, move.Y, move.Dx, move.Dy, out _, out var entry))
+                await EnterRemote(entry, move.X - move.Dx, move.Y - move.Dy, ct);
             return;
         }
 
@@ -149,7 +174,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         // Beim Kapern kommt die Bewegung aus Raw Input (siehe RawMouse), der Hook verschluckt nur.
         // Der Cursor steht dabei nicht sicher im Parkpunkt: Eine Bewegung, die der Hook kurz vor dem
         // Umschalten noch durchgelassen hat, kann Windows erst nach dem SetCursorPos umsetzen. Dann friert
-        // er am rechten Rand ein. Deshalb hier zurück in die Mitte holen.
+        // er am Rand ein. Deshalb hier zurück in die Mitte holen.
         if (diag)
             Measure(move);
         else if (move.X - move.Dx != _parkX || move.Y - move.Dy != _parkY)
@@ -218,18 +243,23 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
             return;
         }
 
-        // Strg+Alt+F11: Remote an der aktuellen Cursorposition ein-/ausschalten. Zum Testen der Bewegung,
-        // wenn das Parken nicht greift (RDP): Maus vorher an den linken Rand setzen, dann bleibt Platz nach rechts.
+        // Strg+Alt+F11: Remote ein-/ausschalten, ohne die Kante zu treffen. Zum Testen, wenn das Parken nicht
+        // greift (RDP): Der Client-Cursor erscheint in der Mitte des ersten Übergangs.
         if (key.Down && _ctrlDown && _altDown && key.VirtualKey == VkF11)
         {
             if (_remote)
             {
                 await ExitRemote(ct);
             }
+            else if (state.Layout is { Transitions.Count: > 0 } layout)
+            {
+                var t = layout.Transitions[0];
+                PInvoke.GetCursorPos(out var p);
+                await EnterRemote(layout.EntryPoint(t, (t.From + t.To) / 2), p.X, p.Y, ct);
+            }
             else
             {
-                PInvoke.GetCursorPos(out var p);
-                await EnterRemote(p.X, p.Y, ct);
+                Log.Write("Strg+Alt+F11: noch kein Layout, der Client hat seine Monitore nicht gemeldet.");
             }
             return;
         }
@@ -281,29 +311,36 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         if (isAlt) _altDown = key.Down;
     }
 
-    private async Task EnterRemote(int x, int y, CancellationToken ct)
+    /// <summary>Wechselt auf den Client. <paramref name="entry"/> ist der Eintrittspunkt in dessen Koordinaten,
+    /// (<paramref name="hostX"/>, <paramref name="hostY"/>) die Stelle, an der der Host-Cursor zuletzt stand.</summary>
+    private async Task EnterRemote((int X, int Y) entry, int hostX, int hostY, CancellationToken ct)
     {
         _parkX = _desktopLeft + _desktopWidth / 2;
         _parkY = _desktopTop + _desktopHeight / 2;
-        _virtualX = 0;
-        _virtualY = Math.Clamp(y - _desktopTop, 0, _desktopHeight);
+        (_returnX, _returnY) = (hostX, hostY);
+        // Für den absoluten Vergleichsmodus: Startpunkt anteilig auf die Fläche des Hosts übertragen.
+        if (state.Layout is { } layout)
+        {
+            var (nx, ny) = LayoutGeometry.NormalizeToVirtualDesktop(layout.ClientMonitors, entry.X, entry.Y);
+            _virtualX = (double)nx / ushort.MaxValue * _desktopWidth;
+            _virtualY = (double)ny / ushort.MaxValue * _desktopHeight;
+        }
         _remote = true;
 
         if (observe)
         {
-            // Maus nicht kapern, nur die Deltas verfolgen. Zum Testen an den linken Rand setzen, damit
-            // nach rechts die volle Breite bleibt. Über RDP hält das evtl. nicht, dann hilft Strg+Alt+F11.
-            PInvoke.SetCursorPos(_desktopLeft + 2, y);
+            // Maus nicht kapern, nur die Deltas verfolgen. Zum Testen in die Mitte setzen, damit in jede Richtung
+            // Platz bleibt. Über RDP hält das evtl. nicht, dann hilft Strg+Alt+F11.
+            PInvoke.SetCursorPos(_parkX, _parkY);
         }
         else
         {
             LowLevelHooks.Swallow = true;
             PInvoke.SetCursorPos(_parkX, _parkY);
         }
-        Log.Write($"Remote-Modus an{(observe ? " (Beobachtung)" : "")} (Strg+Alt+F12 zurueck)");
+        Log.Write($"Remote-Modus an{(observe ? " (Beobachtung)" : "")}, Eintritt beim Client bei ({entry.X}, {entry.Y})");
 
-        ushort entryY = (ushort)(_virtualY / _desktopHeight * ushort.MaxValue);
-        await connection.SendAsync(MessageType.SwitchToClient, new SwitchToClient(entryY).ToPayload(), ct);
+        await connection.SendAsync(MessageType.SwitchToClient, new SwitchToClient(entry.X, entry.Y).ToPayload(), ct);
 
         // Modifier, die beim Übertreten gehalten werden (z. B. Umschalt beim Ziehen über die Kante, oder das
         // Strg+Alt des F11-Hotkeys), an den Client mitschicken, damit der Zustand drüben stimmt.
@@ -323,7 +360,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         _remote = false;
         LowLevelHooks.Swallow = false;
         await ReleaseClientKeysAsync(ct);
-        PInvoke.SetCursorPos(_edgeX - 5, _parkY);
+        PInvoke.SetCursorPos(_returnX, _returnY);
         Log.Write("Remote-Modus aus");
         await connection.SendAsync(MessageType.SwitchToHost, ReadOnlyMemory<byte>.Empty, ct);
     }

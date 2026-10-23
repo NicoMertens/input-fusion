@@ -22,10 +22,12 @@ Der Simulator verbindet sich neu, sobald der Host wieder erreichbar ist.
 
 ## Was er zeigt
 
-- **Eintritt:** Bei `SwitchToClient` erscheint der Cursor an der linken Kante des linken Monitors, auf der vom Host gemeldeten Höhe.
+- **Monitore:** Nach dem Verbinden meldet der Simulator seine simulierten Monitore (`--monitors`) wie ein echter Client. Damit erscheinen sie in den [Einstellungen](einstellungen.md) des Hosts und lassen sich dort anordnen; die Geräte-IDs heißen `SIM-1`, `SIM-2` usw.
+- **Eintritt:** Bei `SwitchToClient` erscheint der Cursor an dem Punkt, den der Host aus dem [Layout](layout.md) berechnet hat.
+- **Rückkehrkanten:** Jede neue Liste steht im Protokoll, etwa „Rückkehrkanten: Left 0 [0, 1200)“.
 - **Bewegung:** Relative Bewegungen werden wie unter Windows an den Monitorgrenzen festgehalten. Absolute Bewegungen werden über die [Normierung](layout.md) zurückgerechnet.
 - **Gedrückte Tasten:** Bleibt beim `SwitchToHost` etwas gedrückt, steht das als Warnung im Protokoll. So fallen hängende Tasten sofort auf, siehe [Fallstricke](fallstricke.md).
-- **Austritt links:** Erreicht der Cursor die linke Kante des linken Monitors, meldet der Simulator das dem Host (`SwitchBackRequest`), und der Host übernimmt zurück. So lässt sich der Hin- und Rückweg testen, ohne Hotkey.
+- **Austritt:** Erreicht der Cursor eine Rückkehrkante und drückt nach außen, meldet der Simulator das dem Host (`SwitchBackRequest`), und der Host übernimmt zurück. So lässt sich der Hin- und Rückweg testen, ohne Hotkey.
 
 ## Was er nicht testet
 

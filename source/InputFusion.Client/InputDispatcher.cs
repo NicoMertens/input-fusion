@@ -1,5 +1,5 @@
 ﻿using Windows.Win32;
-using Windows.Win32.UI.WindowsAndMessaging;
+using InputFusion.Core.Layout;
 using InputFusion.Core.Protocol;
 
 namespace InputFusion.Client;
@@ -7,23 +7,28 @@ namespace InputFusion.Client;
 /// <summary>
 /// Setzt empfangene Protokoll-Nachrichten in lokale Eingaben um. Geteilt zwischen dem Durchstich-Client
 /// (Phase 1, direkt über TCP, siehe <see cref="SpikeClient"/>) und dem Injector (Phase 2, über die Pipe).
-/// Erkennt außerdem den Austritt an der linken Kante, damit der Host zurück übernimmt.
+/// Erkennt außerdem den Austritt über eine der Rückkehrkanten, die der Host aus dem Layout schickt.
 /// </summary>
 public sealed class InputDispatcher(InputPlayer player)
 {
     // Zwischen SwitchToClient und dem Austritt bzw. SwitchToHost. Nur dann wird ein Austritt gemeldet,
     // damit Bewegungen, die nach dem Austritt noch unterwegs sind, ihn nicht ein zweites Mal auslösen.
     private bool _active;
+    private ReturnEdge[] _returnEdges = [];
 
-    /// <summary>Spielt die Nachricht ab. Gibt true zurück, wenn der Cursor dabei die linke Kante erreicht
-    /// hat; der Aufrufer meldet dann <see cref="MessageType.SwitchBackRequest"/> an den Host.</summary>
-    public bool Dispatch(MessageType type, byte[] payload)
+    /// <summary>Spielt die Nachricht ab. Erreicht der Cursor dabei eine Rückkehrkante, kommt der Austritt zurück;
+    /// der Aufrufer meldet ihn dann als <see cref="MessageType.SwitchBackRequest"/> an den Host.</summary>
+    public SwitchBackRequest? Dispatch(MessageType type, byte[] payload)
     {
         switch (type)
         {
+            case MessageType.ReturnEdges:
+                _returnEdges = ReturnEdgeList.FromPayload(payload);
+                break;
             case MessageType.SwitchToClient:
                 _active = true;
-                player.MoveAbsolute(0, SwitchToClient.FromPayload(payload).Y);
+                var entry = SwitchToClient.FromPayload(payload);
+                player.SetCursor(entry.X, entry.Y);
                 break;
             case MessageType.SwitchToHost:
                 _active = false;
@@ -31,11 +36,13 @@ public sealed class InputDispatcher(InputPlayer player)
             case MessageType.MouseMoveRelative:
                 var move = MouseMoveRelative.FromPayload(payload);
                 player.MoveRelative(move.Dx, move.Dy);
-                return move.Dx < 0 && TryExit();
+                return TryExit(move.Dx, move.Dy);
             case MessageType.MouseMoveAbsolute:
                 var abs = MouseMoveAbsolute.FromPayload(payload);
+                PInvoke.GetCursorPos(out var before);
                 player.MoveAbsolute(abs.X, abs.Y);
-                return TryExit();
+                PInvoke.GetCursorPos(out var after);
+                return TryExit(after.X - before.X, after.Y - before.Y);
             case MessageType.MouseButton:
                 player.Button(MouseButton.FromPayload(payload));
                 break;
@@ -46,21 +53,18 @@ public sealed class InputDispatcher(InputPlayer player)
                 player.Key(KeyEvent.FromPayload(payload));
                 break;
         }
-        return false;
+        return null;
     }
 
-    /// <summary>
-    /// Steht der Cursor am linken Rand des virtuellen Desktops, ist der Austritt fällig. Relativ nur bei
-    /// Bewegung nach links geprüft (siehe Aufrufer): Der Eintritt setzt den Cursor genau auf den Rand,
-    /// eine Bewegung nach rechts darf dort nicht sofort wieder austreten.
-    /// </summary>
-    private bool TryExit()
+    /// <summary>Windows hält den Cursor an der Monitorkante fest; steht er auf einer Rückkehrkante und drückt nach
+    /// außen, ist der Austritt fällig.</summary>
+    private SwitchBackRequest? TryExit(int dx, int dy)
     {
         if (!_active || !PInvoke.GetCursorPos(out var cursor))
-            return false;
-        if (cursor.X > PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_XVIRTUALSCREEN))
-            return false;
+            return null;
+        if (ReturnEdge.Find(_returnEdges, cursor.X, cursor.Y, dx, dy) is not { } edge)
+            return null;
         _active = false;
-        return true;
+        return new SwitchBackRequest(edge.Side, cursor.X, cursor.Y);
     }
 }

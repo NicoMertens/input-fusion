@@ -150,10 +150,11 @@ public partial class MainWindow : Window
 
         if (recenter)
         {
-            // Platz um die eigenen Monitore, damit sich das Notebook an jede Seite ziehen lässt.
+            // Platz um die eigenen Monitore, damit sich das Notebook an jede Seite ziehen lässt. Die halbe Größe des
+            // Notebooks genügt: Es liegt immer an, der Rest darf über den Rand ragen und wird abgeschnitten.
             int margin = client.Count == 0
                 ? host.Max(m => Math.Max(m.Width, m.Height)) / 3
-                : Math.Max(client.Max(m => m.Right) - client.Min(m => m.Left), client.Max(m => m.Bottom) - client.Min(m => m.Top));
+                : Math.Max(client.Max(m => m.Right) - client.Min(m => m.Left), client.Max(m => m.Bottom) - client.Min(m => m.Top)) / 2;
             _originX = host.Min(m => m.Left) - margin;
             _originY = host.Min(m => m.Top) - margin;
             Arrangement.Width = host.Max(m => m.Right) + margin - _originX;
@@ -193,14 +194,18 @@ public partial class MainWindow : Window
             Background = (Brush)FindResource(fill),
             BorderBrush = (Brush)FindResource(border),
             BorderThickness = new Thickness(unit * 0.5),
-            Child = new TextBlock
+            // Die Beschriftung passt sich dem Monitor an; eine Schriftgröße für alle wäre auf kleinen Monitoren abgeschnitten.
+            Child = new Viewbox
             {
-                Text = label,
-                Foreground = Brushes.White,
-                FontSize = unit * 3,
-                TextAlignment = TextAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
+                Stretch = Stretch.Uniform,
+                StretchDirection = StretchDirection.Both,
+                Margin = new Thickness(Math.Min(m.Width, m.Height) * 0.15),
+                Child = new TextBlock
+                {
+                    Text = label,
+                    Foreground = Brushes.White,
+                    TextAlignment = TextAlignment.Center,
+                },
             },
         };
         if (draggable)

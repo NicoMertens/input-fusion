@@ -113,6 +113,7 @@ public partial class MainWindow : Window
                     await Task.Delay(3000, ct);
                     continue;
                 }
+                await conn.SendAsync(MessageType.Monitors, MonitorList.ToPayload(_options.Monitors), ct);
                 _connection = $"Verbunden mit {_options.Host}:{Ports.Input}";
                 _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  {_connection}");
 
@@ -134,8 +135,8 @@ public partial class MainWindow : Window
                         await foreach (var (type, payload) in conn.ReceiveAsync(session.Token))
                         {
                             _desktop.Apply(type, payload);
-                            if (_desktop.TryTakeExitRequest())
-                                await conn.SendAsync(MessageType.SwitchBackRequest, default, session.Token);
+                            if (_desktop.TryTakeExitRequest() is { } exit)
+                                await conn.SendAsync(MessageType.SwitchBackRequest, exit.ToPayload(), session.Token);
                         }
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -175,8 +176,8 @@ public partial class MainWindow : Window
                 if (wait > TimeSpan.Zero)
                     await Task.Delay(wait, ct);
                 _desktop.Apply(type, payload);
-                if (_desktop.TryTakeExitRequest())
-                    await conn.SendAsync(MessageType.SwitchBackRequest, default, ct);
+                if (_desktop.TryTakeExitRequest() is { } exit)
+                    await conn.SendAsync(MessageType.SwitchBackRequest, exit.ToPayload(), ct);
             }
         }, ct);
 

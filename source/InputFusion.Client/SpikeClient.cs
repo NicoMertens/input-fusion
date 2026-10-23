@@ -29,6 +29,7 @@ internal static class SpikeClient
         Console.WriteLine("Verbunden. Spiele Eingaben ab. Strg+C beendet.");
 
         // Heartbeat zum Host, sonst trennt er nach dem Timeout. Schweigt der Host, endet der Client.
+        var monitors = MonitorReporter.RunAsync(conn, cts.Token);
         var monitor = Task.Run(async () =>
         {
             if (await conn.MonitorAsync(cts.Token))
@@ -41,8 +42,8 @@ internal static class SpikeClient
         {
             await foreach (var (type, payload) in conn.ReceiveAsync(cts.Token))
             {
-                if (dispatcher.Dispatch(type, payload))
-                    await conn.SendAsync(MessageType.SwitchBackRequest, default, cts.Token);
+                if (dispatcher.Dispatch(type, payload) is { } exit)
+                    await conn.SendAsync(MessageType.SwitchBackRequest, exit.ToPayload(), cts.Token);
             }
         }
         catch (Exception ex) when (ex is OperationCanceledException or IOException or SocketException)
@@ -50,6 +51,7 @@ internal static class SpikeClient
         }
         cts.Cancel();
         await monitor;
+        await monitors;
         Console.WriteLine("Verbindung beendet.");
     }
 }

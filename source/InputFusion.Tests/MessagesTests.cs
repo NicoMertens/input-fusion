@@ -1,4 +1,5 @@
-﻿using InputFusion.Core.Protocol;
+﻿using InputFusion.Core.Layout;
+using InputFusion.Core.Protocol;
 
 namespace InputFusion.Tests;
 
@@ -42,19 +43,35 @@ public class MessagesTests
     [Fact]
     public void SwitchToClient_RoundTrips()
     {
-        var sw = new SwitchToClient(40000);
+        // Negative Koordinaten kommen vor, wenn ein Monitor des Clients links vom Hauptmonitor steht.
+        var sw = new SwitchToClient(-1920, 40000);
         Assert.Equal(sw, SwitchToClient.FromPayload(sw.ToPayload()));
     }
 
     [Fact]
-    public void SwitchBackRequest_HasNoPayload()
+    public void SwitchBackRequest_RoundTrips()
     {
-        // Client → Host: reiner Typ ohne Nutzlast, muss sich als leerer Frame rahmen lassen
-        var reader = new FrameReader();
-        reader.Append(FrameCodec.Write(MessageType.SwitchBackRequest, []));
-        Assert.True(reader.TryRead(out var type, out var payload));
-        Assert.Equal(MessageType.SwitchBackRequest, type);
-        Assert.Empty(payload);
+        var request = new SwitchBackRequest(EdgeSide.Top, 800, -1);
+        Assert.Equal(request, SwitchBackRequest.FromPayload(request.ToPayload()));
+    }
+
+    [Fact]
+    public void MonitorList_RoundTrips()
+    {
+        MonitorRect[] monitors =
+        [
+            new(0, 0, 1920, 1200, 144, @"\\?\DISPLAY#LEN40A9#4&1b2c&0&UID265988#{e6f07b5f}"),
+            new(1920, -240, 2560, 1440, 96, "ÄÖÜ"),
+        ];
+        Assert.Equal(monitors, MonitorList.FromPayload(MonitorList.ToPayload(monitors)));
+    }
+
+    [Fact]
+    public void ReturnEdgeList_RoundTrips()
+    {
+        ReturnEdge[] edges = [new(EdgeSide.Left, 0, 0, 240), new(EdgeSide.Bottom, 1199, -100, 1920)];
+        Assert.Equal(edges, ReturnEdgeList.FromPayload(ReturnEdgeList.ToPayload(edges)));
+        Assert.Empty(ReturnEdgeList.FromPayload(ReturnEdgeList.ToPayload([])));
     }
 
     [Fact]

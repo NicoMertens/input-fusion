@@ -37,7 +37,7 @@ public class InputPipeTests
             }
         }, cts.Token);
 
-        await serverConn.SendAsync(MessageType.SwitchToClient, new SwitchToClient(12345).ToPayload(), cts.Token);
+        await serverConn.SendAsync(MessageType.SwitchToClient, new SwitchToClient(-1920, 12345).ToPayload(), cts.Token);
         await serverConn.SendAsync(MessageType.Key, new KeyEvent(65, 30, ButtonState.Down, false).ToPayload(), cts.Token);
         await serverConn.SendAsync(MessageType.MouseMoveRelative, new MouseMoveRelative(7, -3).ToPayload(), cts.Token);
 

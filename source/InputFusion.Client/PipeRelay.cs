@@ -16,6 +16,9 @@ namespace InputFusion.Client;
 internal sealed class PipeRelay(MessageConnection host, Action<string> log)
 {
     private volatile MessageConnection? _injector;
+    // Die zuletzt vom Host geschickten Rückkehrkanten. Ein neu verbundener Injector bekommt sie sofort, weil der
+    // Host sie nur bei einer Änderung des Layouts schickt.
+    private volatile byte[]? _returnEdges;
 
     public async Task RunAsync(CancellationToken ct)
     {
@@ -29,6 +32,8 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
                 // Heartbeats sind Sache der Verbindung, nicht des Injectors.
                 if (type == MessageType.Heartbeat)
                     continue;
+                if (type == MessageType.ReturnEdges)
+                    _returnEdges = payload;
                 var injector = _injector;
                 if (injector is null)
                     continue;
@@ -85,6 +90,8 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
             log("Injector an der Pipe verbunden.");
             try
             {
+                if (_returnEdges is { } edges)
+                    await conn.SendAsync(MessageType.ReturnEdges, edges, ct);
                 await foreach (var (type, payload) in conn.ReceiveAsync(ct))
                     await host.SendAsync(type, payload, ct);
             }

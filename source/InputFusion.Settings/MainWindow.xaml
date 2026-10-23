@@ -64,7 +64,7 @@
                     <TextBlock x:Name="LayoutHint" DockPanel.Dock="Top" Margin="0,0,0,8" TextWrapping="Wrap" />
                     <TextBlock x:Name="LayoutMessage" DockPanel.Dock="Bottom" Margin="0,8,0,0" TextWrapping="Wrap"
                                Foreground="{StaticResource HintBrush}" />
-                    <Border BorderBrush="#C8C8C8" BorderThickness="1" Background="#F6F6F6">
+                    <Border BorderBrush="#C8C8C8" BorderThickness="1" Background="#F6F6F6" ClipToBounds="True">
                         <Viewbox Stretch="Uniform" Margin="16">
                             <Canvas x:Name="Arrangement" Background="Transparent"
                                     MouseMove="OnArrangementMouseMove" MouseLeftButtonUp="OnArrangementMouseUp"
