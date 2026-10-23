@@ -49,6 +49,10 @@ Der Client läuft als Windows-Dienst `InputFusionClient`, eingerichtet per Skrip
 - **Verifiziert auf dem PC** mit einem Test-Host: Dienst per Skript installiert, Injector läuft in Sitzung 1, Dienst in Sitzung 0; Verbindung nach Start des Hosts innerhalb des Wiederholungsabstands; Austritt über Dienst und Injector kommt beim Host an; nach Verbindungsabbruch neu verbunden; ein beendeter Injector wird binnen einer Sekunde neu gestartet und übernimmt die Pipe; Deinstallation ohne Reste.
 - **Noch offen:** der Desktop-Wechsel für Sperrbildschirm und UAC-Abfrage (siehe [Injector](#injector)); der Test des Sitzungswechsels (Abmelden, Benutzerwechsel) am Notebook; die Prüfung, dass der SYSTEM-Injector nur mit dem eigenen Dienst spricht. Bisher könnte ein Prozess, der die Pipe vor dem Dienst anlegt, dem Injector Eingaben unterschieben.
 
+## Updates
+
+Der Dienst aktualisiert sich selbst aus den GitHub-Releases, ohne Velopack; Ablauf, Prüfsumme und Rückfall auf die alte Version stehen unter [Updates](updates.md#client). Weicht die Protokollversion des Hosts ab, sucht er sofort.
+
 ## Später
 
 **Zwischenablage** braucht auf dem Client zusätzlich einen Prozess im Benutzerkontext: Dateien müssen mit den Rechten des Benutzers in dessen Profil landen, nicht als SYSTEM.

@@ -1,5 +1,10 @@
 ﻿using InputFusion.Client;
 
+if (args is [UpdateApplier.Argument, string source, string target])
+{
+    Environment.Exit(UpdateApplier.Run(source, target));
+}
+
 if (args is [Injector.Argument, ..])
 {
     Injector.Run();
