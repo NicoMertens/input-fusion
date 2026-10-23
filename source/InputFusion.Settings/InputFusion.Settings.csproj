@@ -5,7 +5,12 @@
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>
     <ApplicationManifest>..\app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\InputFusion.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="..\InputFusion.ico" Link="InputFusion.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\InputFusion.Core\InputFusion.Core.csproj" />

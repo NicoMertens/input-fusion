@@ -1,9 +1,14 @@
 ﻿<Application x:Class="InputFusion.Settings.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:InputFusion.Settings"
-             StartupUri="MainWindow.xaml">
+             Startup="OnStartup">
     <Application.Resources>
-         
+        <SolidColorBrush x:Key="HostMonitorBrush" Color="#2D2D30" />
+        <SolidColorBrush x:Key="HostMonitorBorderBrush" Color="#9A9AA0" />
+        <SolidColorBrush x:Key="ClientMonitorBrush" Color="#1E5A80" />
+        <SolidColorBrush x:Key="ClientMonitorBorderBrush" Color="#4FC1FF" />
+        <SolidColorBrush x:Key="TransitionBrush" Color="#FFB86C" />
+        <SolidColorBrush x:Key="ErrorBrush" Color="#C42B1C" />
+        <SolidColorBrush x:Key="HintBrush" Color="#606060" />
     </Application.Resources>
 </Application>
