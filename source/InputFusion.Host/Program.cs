@@ -23,22 +23,52 @@ internal static class Program
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
-        var listener = new TcpListener(IPAddress.Any, Ports.Input);
-        listener.Start();
         Console.WriteLine($"InputFusion Host auf Port {Ports.Input}. Modus: {(absolute ? "absolut" : "relativ")}"
             + $"{(observe ? ", Beobachtung (kapert die Maus nicht)" : "")}"
-            + $"{(diag ? ", Diagnose" : "")}{(remoteSession ? " [RDP erkannt]" : "")}. Warte auf Client...");
+            + $"{(diag ? ", Diagnose" : "")}{(remoteSession ? " [RDP erkannt]" : "")}.");
 
-        using var tcp = await listener.AcceptTcpClientAsync(cts.Token);
-        listener.Stop();
+        // Ein Client zur Zeit. Nach jedem Abbruch wieder lauschen, bis Strg+C; sonst verbraucht schon ein
+        // Verbindungstest (Test-NetConnection) den einzigen Platz.
+        var listener = new TcpListener(IPAddress.Any, Ports.Input);
+        while (!cts.IsCancellationRequested)
+        {
+            TcpClient tcp;
+            listener.Start();
+            Console.WriteLine("Warte auf Client...");
+            try
+            {
+                tcp = await listener.AcceptTcpClientAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            finally
+            {
+                // Während der Verbindung nicht lauschen: Ein zweiter Client wird abgewiesen, statt im
+                // Backlog zu warten und später mit veraltetem Zustand angenommen zu werden.
+                listener.Stop();
+            }
+
+            await ServeAsync(tcp, absolute, observe, diag, cts.Token);
+        }
+    }
+
+    private static async Task ServeAsync(TcpClient tcp, bool absolute, bool observe, bool diag, CancellationToken ct)
+    {
+        using var _ = tcp;
         using var conn = MessageConnection.FromTcp(tcp);
-        Console.WriteLine("Client verbunden. Rechte Kante wechselt, Strg+Alt+F11 schaltet hier um (Test), Strg+Alt+F12 zurueck, Strg+C beendet.");
+        Console.WriteLine($"Client {tcp.Client.RemoteEndPoint} verbunden. Rechte Kante wechselt, Strg+Alt+F11 schaltet hier um (Test), "
+            + "Strg+Alt+F12 zurueck, Strg+C beendet.");
 
+        // Ereignisse aus der vorigen Verbindung verwerfen, sonst löst etwa eine alte Bewegung an der Kante
+        // sofort den Wechsel aus.
+        LowLevelHooks.Drain();
         var hooks = new HookListener();
         hooks.Start();
         try
         {
-            await new RemoteController(conn, absolute, observe, diag).RunAsync(cts.Token);
+            await new RemoteController(conn, absolute, observe, diag).RunAsync(ct);
         }
         catch (Exception ex) when (ex is OperationCanceledException or IOException or SocketException)
         {

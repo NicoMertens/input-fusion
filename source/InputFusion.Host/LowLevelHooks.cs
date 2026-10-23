@@ -38,6 +38,14 @@ internal static class LowLevelHooks
     /// <summary>Für Ereignisse, die nicht aus den Hooks kommen (Raw Input), damit alles in einer Reihenfolge ankommt.</summary>
     public static void Post(InputEvent e) => _channel.Writer.TryWrite(e);
 
+    /// <summary>Verwirft alles, was noch im Kanal liegt. Vor jeder neuen Verbindung, damit nichts Altes nachläuft.</summary>
+    public static void Drain()
+    {
+        while (_channel.Reader.TryRead(out _))
+        {
+        }
+    }
+
     public static unsafe void Install()
     {
         // Nicht disposen: GetModuleHandle gibt ein nicht-besitzendes Handle auf die eigene exe zurück.
