@@ -14,7 +14,7 @@ PC (Server)                                    Notebook (Client)
 │ Einstellungen (WPF)           │              │ Einstellungen (WPF)                  │
 │  Settings.exe, bei Bedarf     │              │  Settings.exe, bei Bedarf            │
 │      │ Named Pipe             │              │      │ Named Pipe                    │
-│ Agent  Host.exe               │   TLS/TCP    │ Dienst  Client.exe                   │
+│ Agent  Host.exe               │ TCP, AES-GCM │ Dienst  Client.exe                   │
 │  Benutzerkontext, erhöht      │◄─────────────│  SYSTEM, Session 0                   │
 │  Tray, Hooks, Layout-Engine,  │  Client baut │  Verbindung, Kopplung, Konfiguration │
 │  TCP-Listener                 │  Verbindung  │      │ Named Pipe (nur SYSTEM)       │
@@ -41,7 +41,7 @@ PC (Server)                                    Notebook (Client)
 | [host.md](host.md) | Agent auf dem PC: Hooks, Remote-Modus, Tray, Rechte |
 | [client.md](client.md) | Dienst und Injector auf dem Notebook: Sitzungen, Desktop-Wechsel, Abspielen |
 | [einstellungen.md](einstellungen.md) | Die WPF-App für beide Seiten |
-| [netzwerk.md](netzwerk.md) | Verbindung zwischen PC und Notebook, TLS und Kopplung |
+| [netzwerk.md](netzwerk.md) | Verbindung zwischen PC und Notebook, Anmeldung und Verschlüsselung |
 | [ipc.md](ipc.md) | Named Pipes zwischen den Prozessen eines Rechners |
 | [layout.md](layout.md) | Multimonitor-Layout und Layout-Engine |
 | [fallstricke.md](fallstricke.md) | Win32-Fallstricke, die beide Seiten betreffen |

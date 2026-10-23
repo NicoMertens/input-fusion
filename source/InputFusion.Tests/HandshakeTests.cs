@@ -32,49 +32,84 @@ public class HandshakeTests
     }
 
     [Fact]
-    public async Task HostWithOtherProtocol_ClientReportsMismatch()
+    public async Task Accepted_ConnectionIsEncryptedBothWays()
     {
         await using Pair pair = await Pair.ConnectAsync();
+        Task<HandshakeResult> host = Handshake.HostAsync(pair.Host, Key, "1.0.0", CancellationToken.None);
         Task<HandshakeResult> client = Handshake.ClientAsync(pair.Client, Key, "1.0.0", CancellationToken.None);
+        Assert.Equal(HandshakeOutcome.Accepted, (await host).Outcome);
+        Assert.Equal(HandshakeOutcome.Accepted, (await client).Outcome);
 
-        byte[] hello = [.. new byte[Handshake.NonceSize], .. Versions(99, "9.9.9")];
-        await pair.Host.SendAsync(MessageType.Hello, hello);
+        byte[] key = new KeyEvent(0x41, 0x1E, ButtonState.Down, false).ToPayload();
+        Task sent = pair.Host.SendAsync(MessageType.Key, key);
+        (MessageType type, byte[] payload) = await ReceiveOneAsync(pair.Client);
+        await sent;
+        Assert.Equal(MessageType.Key, type);
+        Assert.Equal(key, payload);
 
-        // Der Client antwortet trotz abweichender Version; die Pipe puffert nicht, also abholen.
-        await foreach ((MessageType type, byte[] _) in pair.Host.ReceiveAsync())
-        {
-            Assert.Equal(MessageType.HelloResponse, type);
-            break;
-        }
-
-        HandshakeResult result = await client;
-        Assert.Equal(HandshakeOutcome.ProtocolMismatch, result.Outcome);
-        Assert.Equal(99, result.PeerProtocol);
-        Assert.Equal("9.9.9", result.PeerVersion);
+        sent = pair.Client.SendAsync(MessageType.Heartbeat, ReadOnlyMemory<byte>.Empty);
+        (type, payload) = await ReceiveOneAsync(pair.Host);
+        await sent;
+        Assert.Equal(MessageType.Heartbeat, type);
+        Assert.Empty(payload);
     }
 
     [Fact]
-    public async Task ClientWithOtherProtocol_HostReportsMismatch_AndDoesNotAccept()
+    public async Task HostWithProtocol1_ClientAnswersInProtocol1Form_AndReportsMismatch()
+    {
+        // So meldet sich ein Host aus 0.3.0: ohne Feld für den öffentlichen Schlüssel.
+        await using Pair pair = await Pair.ConnectAsync();
+        Task<HandshakeResult> client = Handshake.ClientAsync(pair.Client, Key, "1.0.0", CancellationToken.None);
+
+        byte[] hostNonce = RandomNumberGenerator.GetBytes(Handshake.NonceSize);
+        byte[] hello = [.. hostNonce, .. LegacyVersions(1, "0.3.0")];
+        await pair.Host.SendAsync(MessageType.Hello, hello);
+
+        // Der Client antwortet trotz abweichender Version; die Pipe puffert nicht, also abholen.
+        (MessageType type, byte[] response) = await ReceiveOneAsync(pair.Host);
+        Assert.Equal(MessageType.HelloResponse, type);
+
+        // Der alte Host muss den Nachweis prüfen und die Protokollversion an alter Stelle lesen können.
+        byte[] clientNonce = response[..Handshake.NonceSize];
+        Assert.Equal(LegacyMac("client", hostNonce, clientNonce), response[Handshake.NonceSize..(Handshake.NonceSize + 32)]);
+        Assert.Equal(LegacyVersions(ProtocolVersion.Current, "1.0.0"), response[(Handshake.NonceSize + 32)..]);
+
+        HandshakeResult result = await client;
+        Assert.Equal(HandshakeOutcome.ProtocolMismatch, result.Outcome);
+        Assert.Equal(1, result.PeerProtocol);
+        Assert.Equal("0.3.0", result.PeerVersion);
+    }
+
+    [Fact]
+    public async Task ClientWithProtocol1_HostReportsMismatch_AndDoesNotAccept()
     {
         await using Pair pair = await Pair.ConnectAsync();
         Task<HandshakeResult> host = Handshake.HostAsync(pair.Host, Key, "1.0.0", CancellationToken.None);
 
-        // Ein Client mit richtigem Schlüssel, aber Protokoll 99: Nachweis wie im Original berechnet.
-        byte[] hostNonce = [];
-        await foreach ((MessageType _, byte[] payload) in pair.Client.ReceiveAsync())
-        {
-            hostNonce = payload[..Handshake.NonceSize];
-            break;
-        }
+        // Ein Client aus 0.3.0 mit richtigem Schlüssel: Nachweis und Versionen wie in Protokoll 1.
+        (MessageType _, byte[] hello) = await ReceiveOneAsync(pair.Client);
+        byte[] hostNonce = hello[..Handshake.NonceSize];
         byte[] clientNonce = new byte[Handshake.NonceSize];
-        byte[] signed = [.. Encoding.ASCII.GetBytes("InputFusion-client"), .. hostNonce, .. clientNonce];
-        byte[] mac = HMACSHA256.HashData(Encoding.UTF8.GetBytes(Key), signed);
-        byte[] response = [.. clientNonce, .. mac, .. Versions(99, "9.9.9")];
+        byte[] response = [.. clientNonce, .. LegacyMac("client", hostNonce, clientNonce), .. LegacyVersions(1, "0.3.0")];
         await pair.Client.SendAsync(MessageType.HelloResponse, response);
 
         HandshakeResult result = await host;
         Assert.Equal(HandshakeOutcome.ProtocolMismatch, result.Outcome);
-        Assert.Equal("9.9.9", result.PeerVersion);
+        Assert.Equal("0.3.0", result.PeerVersion);
+    }
+
+    [Fact]
+    public async Task ClientWithProtocol1_AndWrongKey_IsRejected_NotMismatch()
+    {
+        // Ohne gültigen Nachweis darf eine fremde Version keine Suche nach Updates auslösen.
+        await using Pair pair = await Pair.ConnectAsync();
+        Task<HandshakeResult> host = Handshake.HostAsync(pair.Host, Key, "1.0.0", CancellationToken.None);
+
+        (MessageType _, byte[] _) = await ReceiveOneAsync(pair.Client);
+        byte[] response = [.. new byte[Handshake.NonceSize], .. new byte[32], .. LegacyVersions(1, "0.3.0")];
+        await pair.Client.SendAsync(MessageType.HelloResponse, response);
+
+        Assert.Equal(HandshakeOutcome.Rejected, (await host).Outcome);
     }
 
     [Fact]
@@ -118,11 +153,29 @@ public class HandshakeTests
         Assert.NotNull(HostConfig.ValidateKey(key));
     }
 
-    private static byte[] Versions(ushort protocol, string version)
+    /// <summary>Versionen wie in Protokoll 1: ohne Feld für den öffentlichen Schlüssel.</summary>
+    private static byte[] LegacyVersions(ushort protocol, string version)
     {
         byte[] p = new byte[2];
         BinaryPrimitives.WriteUInt16LittleEndian(p, protocol);
         return [.. p, .. Encoding.UTF8.GetBytes(version)];
+    }
+
+    /// <summary>Nachweis wie in Protokoll 1, nur über die beiden Zufallswerte.</summary>
+    private static byte[] LegacyMac(string role, byte[] hostNonce, byte[] clientNonce)
+    {
+        byte[] signed = [.. Encoding.ASCII.GetBytes("InputFusion-" + role), .. hostNonce, .. clientNonce];
+        return HMACSHA256.HashData(Encoding.UTF8.GetBytes(Key), signed);
+    }
+
+    private static async Task<(MessageType Type, byte[] Payload)> ReceiveOneAsync(MessageConnection connection)
+    {
+        await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync())
+        {
+            return (type, payload);
+        }
+
+        throw new InvalidOperationException("Verbindung ohne Nachricht beendet.");
     }
 
     private static async Task<(HandshakeResult Host, HandshakeResult Client)> RunAsync(string hostKey, string clientKey)
