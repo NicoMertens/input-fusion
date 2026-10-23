@@ -9,8 +9,8 @@
 
 ## Auf dem PC
 
-Layout-Editor, Kopplung, Tastenkürzel. Wie der Editor funktioniert, steht unter [Layout](layout.md).
+Layout-Editor, Kopplung, Tastenkürzel, Port (später; bis dahin fest, siehe [Netzwerk](netzwerk.md)). Wie der Editor funktioniert, steht unter [Layout](layout.md).
 
 ## Auf dem Notebook
 
-Server-Adresse, Kopplungscode, Status, Vorschau der eigenen Monitore. Kein Layout-Editor, das Layout gehört dem Server. Ob der Client ein eigenes Tray-Icon bekommt, ist noch offen; bis dahin steht der Status hier.
+Server-Adresse und Port, Kopplungscode, Status, Vorschau der eigenen Monitore. Kein Layout-Editor, das Layout gehört dem Server. Ob der Client ein eigenes Tray-Icon bekommt, ist noch offen; bis dahin steht der Status hier.
