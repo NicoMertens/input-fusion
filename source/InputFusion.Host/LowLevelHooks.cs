@@ -35,6 +35,9 @@ internal static class LowLevelHooks
 
     public static ChannelReader<InputEvent> Events => _channel.Reader;
 
+    /// <summary>Für Ereignisse, die nicht aus den Hooks kommen (Raw Input), damit alles in einer Reihenfolge ankommt.</summary>
+    public static void Post(InputEvent e) => _channel.Writer.TryWrite(e);
+
     public static unsafe void Install()
     {
         // Nicht disposen: GetModuleHandle gibt ein nicht-besitzendes Handle auf die eigene exe zurück.
@@ -88,7 +91,7 @@ internal static class LowLevelHooks
     {
         InputEvent? e = message switch
         {
-            WM_MOUSEMOVE => new MouseMoveEvent(data.pt.X, data.pt.Y),
+            WM_MOUSEMOVE => MouseMove(data),
             WM_LBUTTONDOWN => new MouseButtonEvent(0, true),
             WM_LBUTTONUP => new MouseButtonEvent(0, false),
             WM_RBUTTONDOWN => new MouseButtonEvent(1, true),
@@ -101,5 +104,16 @@ internal static class LowLevelHooks
         };
         if (e is not null)
             _channel.Writer.TryWrite(e);
+    }
+
+    /// <summary>
+    /// Im Hook steht der Cursor noch vor der Bewegung, <c>pt</c> ist das Ziel. Die Differenz ist die
+    /// Bewegung, unabhängig davon, wo der Cursor gerade steht und ob verschluckt wird (gemessen, siehe
+    /// Fallstricke). Erst später im Controller wäre die Cursorposition schon eine andere.
+    /// </summary>
+    private static MouseMoveEvent MouseMove(MSLLHOOKSTRUCT data)
+    {
+        PInvoke.GetCursorPos(out var cursor);
+        return new MouseMoveEvent(data.pt.X, data.pt.Y, data.pt.X - cursor.X, data.pt.Y - cursor.Y);
     }
 }

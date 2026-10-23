@@ -8,9 +8,8 @@ namespace InputFusion.Host;
 
 /// <summary>
 /// Durchstich-Logik für Phase 1: An der rechten Kante des gesamten Monitorverbunds wird in den
-/// Remote-Modus gewechselt. Danach parkt der Cursor in der Mitte des Hauptmonitors und wird nach
-/// jeder Bewegung dorthin zurückgesetzt, damit er nicht am Desktop-Rand ansteht und weiter Deltas
-/// liefert. Zurück nur per Strg+Alt+F12 oder Verbindungsabbruch; das layoutabhängige Austreten an
+/// Remote-Modus gewechselt. Danach parkt der Cursor in der Mitte des virtuellen Desktops und bleibt
+/// dort eingefroren, weil der Hook die Eingabe verschluckt; die Bewegung kommt dann aus Raw Input. Zurück nur per Strg+Alt+F12 oder Verbindungsabbruch; das layoutabhängige Austreten an
 /// der Kante kommt mit Phase 3. Kein TLS; das ist Phase 4.
 /// </summary>
 internal sealed class RemoteController(MessageConnection connection, bool absolute, bool observe, bool diag)
@@ -19,7 +18,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
     private const ushort VkF12 = 0x7B;
 
     private int _edgeX, _desktopWidth, _desktopHeight, _desktopLeft, _desktopTop;
-    private int _parkX, _parkY, _lastX, _lastY, _margin;
+    private int _parkX, _parkY;
     private double _virtualX, _virtualY;
     private volatile bool _remote;
     private bool _ctrlDown, _altDown;
@@ -41,7 +40,6 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         _desktopWidth = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXVIRTUALSCREEN);
         _desktopHeight = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CYVIRTUALSCREEN);
         _edgeX = _desktopLeft + _desktopWidth - 1;
-        _margin = Math.Min(_desktopWidth, _desktopHeight) / 4;
         Console.WriteLine($"Rechte Kante bei x={_edgeX} (Desktop {_desktopWidth}x{_desktopHeight} ab {_desktopLeft},{_desktopTop}).");
         if (diag)
             Console.WriteLine($"Diagnose aktiv, Protokoll in {_diagPath}. Maus an die rechte Kante bewegen.");
@@ -57,6 +55,9 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
             {
                 case MouseMoveEvent move:
                     await HandleMove(move, ct);
+                    break;
+                case RawMouseMoveEvent raw when _remote && !observe:
+                    await SendMove(raw.Dx, raw.Dy, ct);
                     break;
                 case MouseButtonEvent button when _remote:
                     await connection.SendAsync(MessageType.MouseButton,
@@ -116,13 +117,25 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
             return;
         }
 
-        // Delta zum letzten Punkt, nicht zur Mitte: Während die Eingabe verschluckt wird, friert der Cursor
-        // in der Mitte ein, aber die gemeldete Position summiert alle Bewegungen auf. Gegen die Mitte zu
-        // rechnen würde deshalb doppelt zählen.
-        int dx = move.X - _lastX;
-        int dy = move.Y - _lastY;
-        _lastX = move.X;
-        _lastY = move.Y;
+        // Im Beobachtungsmodus läuft der Cursor frei, die Bewegung aus dem Hook stimmt.
+        if (observe)
+        {
+            await SendMove(move.Dx, move.Dy, ct);
+            return;
+        }
+
+        // Beim Kapern kommt die Bewegung aus Raw Input (siehe RawMouse), der Hook verschluckt nur.
+        // Der Cursor steht dabei nicht sicher im Parkpunkt: Eine Bewegung, die der Hook kurz vor dem
+        // Umschalten noch durchgelassen hat, kann Windows erst nach dem SetCursorPos umsetzen. Dann friert
+        // er am rechten Rand ein. Deshalb hier zurück in die Mitte holen.
+        if (diag)
+            Measure(move);
+        else if (move.X - move.Dx != _parkX || move.Y - move.Dy != _parkY)
+            PInvoke.SetCursorPos(_parkX, _parkY);
+    }
+
+    private async Task SendMove(int dx, int dy, CancellationToken ct)
+    {
         if (dx == 0 && dy == 0)
             return;
 
@@ -139,21 +152,6 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
             await connection.SendAsync(MessageType.MouseMoveRelative,
                 new MouseMoveRelative((short)Math.Clamp(dx, short.MinValue, short.MaxValue),
                                       (short)Math.Clamp(dy, short.MinValue, short.MaxValue)).ToPayload(), ct);
-        }
-
-        if (diag)
-        {
-            Measure(move);
-            return;
-        }
-
-        // Im Beobachtungsmodus (z. B. über RDP) läuft die echte Maus frei; nicht zurücksetzen, sonst ruckelt es.
-        // Sonst nur zurücksetzen, wenn der Cursor zu weit aus der Mitte läuft, damit er nicht am Rand ansteht.
-        if (!observe && (Math.Abs(move.X - _parkX) > _margin || Math.Abs(move.Y - _parkY) > _margin))
-        {
-            PInvoke.SetCursorPos(_parkX, _parkY);
-            _lastX = _parkX;
-            _lastY = _parkY;
         }
     }
 
@@ -173,8 +171,6 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         if (held)
             _held++;
         _recenters++;
-        _lastX = _parkX;
-        _lastY = _parkY;
 
         if (_recenters % 60 == 0)
         {
@@ -275,15 +271,10 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         {
             // Maus nicht kapern, nur die Deltas verfolgen. Zum Testen an den linken Rand setzen, damit
             // nach rechts die volle Breite bleibt. Über RDP hält das evtl. nicht, dann hilft Strg+Alt+F11.
-            int startX = _desktopLeft + 2;
-            PInvoke.SetCursorPos(startX, y);
-            _lastX = startX;
-            _lastY = y;
+            PInvoke.SetCursorPos(_desktopLeft + 2, y);
         }
         else
         {
-            _lastX = _parkX;
-            _lastY = _parkY;
             LowLevelHooks.Swallow = true;
             PInvoke.SetCursorPos(_parkX, _parkY);
         }

@@ -20,11 +20,17 @@ internal sealed class HookListener
         {
             _threadId = PInvoke.GetCurrentThreadId();
             LowLevelHooks.Install();
+            RawMouse.Register();
             ready.Set();
             while (PInvoke.GetMessage(out MSG msg, (HWND)default, 0, 0))
             {
-                // keine Fenster, nichts zu dispatchen; die Hooks feuern von selbst
+                // Die Hooks feuern von selbst; abzuholen ist nur WM_INPUT. DispatchMessage gibt es an die
+                // Fensterprozedur weiter, die den Raw-Input-Puffer aufräumt.
+                if (msg.message == PInvoke.WM_INPUT)
+                    RawMouse.Handle(msg.lParam);
+                PInvoke.DispatchMessage(msg);
             }
+            RawMouse.Unregister();
             LowLevelHooks.Uninstall();
         })
         { IsBackground = true, Name = "InputFusion-Hooks" };
