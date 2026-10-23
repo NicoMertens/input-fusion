@@ -20,6 +20,8 @@
 mono_crash.*
 
 # Build results
+# Gesammelte Build-Ausgaben dieses Repos (siehe source/Directory.Build.props)
+_out/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/

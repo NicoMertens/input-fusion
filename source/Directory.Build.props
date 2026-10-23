@@ -9,4 +9,19 @@
     <Version>0.1.0</Version>
   </PropertyGroup>
 
+  <!--
+    Build-Ausgaben nicht neben den Quellcode, sondern gesammelt nach _out\ parallel zu source\.
+    Je Projekt ein eigener Ordner (_out\InputFusion.Host\ …), ohne Configuration- und
+    TargetFramework-Unterordner. Die Zwischendateien (obj\) bleiben beim Projekt.
+    Diese Datei liegt in source\, daher führt ..\ eine Ebene höher ins Wurzelverzeichnis.
+  -->
+  <PropertyGroup>
+    <BaseOutputPath Condition="!$(MSBuildProjectName.EndsWith('_wpftmp'))">$(MSBuildThisFileDirectory)..\_out\$(MSBuildProjectName)\</BaseOutputPath>
+    <!-- WPF erzeugt beim Bauen ein temporäres Projekt (…_wpftmp). Dessen Wegwerf-Ausgabe
+         sammelt sich unter _out\_wpftmp\, damit die oberste Ebene nur echte Projekte zeigt. -->
+    <BaseOutputPath Condition="$(MSBuildProjectName.EndsWith('_wpftmp'))">$(MSBuildThisFileDirectory)..\_out\_wpftmp\$(MSBuildProjectName)\</BaseOutputPath>
+    <OutputPath>$(BaseOutputPath)</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
 </Project>

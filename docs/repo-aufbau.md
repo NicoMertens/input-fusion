@@ -5,11 +5,12 @@
 - **Im Wurzelverzeichnis** liegen nur `source/`, `docs/`, `README.md`, `global.json`, `.gitignore` und `.gitattributes`. Build- und Veröffentlichungsskripte kommen nach `build/` parallel zu `source/`, sobald es welche gibt.
 - **`source/`** enthält flach nebeneinander alle Projekte einschließlich der Testprojekte (`*.Tests`, kein eigener Unterordner), dazu `InputFusion.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `nuget.config` und das gemeinsame `app.manifest`.
 - **`docs/`** enthält diese Doku, Einstieg und Regeln in [README.md](README.md).
+- **`_out/`** sammelt die Build-Ausgaben, parallel zu `source/`, je Projekt ein eigener Ordner (`_out/InputFusion.Host/` …) ohne Configuration- und TargetFramework-Unterordner. Wird erzeugt und ist per `.gitignore` ausgenommen; die Zwischendateien (`obj/`) bleiben beim jeweiligen Projekt.
 
 ## Build-Einstellungen
 
 - `global.json` liegt im Wurzelverzeichnis und legt das SDK auf .NET 10 fest. Das SDK sucht die Datei vom Arbeitsverzeichnis aufwärts, deshalb greift sie auch für `source/`.
-- `Directory.Build.props` setzt Nullable, ImplicitUsings und Nullable-Warnungen als Fehler.
+- `Directory.Build.props` setzt Nullable, ImplicitUsings und Nullable-Warnungen als Fehler und lenkt die Build-Ausgabe aller Projekte nach `_out/<Projektname>/` (siehe oben).
 - `Directory.Packages.props` verwaltet die Paketversionen zentral.
 - `nuget.config` kennt nur nuget.org, damit der Restore nicht von rechnerweit eingetragenen Feeds abhängt.
 
