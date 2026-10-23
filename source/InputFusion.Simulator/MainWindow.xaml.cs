@@ -110,16 +110,38 @@ public partial class MainWindow : Window
                 _connection = $"Verbunden mit {_options.Host}:{Ports.Input}";
                 _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  {_connection}");
 
-                if (_options.DelayMs > 0)
-                    await ReceiveDelayedAsync(conn, ct);
-                else
-                    await foreach (var (type, payload) in conn.ReceiveAsync(ct))
+                // Heartbeat zum Host, sonst trennt er nach dem Timeout; schweigt der Host, neu verbinden.
+                using var session = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                var monitor = Task.Run(async () =>
+                {
+                    if (await conn.MonitorAsync(session.Token))
                     {
-                        _desktop.Apply(type, payload);
-                        if (_desktop.TryTakeExitRequest())
-                            await conn.SendAsync(MessageType.SwitchBackRequest, default, ct);
+                        _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  Host antwortet nicht mehr");
+                        session.Cancel();
                     }
+                }, CancellationToken.None);
+                try
+                {
+                    if (_options.DelayMs > 0)
+                        await ReceiveDelayedAsync(conn, session.Token);
+                    else
+                        await foreach (var (type, payload) in conn.ReceiveAsync(session.Token))
+                        {
+                            _desktop.Apply(type, payload);
+                            if (_desktop.TryTakeExitRequest())
+                                await conn.SendAsync(MessageType.SwitchBackRequest, default, session.Token);
+                        }
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                }
+                finally
+                {
+                    session.Cancel();
+                    await monitor;
+                }
 
+                _desktop.Disconnected();
                 _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  Verbindung vom Host beendet");
             }
             catch (OperationCanceledException)

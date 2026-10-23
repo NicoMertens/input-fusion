@@ -62,6 +62,9 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
                     log = $"Steuerung übernommen, Eintritt bei ({_x}, {_y})";
                     break;
 
+                case MessageType.Heartbeat:
+                    break;
+
                 case MessageType.SwitchToHost:
                     Active = false;
                     log = _pressed.Count == 0
@@ -112,6 +115,17 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
 
         if (log is not null)
             Logged?.Invoke(log);
+    }
+
+    /// <summary>Verbindung weg: Steuerung und gedrückte Tasten verwerfen, wie es der echte Injector tut.</summary>
+    public void Disconnected()
+    {
+        lock (_lock)
+        {
+            Active = false;
+            _exitRequested = false;
+            _pressed.Clear();
+        }
     }
 
     private string? CheckLeftEdge()

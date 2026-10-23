@@ -44,31 +44,35 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         if (diag)
             Console.WriteLine($"Diagnose aktiv, Protokoll in {_diagPath}. Maus an die rechte Kante bewegen.");
 
+        // Alles läuft über ein gemeinsames Token: Endet die Verbindung oder schweigt der Client, bricht das
+        // auch ein Senden ab, das im vollen Puffer hängt. Sonst blieben die Eingaben verschluckt.
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var token = linked.Token;
         var incoming = Task.Run(() => PumpIncoming(linked));
+        var monitor = WatchClient(linked);
 
         try
         {
-            await foreach (var e in LowLevelHooks.Events.ReadAllAsync(linked.Token))
+            await foreach (var e in LowLevelHooks.Events.ReadAllAsync(token))
             {
             switch (e)
             {
                 case MouseMoveEvent move:
-                    await HandleMove(move, ct);
+                    await HandleMove(move, token);
                     break;
                 case RawMouseMoveEvent raw when _remote && !observe:
-                    await SendMove(raw.Dx, raw.Dy, ct);
+                    await SendMove(raw.Dx, raw.Dy, token);
                     break;
                 case MouseButtonEvent button when _remote:
                     await connection.SendAsync(MessageType.MouseButton,
-                        new MouseButton(button.Button, button.Down ? ButtonState.Down : ButtonState.Up).ToPayload(), ct);
+                        new MouseButton(button.Button, button.Down ? ButtonState.Down : ButtonState.Up).ToPayload(), token);
                     break;
                 case MouseWheelEvent wheel when _remote:
                     await connection.SendAsync(MessageType.MouseWheel,
-                        new MouseWheel(wheel.Delta, wheel.Horizontal).ToPayload(), ct);
+                        new MouseWheel(wheel.Delta, wheel.Horizontal).ToPayload(), token);
                     break;
                 case KeyInputEvent key:
-                    await HandleKey(key, linked.Token);
+                    await HandleKey(key, token);
                     break;
                 }
             }
@@ -76,8 +80,26 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         finally
         {
             LowLevelHooks.Swallow = false;
+            // Brach die Verbindung im Remote-Modus ab, die Maus an der Kante zurückgeben statt in der Mitte.
+            if (_remote)
+            {
+                _remote = false;
+                PInvoke.SetCursorPos(_edgeX - 5, _parkY);
+            }
             linked.Cancel();
             await incoming;
+            await monitor;
+        }
+    }
+
+    /// <summary>Heartbeat zum Client; schweigt er länger als erlaubt (Standby, Netz weg), endet die Verbindung.</summary>
+    private async Task WatchClient(CancellationTokenSource linked)
+    {
+        if (await connection.MonitorAsync(linked.Token))
+        {
+            Console.WriteLine($"Client antwortet seit {MessageConnection.HeartbeatTimeout.TotalSeconds:0} s nicht mehr, trenne.");
+            LowLevelHooks.Swallow = false;
+            linked.Cancel();
         }
     }
 

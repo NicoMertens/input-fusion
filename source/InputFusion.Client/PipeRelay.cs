@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Net;
+using InputFusion.Core.Protocol;
 
 namespace InputFusion.Client;
 
@@ -20,10 +21,14 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var injectors = AcceptInjectorsAsync(linked);
+        var monitor = WatchHost(linked);
         try
         {
             await foreach (var (type, payload) in host.ReceiveAsync(linked.Token))
             {
+                // Heartbeats sind Sache der Verbindung, nicht des Injectors.
+                if (type == MessageType.Heartbeat)
+                    continue;
                 var injector = _injector;
                 if (injector is null)
                     continue;
@@ -44,6 +49,18 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
         {
             linked.Cancel();
             await injectors;
+            await monitor;
+        }
+    }
+
+    /// <summary>Heartbeat zum Host. Schweigt er (PC im Standby, Netz weg), endet das Relay, und der Dienst
+    /// verbindet neu; ohne das hinge er nach dem Aufwachen des Notebooks an einer toten Verbindung.</summary>
+    private async Task WatchHost(CancellationTokenSource linked)
+    {
+        if (await host.MonitorAsync(linked.Token))
+        {
+            log($"Host antwortet seit {MessageConnection.HeartbeatTimeout.TotalSeconds:0} s nicht mehr, trenne.");
+            linked.Cancel();
         }
     }
 

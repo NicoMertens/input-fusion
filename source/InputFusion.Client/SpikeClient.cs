@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using System.IO;
+using System.Net.Sockets;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
 
@@ -22,6 +23,15 @@ internal static class SpikeClient
         var dispatcher = new InputDispatcher(new InputPlayer());
         Console.WriteLine("Verbunden. Spiele Eingaben ab. Strg+C beendet.");
 
+        // Heartbeat zum Host, sonst trennt er nach dem Timeout. Schweigt der Host, endet der Client.
+        var monitor = Task.Run(async () =>
+        {
+            if (await conn.MonitorAsync(cts.Token))
+            {
+                Console.WriteLine("Host antwortet nicht mehr.");
+                cts.Cancel();
+            }
+        });
         try
         {
             await foreach (var (type, payload) in conn.ReceiveAsync(cts.Token))
@@ -30,9 +40,11 @@ internal static class SpikeClient
                     await conn.SendAsync(MessageType.SwitchBackRequest, default, cts.Token);
             }
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (ex is OperationCanceledException or IOException or SocketException)
         {
         }
+        cts.Cancel();
+        await monitor;
         Console.WriteLine("Verbindung beendet.");
     }
 }
