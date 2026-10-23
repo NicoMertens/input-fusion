@@ -18,6 +18,9 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
 {
     private const ushort VkF11 = 0x7A;
     private const ushort VkF12 = 0x7B;
+    private const ushort VkL = 0x4C;
+    private const ushort VkLeftWin = 0x5B;
+    private const ushort VkRightWin = 0x5C;
 
     private int _desktopWidth, _desktopHeight, _desktopLeft, _desktopTop;
     private int _parkX, _parkY;
@@ -261,6 +264,14 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
             return;
         }
 
+        // Win+L sperrt den PC immer; ein Low-Level-Hook sieht die Tasten, kann es aber nicht verhindern. Das Notebook
+        // sperrt sich mit, auch wenn die Maus gerade auf dem PC ist.
+        if (key.Down && key.VirtualKey == VkL && (_physicalDown.ContainsKey(VkLeftWin) || _physicalDown.ContainsKey(VkRightWin)))
+        {
+            await LockBothAsync(ct);
+            return;
+        }
+
         // Strg+Alt+F11: Remote ein-/ausschalten, ohne die Kante zu treffen. Zum Testen, wenn das Parken nicht
         // greift (RDP): Der Client-Cursor erscheint in der Mitte des ersten Übergangs.
         if (key.Down && _ctrlDown && _altDown && key.VirtualKey == VkF11)
@@ -396,6 +407,25 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
 
             await connection.SendAsync(MessageType.Key, down.ToPayload(), ct);
         }
+    }
+
+    /// <summary>
+    /// Verlässt den Remote-Modus, damit die Windows-Taste auf dem Notebook nicht gedrückt hängen bleibt, und lässt das
+    /// Notebook sich sperren. Auf dem Sperrbildschirm des PCs sieht der Hook die Tasten nicht mehr los gehen; deshalb
+    /// hier vergessen, sonst sperrte nach dem Entsperren schon das nächste L.
+    /// </summary>
+    private async Task LockBothAsync(CancellationToken ct)
+    {
+        if (state.IsRemote)
+        {
+            await ExitRemote(ct);
+        }
+
+        _physicalDown.Remove(VkLeftWin);
+        _physicalDown.Remove(VkRightWin);
+        _physicalDown.Remove(VkL);
+        Log.Write("Win+L: sperre auch das Notebook.");
+        await connection.SendAsync(MessageType.LockWorkstation, ReadOnlyMemory<byte>.Empty, ct);
     }
 
     private async Task ExitRemote(CancellationToken ct)

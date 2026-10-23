@@ -30,6 +30,9 @@ public enum MessageType : byte
     /// <summary>Host → Client: die Kantenabschnitte des Clients, über die die Maus zurück zum Host geht.</summary>
     ReturnEdges = 14,
 
+    /// <summary>Host → Client: Auf dem PC wurde Win+L gedrückt; das Notebook sperrt sich mit.</summary>
+    LockWorkstation = 15,
+
     /// <summary>Einstellungen ↔ Agent über die Named Pipe, Nutzlast JSON, siehe <c>SettingsMessage</c>.</summary>
     Settings = 32,
 }

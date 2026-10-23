@@ -74,3 +74,4 @@ GetThreadDesktop
 SetThreadDesktop
 CloseDesktop
 GetUserObjectInformation
+LockWorkStation

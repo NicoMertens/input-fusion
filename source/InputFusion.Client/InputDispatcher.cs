@@ -34,6 +34,12 @@ public sealed class InputDispatcher(InputPlayer player)
             case MessageType.SwitchToHost:
                 _active = false;
                 break;
+            case MessageType.LockWorkstation:
+                // Eingespieltes Win+L sperrt nicht, Windows ignoriert es; LockWorkStation schon, auch als SYSTEM in der Sitzung.
+                _active = false;
+                player.ReleaseAll();
+                PInvoke.LockWorkStation();
+                break;
             case MessageType.MouseMoveRelative:
                 MouseMoveRelative move = MouseMoveRelative.FromPayload(payload);
                 player.MoveRelative(move.Dx, move.Dy);
