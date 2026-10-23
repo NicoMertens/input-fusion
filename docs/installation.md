@@ -15,7 +15,9 @@ Das Skript
 3. schreibt `%ProgramData%\InputFusion\client.json` mit `host`, `key` und optional `ip`, ACL nur SYSTEM und Administratoren, ohne Vererbung. Den Schlüssel zeigen die [Einstellungen](einstellungen.md) des Hosts im Reiter Verbindung; er muss mindestens 16 Zeichen haben.
 4. legt den Dienst an (LocalSystem, Start automatisch, Neustart nach Absturz nach 5 s, 5 s, 30 s) und startet ihn.
 
-**Aus dem Release:** `InputFusion.Client-win-x64.zip` aus dem [GitHub-Release](https://github.com/NicoMertens/input-fusion/releases/latest) entpacken; die Skripte liegen mit im Paket. Danach aktualisiert sich der Dienst selbst, siehe [Updates](updates.md#client).
+**Per Setup:** `InputFusion.Client-Setup.exe` aus dem [GitHub-Release](https://github.com/NicoMertens/input-fusion/releases/latest) per Doppelklick starten. Sie fragt nach, holt per UAC Adminrechte, fragt PC-Name, Schlüssel und optional eine IP ab und tut dann dasselbe wie das Skript unten, siehe [Client](client.md#selbstinstallation).
+
+**Per Skript aus dem Release:** `InputFusion.Client-win-x64.zip` entpacken; die Skripte liegen mit im Paket. Danach aktualisiert sich der Dienst selbst, siehe [Updates](updates.md#client).
 
 `-Source` ist der Ordner mit `InputFusion.Client.exe`. Ohne Angabe nimmt das Skript seinen eigenen Ordner, falls die exe dort liegt, sonst die Build-Ausgabe im Repo (`_out/InputFusion.Client`). Zum Übertragen aufs Notebook genügt es also, die Skripte in den Ordner mit den Client-Dateien zu legen.
 
