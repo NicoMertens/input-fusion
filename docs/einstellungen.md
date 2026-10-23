@@ -1,6 +1,6 @@
 # Einstellungen
 
-`InputFusion.Settings.exe` ist eine WPF-App für beide Seiten und in beiden Installern enthalten. Sie läuft nur bei Bedarf, aus dem Tray des [Hosts](host.md) oder aus dem Startmenü.
+`InputFusion.Settings.exe` ist eine WPF-App für beide Seiten; sie liegt im Velopack-Paket des Hosts, für das Notebook gibt es sie noch nicht. Sie läuft nur bei Bedarf, aus dem Tray des [Hosts](host.md) oder aus dem Startmenü.
 
 - **Erkennt die Seite** daran, welche Pipe erreichbar ist: die des Agents oder die des Dienstes. Danach zeigt sie den Layout-Editor oder die Client-Einstellungen.
 - **Single-Instance** über Mutex; ein zweiter Start holt das vorhandene Fenster nach vorn.

@@ -31,3 +31,21 @@ Der Client läuft als Windows-Dienst unter SYSTEM aus `%ProgramFiles%\InputFusio
 - **Tausch in einem Helfer:** Die laufende exe ist gesperrt. Der Dienst startet deshalb die neue exe aus dem Staging-Ordner mit `--apply-update <staging> <ziel>`, als SYSTEM. Der Helfer stoppt den Dienst, beendet übrige Client-Prozesse (Injector), benennt `Client` in `Client.old` um, kopiert die neuen Dateien nach `Client` und startet den Dienst. Schlägt das Kopieren fehl, kommt `Client.old` zurück, und der Dienst startet mit der alten Version. Protokoll in `%ProgramFiles%\InputFusion\update.log`. Beim nächsten Start räumt der Dienst den Staging-Ordner weg; der Helfer läuft daraus und kann ihn selbst nicht löschen.
 - **Konfiguration bleibt:** `client.json` liegt in `%ProgramData%\InputFusion\` und wird beim Tausch nicht angefasst.
 - **Noch nicht am echten Dienst geprüft:** Getestet sind Versionsvergleich, Prüfsumme, API-Adresse und das Lesen der Release-Antwort (Unit-Tests). Der Tausch selbst braucht einen installierten Dienst und ein veröffentlichtes Release.
+
+## Releases
+
+Veröffentlicht wird aus `.github/workflows/release.yml`, ausgelöst durch jeden Push auf den Branch `release`:
+
+1. Version aus `source/Directory.Build.props` lesen; gibt es den Tag `vX.Y.Z` schon, bricht der Workflow vor dem Bauen ab (vergessene Versionserhöhung).
+2. Tests, dann Host und Einstellungen framework-abhängig für `win-x64` in einen Ordner veröffentlichen, den Client in einen zweiten, jeweils mit `-p:RepositoryUrl`.
+3. Client-Ordner samt `install-client.ps1` und `uninstall-client.ps1` als `InputFusion.Client-win-x64.zip` packen, daneben `….zip.sha256` im Format von `sha256sum`.
+4. Host mit `vpk pack` packen (Paket-ID `InputFusion.Host`, Startmenü-Verknüpfung, kein Autostart, Laufzeit `net10.0-x64-desktop`); mit dem vorigen Release entsteht zusätzlich ein Delta-Paket.
+5. `vpk upload github --publish` legt das Release samt Tag auf dem gemergten Commit an; danach hängt `gh release upload` das Client-Paket an. Clients, die genau dazwischen prüfen, finden das Paket noch nicht und versuchen es später wieder.
+
+`.github/workflows/build.yml` baut jeden Push auf `develop` und jeden Pull Request mit `-warnaserror`, prüft den Code-Stil mit `dotnet format style --verify-no-changes` und führt die Tests aus. Beide Workflows holen das SDK aus `global.json`.
+
+**Branches und Versionen:** Entwickelt wird auf `develop`; `release` trägt immer den zuletzt veröffentlichten Stand.
+
+- **Release:** `develop` per Merge-Commit (`git merge --no-ff develop`) nach `release` mergen und pushen. Direkt danach auf `develop` die Minor-Version erhöhen, etwa 0.1.0 → 0.2.0; `develop` trägt so nie eine veröffentlichte Version.
+- **Hotfix:** direkt auf `release` korrigieren und die Patch-Version erhöhen, etwa 0.2.0 → 0.2.1. Danach `release` nach `develop` mergen, die Version von `develop` aber behalten.
+- **Protokollversion:** Ändert ein Release das Netzwerkprotokoll so, dass ältere Gegenseiten es nicht verstehen, steigt `ProtocolVersion.Current` mit, siehe [Netzwerk](netzwerk.md).

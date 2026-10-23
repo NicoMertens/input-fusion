@@ -1,6 +1,6 @@
 # Installation für die Entwicklung
 
-Bis zum WiX-Installer richten PowerShell-Skripte unter `build/` die Rechner ein. Sie laufen auch unter Windows PowerShell 5.1 und brauchen Administratorrechte.
+Den Host installiert ein Velopack-Setup, den Client ein PowerShell-Skript unter `build/`, das auch im Client-Paket jedes Releases liegt. Die Skripte laufen auch unter Windows PowerShell 5.1 und brauchen Administratorrechte.
 
 ## Client auf dem Notebook
 
@@ -14,6 +14,8 @@ Das Skript
 2. kopiert die Dateien nach `%ProgramFiles%\InputFusion\Client`. Dort darf nur ein Administrator schreiben; das ist wichtig, weil der Dienst die exe als SYSTEM ausführt.
 3. schreibt `%ProgramData%\InputFusion\client.json` mit `host`, `key` und optional `ip`, ACL nur SYSTEM und Administratoren, ohne Vererbung. Den Schlüssel zeigen die [Einstellungen](einstellungen.md) des Hosts im Reiter Verbindung; er muss mindestens 16 Zeichen haben.
 4. legt den Dienst an (LocalSystem, Start automatisch, Neustart nach Absturz nach 5 s, 5 s, 30 s) und startet ihn.
+
+**Aus dem Release:** `InputFusion.Client-win-x64.zip` aus dem [GitHub-Release](https://github.com/NicoMertens/input-fusion/releases/latest) entpacken; die Skripte liegen mit im Paket. Danach aktualisiert sich der Dienst selbst, siehe [Updates](updates.md#client).
 
 `-Source` ist der Ordner mit `InputFusion.Client.exe`. Ohne Angabe nimmt das Skript seinen eigenen Ordner, falls die exe dort liegt, sonst die Build-Ausgabe im Repo (`_out/InputFusion.Client`). Zum Übertragen aufs Notebook genügt es also, die Skripte in den Ordner mit den Client-Dateien zu legen.
 
@@ -35,10 +37,12 @@ Die Konfiguration liest der Dienst vor jedem Verbindungsversuch neu, eine Änder
 
 ## Host auf dem PC
 
-Noch ohne Skript: `InputFusion.Host.exe` von Hand starten. Für eingehende Verbindungen braucht der PC eine Firewall-Regel, einmalig in einer Admin-PowerShell:
+**Installiert:** `InputFusion.Host-win-Setup.exe` aus dem [GitHub-Release](https://github.com/NicoMertens/input-fusion/releases/latest) ausführen. Es installiert ohne Adminrechte nach `%LOCALAPPDATA%\InputFusion.Host\`, bringt bei Bedarf die .NET 10 Desktop Runtime mit und startet den Host. Beim ersten Start fragt der Host einmal per UAC nach Adminrechten, um die geplante Aufgabe für den erhöhten Start bei Anmeldung und die Firewall-Regel anzulegen; danach aktualisiert er sich selbst. Einzelheiten unter [Updates](updates.md#host).
+
+**Aus dem Build:** `InputFusion.Host.exe` von Hand starten, für die Hooks am besten erhöht. Für eingehende Verbindungen braucht der PC dann eine Firewall-Regel, einmalig in einer Admin-PowerShell:
 
 ```powershell
 New-NetFirewallRule -DisplayName "InputFusion Host" -Direction Inbound -Protocol TCP -LocalPort 15111 -Action Allow -Profile Any
 ```
 
-Ohne Regel blockiert Windows eingehend still, wenn die Richtlinie die Rückfrage beim Lauschen abschaltet (auf Firmengeräten üblich). Später übernimmt das der Installer, zusammen mit der Aufgabe „mit höchsten Rechten" für den Start bei Anmeldung.
+Ohne Regel blockiert Windows eingehend still, wenn die Richtlinie die Rückfrage beim Lauschen abschaltet (auf Firmengeräten üblich). Die installierte Fassung legt dieselbe Regel selbst an.

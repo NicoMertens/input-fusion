@@ -2,7 +2,7 @@
 
 ## Ordner
 
-- **Im Wurzelverzeichnis** liegen nur `source/`, `docs/`, `build/`, `README.md`, `global.json`, `.editorconfig`, `.gitignore` und `.gitattributes`. Build- und Installationsskripte liegen in `build/` parallel zu `source/`.
+- **Im Wurzelverzeichnis** liegen nur `source/`, `docs/`, `build/`, `.github/workflows/` (Build und Release, siehe [Updates](updates.md#releases)), `README.md`, `global.json`, `.editorconfig`, `.gitignore` und `.gitattributes`. Build- und Installationsskripte liegen in `build/` parallel zu `source/`.
 - **`source/`** enthält flach nebeneinander alle Projekte einschließlich der Testprojekte (`*.Tests`, kein eigener Unterordner), dazu `InputFusion.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `nuget.config`, das gemeinsame `app.manifest` und das Programmsymbol `InputFusion.ico` für Host und Einstellungen.
 - **`docs/`** enthält diese Doku, Einstieg und Regeln in [README.md](README.md).
 - **`_out/`** sammelt die Build-Ausgaben, parallel zu `source/`, je Projekt ein eigener Ordner (`_out/InputFusion.Host/` …) ohne Configuration- und TargetFramework-Unterordner. Wird erzeugt und ist per `.gitignore` ausgenommen; die Zwischendateien (`obj/`) bleiben beim jeweiligen Projekt.
@@ -26,7 +26,7 @@
 | `InputFusion.Simulator` | WPF | [Simulator](simulator.md) für Tests auf einem Rechner; reines Entwicklungswerkzeug, nicht im Installer |
 | `InputFusion.Tests` | xUnit, `net10.0-windows` | Layout-Engine, Kantenumrechnung, Protokoll |
 
-Später kommt der Installer dazu: WiX mit zwei MSIs. Das Server-MSI enthält Host, Settings, die Aufgabe und die Firewall-Regel, das Client-MSI enthält Client, Settings und den Dienst.
+Ausgeliefert wird in zwei Paketen je Release: ein Velopack-Paket mit Host und Einstellungen (die geplante Aufgabe und die Firewall-Regel legt der Host selbst an) und ein Zip mit dem Client und den Installationsskripten. Ein WiX-Installer, wie anfangs geplant, ist damit überflüssig; siehe [Updates](updates.md).
 
 **Warum nur so wenige Projekte:**
 

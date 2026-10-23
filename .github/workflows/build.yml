@@ -1,0 +1,27 @@
+# Hält develop baubar: jeder Push auf develop und jeder Pull Request. Veröffentlicht wird nur aus release.yml.
+name: Build
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build source/InputFusion.slnx -c Release -warnaserror
+
+      # Der Build meldet nicht jede Stilregel, dotnet format schon.
+      - name: Code-Stil
+        run: dotnet format style source/InputFusion.slnx --verify-no-changes --severity warn
+
+      - name: Tests
+        run: dotnet test source/InputFusion.slnx -c Release --no-build

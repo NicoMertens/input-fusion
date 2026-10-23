@@ -2,7 +2,7 @@
 
 Maus und Tastatur eines PCs steuern zusätzlich ein Notebook, wie Mouse Without Borders aus den PowerToys, aber schlanker und mit einem Layout je Monitor statt je Rechner. C# mit .NET 10, Einstellungen in WPF, nur Windows.
 
-**Stand:** Durchstich: Host als Tray-Agent mit Einstellungen und Monitor-Layout, Client als Windows-Dienst, Anmeldung mit gemeinsamem Schlüssel. Noch ohne Verschlüsselung und ohne Installer.
+**Stand:** Durchstich: Host als Tray-Agent mit Einstellungen und Monitor-Layout, Client als Windows-Dienst, Anmeldung mit gemeinsamem Schlüssel. Installation und Selbst-Update über GitHub-Releases. Noch ohne Verschlüsselung.
 
 ## Aufbau
 
@@ -15,7 +15,27 @@ Maus und Tastatur eines PCs steuern zusätzlich ein Notebook, wie Mouse Without 
 | `InputFusion.Core` | Bibliothek | Layout-Engine, Netzwerk- und IPC-Nachrichten, Win32-Interop über CsWin32 |
 | `InputFusion.Tests` | xUnit | Layout-Engine und Protokoll |
 
-Veröffentlicht wird framework-abhängig, beide Rechner brauchen die .NET 10 Desktop Runtime. Host und Client bleiben trotzdem AOT-fähig: keine reflection-lastigen Bibliotheken, JSON nur mit Source-Generator, kein WinForms oder WPF. Die AOT-Analyzer melden Verstöße schon beim Build. Der Installer (WiX, je ein MSI für Server und Client) kommt später dazu.
+Veröffentlicht wird framework-abhängig, beide Rechner brauchen die .NET 10 Desktop Runtime. Host und Client bleiben trotzdem AOT-fähig: keine reflection-lastigen Bibliotheken, JSON nur mit Source-Generator, kein WinForms oder WPF. Die AOT-Analyzer melden Verstöße schon beim Build. Installiert wird der Host per Velopack-Setup, der Client per Skript aus dem Release-Paket, siehe [Updates](docs/updates.md).
+
+## Installieren
+
+Aus dem [neuesten Release](https://github.com/NicoMertens/input-fusion/releases/latest):
+
+- **PC:** `InputFusion.Host-win-Setup.exe` ausführen. Beim ersten Start fragt der Host einmal nach Adminrechten, um sich bei der Anmeldung erhöht zu starten und die Firewall für Port 15111 zu öffnen.
+- **Notebook:** `InputFusion.Client-win-x64.zip` entpacken und in einer Admin-PowerShell `install-client.ps1 -HostName <PC-Name> -Key <Schlüssel>` ausführen. PC-Name und Schlüssel zeigen die Einstellungen des Hosts.
+
+Einzelheiten unter [`docs/installation.md`](docs/installation.md).
+
+## Updates
+
+Host und Client aktualisieren sich selbst aus den GitHub-Releases: beim Start, danach alle sechs Stunden und sofort, wenn sich Host und Client mit verschiedenen Protokollversionen treffen. Der Host spielt ein Update ein, sobald die Maus nicht auf dem Notebook ist, und startet neu; der Dienst auf dem Notebook tauscht sich selbst aus und startet ebenfalls neu. Builds aus dem Quellcode suchen nicht. Siehe [`docs/updates.md`](docs/updates.md).
+
+## Branches und Releases
+
+Entwickelt wird auf `develop`, `release` trägt immer den zuletzt veröffentlichten Stand. Jeder Push auf `release` veröffentlicht die `<Version>` aus `source/Directory.Build.props`: GitHub Actions baut Setup und Update-Pakete des Hosts sowie das Client-Paket, legt den Tag `vX.Y.Z` an und veröffentlicht das Release. Gibt es die Version schon, bricht der Workflow ab.
+
+- **Release:** `develop` per Merge-Commit nach `release` mergen und pushen, danach auf `develop` die Minor-Version erhöhen (0.1.0 → 0.2.0).
+- **Hotfix:** direkt auf `release` korrigieren, Patch-Version erhöhen (0.2.0 → 0.2.1), danach `release` nach `develop` mergen und dort die Version von `develop` behalten.
 
 ## Bauen
 

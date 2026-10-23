@@ -1,0 +1,116 @@
+# Jeder Push auf release veröffentlicht die Version aus source/Directory.Build.props als GitHub-Release mit Tag
+# vX.Y.Z: Velopack-Setup und Update-Pakete des Hosts (mit den Einstellungen) sowie das Client-Paket mit Prüfsumme.
+# Installierte Hosts und Clients holen sich ihre Updates von dort, siehe docs/updates.md.
+name: Release
+
+on:
+  push:
+    branches: [release]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  VPK_VERSION: 1.2.161
+  RELEASES_DIR: _out/releases
+  HOST_DIR: _out/publish/host
+  CLIENT_DIR: _out/publish/client
+  CLIENT_PACKAGE: InputFusion.Client-win-x64.zip
+  REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Version lesen
+        id: version
+        shell: pwsh
+        run: |
+          # Nur die letzte Zeile: Auf einem frischen Runner kann davor das Begrüßungsbanner von .NET stehen.
+          $version = (dotnet msbuild source/InputFusion.Host/InputFusion.Host.csproj -getProperty:Version | Select-Object -Last 1).Trim()
+          $tag = "v$version"
+
+          # Eine Version darf nie zweimal erscheinen; vermutlich wurde die Erhöhung auf develop vergessen.
+          if (git ls-remote --tags origin "refs/tags/$tag") {
+            Write-Error "Tag $tag existiert schon. <Version> in source/Directory.Build.props erhöhen."
+            exit 1
+          }
+
+          "value=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Tests
+        run: dotnet test source/InputFusion.slnx -c Release
+
+      # Host und Einstellungen in einen Ordner: Der Host startet die Einstellungen aus seinem eigenen Ordner.
+      - name: Host veröffentlichen
+        run: |
+          dotnet publish source/InputFusion.Host -c Release -r win-x64 --self-contained false -p:RepositoryUrl=${{ env.REPO_URL }} -o ${{ env.HOST_DIR }}
+          dotnet publish source/InputFusion.Settings -c Release -r win-x64 --self-contained false -p:RepositoryUrl=${{ env.REPO_URL }} -o ${{ env.HOST_DIR }}
+
+      # Die Installationsskripte liegen mit im Paket; sie nehmen die exe aus ihrem eigenen Ordner.
+      - name: Client veröffentlichen
+        shell: pwsh
+        run: |
+          dotnet publish source/InputFusion.Client -c Release -r win-x64 --self-contained false -p:RepositoryUrl=${{ env.REPO_URL }} -o ${{ env.CLIENT_DIR }}
+          Copy-Item build/install-client.ps1, build/uninstall-client.ps1 ${{ env.CLIENT_DIR }}
+          New-Item -ItemType Directory -Force _out/client-release | Out-Null
+          $zip = "_out/client-release/${{ env.CLIENT_PACKAGE }}"
+          Compress-Archive -Path "${{ env.CLIENT_DIR }}/*" -DestinationPath $zip
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          # Format wie sha256sum, ohne BOM; der Client liest nur den Hash am Anfang.
+          [System.IO.File]::WriteAllText("$zip.sha256", "$hash  ${{ env.CLIENT_PACKAGE }}`n")
+
+      - name: vpk installieren
+        run: dotnet tool install -g vpk --version ${{ env.VPK_VERSION }}
+
+      # Mit dem vorigen Release baut vpk ein Delta-Paket; beim allerersten gibt es keins.
+      - name: Vorheriges Release laden
+        continue-on-error: true
+        run: >
+          vpk download github -o ${{ env.RELEASES_DIR }}
+          --repoUrl ${{ env.REPO_URL }}
+          --token ${{ secrets.GITHUB_TOKEN }}
+
+      # Kein Autostart über Velopack: Der Host legt beim ersten Start selbst eine geplante Aufgabe mit höchsten Rechten an.
+      - name: Host packen
+        run: >
+          vpk pack -o ${{ env.RELEASES_DIR }}
+          -u InputFusion.Host
+          -v ${{ steps.version.outputs.value }}
+          -p ${{ env.HOST_DIR }}
+          -e InputFusion.Host.exe
+          --packTitle "InputFusion Host"
+          -i source/InputFusion.ico
+          -f net10.0-x64-desktop
+          --shortcuts StartMenuRoot
+
+      # GitHub legt den Tag zusammen mit dem Release auf dem gemergten Commit an.
+      - name: Release hochladen
+        run: >
+          vpk upload github -o ${{ env.RELEASES_DIR }}
+          --repoUrl ${{ env.REPO_URL }}
+          --token ${{ secrets.GITHUB_TOKEN }}
+          --publish
+          --releaseName "InputFusion ${{ steps.version.outputs.value }}"
+          --tag ${{ steps.version.outputs.tag }}
+          --targetCommitish ${{ github.sha }}
+
+      # Erst nach dem Release möglich; installierte Clients warten so lange, bis das Paket da ist.
+      - name: Client-Paket anhängen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          gh release upload ${{ steps.version.outputs.tag }}
+          _out/client-release/${{ env.CLIENT_PACKAGE }}
+          _out/client-release/${{ env.CLIENT_PACKAGE }}.sha256
