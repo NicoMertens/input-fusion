@@ -132,7 +132,9 @@ internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action d
     {
         TrayIcon? tray = _instance;
         if (tray is null)
+        {
             return PInvoke.DefWindowProc(hwnd, message, wParam, lParam);
+        }
 
         try
         {
@@ -166,7 +168,9 @@ internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action d
             }
             // Nach einem Neustart des Explorers ist das Symbol weg und muss neu angelegt werden.
             if (message == tray._taskbarCreated && message != 0)
+            {
                 tray.Notify(NOTIFY_ICON_MESSAGE.NIM_ADD);
+            }
         }
         catch (Exception ex)
         {

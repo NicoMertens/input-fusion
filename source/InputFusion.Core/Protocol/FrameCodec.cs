@@ -15,10 +15,15 @@ public static class FrameCodec
     public static int Write(Span<byte> destination, MessageType type, ReadOnlySpan<byte> payload)
     {
         if (payload.Length > MaxPayload)
+        {
             throw new ArgumentException($"Nutzlast über {MaxPayload} Bytes", nameof(payload));
+        }
+
         int total = HeaderSize + payload.Length;
         if (destination.Length < total)
+        {
             throw new ArgumentException("Zielpuffer zu klein", nameof(destination));
+        }
 
         BinaryPrimitives.WriteUInt16LittleEndian(destination, (ushort)payload.Length);
         destination[2] = (byte)type;

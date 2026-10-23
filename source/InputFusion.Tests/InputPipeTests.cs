@@ -34,7 +34,9 @@ public class InputPipeTests
             {
                 received.Add(frame);
                 if (received.Count == 3)
+                {
                     break;
+                }
             }
         }, cts.Token);
 

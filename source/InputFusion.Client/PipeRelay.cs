@@ -32,12 +32,21 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
             {
                 // Heartbeats sind Sache der Verbindung, nicht des Injectors.
                 if (type == MessageType.Heartbeat)
+                {
                     continue;
+                }
+
                 if (type == MessageType.ReturnEdges)
+                {
                     _returnEdges = payload;
+                }
+
                 MessageConnection? injector = _injector;
                 if (injector is null)
+                {
                     continue;
+                }
+
                 try
                 {
                     await injector.SendAsync(type, payload, linked.Token);
@@ -92,9 +101,14 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
             try
             {
                 if (_returnEdges is { } edges)
+                {
                     await conn.SendAsync(MessageType.ReturnEdges, edges, ct);
+                }
+
                 await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(ct))
+                {
                     await host.SendAsync(type, payload, ct);
+                }
             }
             catch (Exception ex) when (ex is OperationCanceledException or IOException or ObjectDisposedException)
             {
@@ -109,7 +123,9 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
                 _injector = null;
             }
             if (!ct.IsCancellationRequested)
+            {
                 log("Injector von der Pipe getrennt, warte auf Neuverbindung.");
+            }
         }
     }
 }

@@ -41,7 +41,9 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
     public (int X, int Y, bool Active, string[] Pressed, long Moves) Snapshot()
     {
         lock (_lock)
+        {
             return (_x, _y, Active, [.. _pressed], MoveCount);
+        }
     }
 
     public void Apply(MessageType type, byte[] payload)
@@ -118,7 +120,9 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
         }
 
         if (log is not null)
+        {
             Logged?.Invoke(log);
+        }
     }
 
     /// <summary>Verbindung weg: Steuerung und gedrückte Tasten verwerfen, wie es der echte Injector tut.</summary>
@@ -136,7 +140,10 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
     private string? CheckExit(int dx, int dy)
     {
         if (!Active || ReturnEdge.Find(_returnEdges, _x, _y, dx, dy) is not { } edge)
+        {
             return null;
+        }
+
         Active = false;
         _exitRequest = new SwitchBackRequest(edge.Side, _x, _y);
         return $"An der Rückkehrkante ({edge.Side}) angekommen, zurück an den Host";
@@ -162,8 +169,12 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
     private void Toggle(string name, bool down)
     {
         if (down)
+        {
             _pressed.Add(name);
+        }
         else
+        {
             _pressed.Remove(name);
+        }
     }
 }

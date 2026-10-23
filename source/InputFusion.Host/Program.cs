@@ -29,7 +29,9 @@ internal static class Program
         bool diag = args.Contains("--diag");
         bool observe = !diag && (args.Contains("--observe") || (remoteSession && !args.Contains("--capture")));
         if (diag || args.Contains("--console"))
+        {
             PInvoke.AllocConsole();
+        }
 
         using CancellationTokenSource cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };

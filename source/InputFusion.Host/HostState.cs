@@ -36,7 +36,9 @@ internal sealed class HostState(HostConfig config)
         get
         {
             lock (_lock)
+            {
                 return config.Key;
+            }
         }
     }
 
@@ -45,7 +47,9 @@ internal sealed class HostState(HostConfig config)
         get
         {
             lock (_lock)
+            {
                 return _clientAddress is null ? "InputFusion – wartet auf das Notebook" : $"InputFusion – verbunden mit {_clientAddress}";
+            }
         }
     }
 
@@ -54,11 +58,17 @@ internal sealed class HostState(HostConfig config)
     {
         string? error = HostConfig.ValidateKey(key);
         if (error is not null)
+        {
             return error;
+        }
+
         lock (_lock)
         {
             if (config.Key == key)
+            {
                 return null;
+            }
+
             config.Key = key;
             config.Save();
         }
@@ -73,7 +83,10 @@ internal sealed class HostState(HostConfig config)
         lock (_lock)
         {
             if (monitors.SequenceEqual(_hostMonitors))
+            {
                 return;
+            }
+
             _hostMonitors = monitors;
         }
         Log.Write($"Eigene Monitore geändert: {Describe(monitors)}");
@@ -95,7 +108,10 @@ internal sealed class HostState(HostConfig config)
         lock (_lock)
         {
             if (_clientAddress is null || monitors.SequenceEqual(_clientMonitors))
+            {
                 return;
+            }
+
             _clientMonitors = monitors;
         }
         Log.Write($"Monitore des Clients: {Describe(monitors)}");
@@ -119,11 +135,16 @@ internal sealed class HostState(HostConfig config)
         lock (_lock)
         {
             if (_clientMonitors.Count == 0)
+            {
                 return "Kein Client mit Monitoren verbunden.";
+            }
+
             (int x, int y) = MonitorLayout.Snap(_hostMonitors, _clientMonitors, offsetX, offsetY);
             layout = new MonitorLayout(_hostMonitors, _clientMonitors, x, y);
             if (!layout.IsValid)
+            {
                 return "An dieser Stelle grenzt kein Client-Monitor an einen eigenen Monitor.";
+            }
 
             string combination = MonitorLayout.CombinationKey(_hostMonitors, _clientMonitors);
             config.Layouts.RemoveAll(l => l.Combination == combination);
@@ -159,7 +180,10 @@ internal sealed class HostState(HostConfig config)
                 string combination = MonitorLayout.CombinationKey(_hostMonitors, _clientMonitors);
                 SavedLayout? saved = config.Layouts.FirstOrDefault(l => l.Combination == combination);
                 if (saved is not null)
+                {
                     layout = new MonitorLayout(_hostMonitors, _clientMonitors, saved.OffsetX, saved.OffsetY);
+                }
+
                 if (layout is not { IsValid: true })
                 {
                     (int x, int y) = MonitorLayout.DefaultOffset(_hostMonitors, _clientMonitors);

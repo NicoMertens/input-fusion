@@ -33,7 +33,10 @@ public static unsafe class SettingsPipe
         // D: nur Benutzer und SYSTEM, ohne Vererbung; S: Mandatory Label Mittel, No-Write-Up.
         string sddl = $"D:P(A;;GA;;;{CurrentUser().Value})(A;;GA;;;SY)S:(ML;;NW;;;ME)";
         if (!PInvoke.ConvertStringSecurityDescriptorToSecurityDescriptor(sddl, PInvoke.SDDL_REVISION_1, out PSECURITY_DESCRIPTOR descriptor))
+        {
             throw new Win32Exception();
+        }
+
         try
         {
             SECURITY_ATTRIBUTES attributes = new SECURITY_ATTRIBUTES
@@ -56,7 +59,10 @@ public static unsafe class SettingsPipe
                     &attributes);
             }
             if ((nint)handle.Value == -1)
+            {
                 throw new Win32Exception();
+            }
+
             return new NamedPipeServerStream(PipeDirection.InOut, isAsync: true, isConnected: false, new SafePipeHandle((nint)handle.Value, ownsHandle: true));
         }
         finally

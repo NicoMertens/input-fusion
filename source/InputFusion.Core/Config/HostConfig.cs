@@ -32,11 +32,20 @@ public sealed class HostConfig
     public static string? ValidateKey(string key)
     {
         if (key.Length < MinKeyLength)
+        {
             return $"Der Schlüssel braucht mindestens {MinKeyLength} Zeichen.";
+        }
+
         if (key.Trim().Length != key.Length)
+        {
             return "Der Schlüssel darf nicht mit Leerzeichen beginnen oder enden.";
+        }
+
         if (key.Any(char.IsControl))
+        {
             return "Der Schlüssel darf keine Steuerzeichen enthalten.";
+        }
+
         return null;
     }
 
@@ -72,7 +81,10 @@ public sealed class HostConfig
         // Erst in eine Nachbardatei, dann ersetzen: Ein Absturz mitten im Schreiben ließe sonst eine halbe Datei zurück.
         string temp = FilePath + ".tmp";
         using (FileStream stream = File.Create(temp))
+        {
             JsonSerializer.Serialize(stream, this, HostConfigJson.Default.HostConfig);
+        }
+
         File.Move(temp, FilePath, overwrite: true);
     }
 }

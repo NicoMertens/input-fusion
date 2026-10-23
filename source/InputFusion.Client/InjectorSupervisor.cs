@@ -43,7 +43,10 @@ internal sealed class InjectorSupervisor(bool asService, Action<string> log)
                     {
                         // Einmal melden, nicht jede Sekunde.
                         if (ex.Message != lastError)
+                        {
                             log($"Injector ließ sich nicht starten: {ex.Message}. Neuer Versuch jede Sekunde.");
+                        }
+
                         lastError = ex.Message;
                     }
                 }
@@ -62,7 +65,9 @@ internal sealed class InjectorSupervisor(bool asService, Action<string> log)
     {
         string exe = Environment.ProcessPath!;
         if (asService)
+        {
             return SessionLauncher.Start(session, exe, Injector.Argument);
+        }
 
         ProcessStartInfo info = new ProcessStartInfo(exe, Injector.Argument) { UseShellExecute = false };
         return Process.Start(info) ?? throw new InvalidOperationException("Injector-Prozess ließ sich nicht starten.");
@@ -71,11 +76,16 @@ internal sealed class InjectorSupervisor(bool asService, Action<string> log)
     private static void Stop(Process? injector)
     {
         if (injector is null)
+        {
             return;
+        }
+
         try
         {
             if (!injector.HasExited)
+            {
                 injector.Kill();
+            }
         }
         catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
         {

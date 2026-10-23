@@ -30,12 +30,16 @@ public sealed class FrameReader
         type = default;
         payload = [];
         if (_count < FrameCodec.HeaderSize)
+        {
             return false;
+        }
 
         int payloadLength = BinaryPrimitives.ReadUInt16LittleEndian(_buffer);
         int frameLength = FrameCodec.HeaderSize + payloadLength;
         if (_count < frameLength)
+        {
             return false;
+        }
 
         type = (MessageType)_buffer[2];
         payload = _buffer.AsSpan(FrameCodec.HeaderSize, payloadLength).ToArray();
@@ -49,10 +53,16 @@ public sealed class FrameReader
     private void EnsureCapacity(int needed)
     {
         if (needed <= _buffer.Length)
+        {
             return;
+        }
+
         int size = _buffer.Length * 2;
         while (size < needed)
+        {
             size *= 2;
+        }
+
         Array.Resize(ref _buffer, size);
     }
 }

@@ -70,19 +70,26 @@ public sealed class MessageConnection : IDisposable
     {
         // Frames, die beim vorigen Lesen schon mitkamen (etwa direkt nach der Anmeldung), zuerst ausliefern.
         while (_reader.TryRead(out MessageType bufferedType, out byte[] bufferedPayload))
+        {
             yield return (bufferedType, bufferedPayload);
+        }
 
         byte[] buffer = new byte[4096];
         while (!ct.IsCancellationRequested)
         {
             int n = await _stream.ReadAsync(buffer, ct);
             if (n == 0)
+            {
                 yield break;
+            }
+
             Volatile.Write(ref _lastReceived, Environment.TickCount64);
 
             _reader.Append(buffer.AsSpan(0, n));
             while (_reader.TryRead(out MessageType type, out byte[] payload))
+            {
                 yield return (type, payload);
+            }
         }
     }
 
@@ -106,12 +113,16 @@ public sealed class MessageConnection : IDisposable
             catch (OperationCanceledException) { return false; }
 
             if (Environment.TickCount64 - Volatile.Read(ref _lastReceived) > HeartbeatTimeout.TotalMilliseconds)
+            {
                 return true;
+            }
 
             // Nicht auf das Senden warten: Bei totem Gegenüber kann es im vollen Puffer hängen, und die
             // Prüfung oben muss trotzdem laufen. Höchstens ein Heartbeat zugleich unterwegs.
             if (pending is null || pending.IsCompleted)
+            {
                 pending = SendHeartbeatAsync(ct);
+            }
         }
         return false;
     }
@@ -131,11 +142,17 @@ public sealed class MessageConnection : IDisposable
     public void Dispose()
     {
         if (_disposed)
+        {
             return;
+        }
+
         _disposed = true;
         _stream.Dispose();
         if (!ReferenceEquals(_owner, _stream))
+        {
             _owner?.Dispose();
+        }
+
         _sendLock.Dispose();
     }
 }

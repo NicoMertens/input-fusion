@@ -37,9 +37,15 @@ public partial class App : Application
             using (process)
             {
                 if (process.Id == current.Id || process.MainWindowHandle == 0)
+                {
                     continue;
+                }
+
                 if (IsIconic(process.MainWindowHandle))
+                {
                     ShowWindow(process.MainWindowHandle, SwRestore);
+                }
+
                 SetForegroundWindow(process.MainWindowHandle);
                 return;
             }

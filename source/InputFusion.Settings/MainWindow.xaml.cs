@@ -69,7 +69,9 @@ public partial class MainWindow : Window
         };
 
         if (!_dragging)
+        {
             RenderArrangement(recenter: true);
+        }
     }
 
     private void OnError(string message)
@@ -89,7 +91,9 @@ public partial class MainWindow : Window
     private void OnKeyChanged(object sender, TextChangedEventArgs e)
     {
         if (!_updatingKey)
+        {
             UpdateKeyState();
+        }
     }
 
     private void UpdateKeyState()
@@ -140,7 +144,9 @@ public partial class MainWindow : Window
         IReadOnlyList<MonitorRect> host = HostMonitors;
         IReadOnlyList<MonitorRect> client = ClientMonitors;
         if (host.Count == 0)
+        {
             return;
+        }
 
         LayoutHint.Text = client.Count == 0
             ? "Kein Notebook verbunden: zu sehen sind nur die eigenen Monitore. Sobald ein Notebook verbunden ist, "
@@ -172,7 +178,9 @@ public partial class MainWindow : Window
         }
 
         if (client.Count == 0)
+        {
             return;
+        }
 
         (int ox, int oy) = CurrentOffset;
         MonitorLayout layout = new MonitorLayout(host, client, ox, oy);
@@ -182,7 +190,9 @@ public partial class MainWindow : Window
             AddMonitor(m, $"Notebook {i + 1}\n{m.Width} × {m.Height}", "ClientMonitorBrush", "ClientMonitorBorderBrush", unit, draggable: true);
         }
         foreach (EdgeTransition t in layout.Transitions)
+        {
             AddTransition(t, unit);
+        }
     }
 
     private void AddMonitor(MonitorRect m, string label, string fill, string border, double unit, bool draggable)
@@ -254,13 +264,19 @@ public partial class MainWindow : Window
     private void OnArrangementMouseMove(object sender, MouseEventArgs e)
     {
         if (!_dragging)
+        {
             return;
+        }
+
         Point p = e.GetPosition(Arrangement);
         int x = _dragStartOffset.X + (int)Math.Round(p.X - _dragStart.X);
         int y = _dragStartOffset.Y + (int)Math.Round(p.Y - _dragStart.Y);
         (int X, int Y) snapped = MonitorLayout.Snap(HostMonitors, ClientMonitors, x, y);
         if (snapped == _previewOffset)
+        {
             return;
+        }
+
         _previewOffset = snapped;
         RenderArrangement(recenter: false);
     }
@@ -268,11 +284,16 @@ public partial class MainWindow : Window
     private async void OnArrangementMouseUp(object sender, MouseButtonEventArgs e)
     {
         if (!_dragging)
+        {
             return;
+        }
+
         (int X, int Y) offset = _previewOffset;
         Arrangement.ReleaseMouseCapture();
         if (offset == _dragStartOffset || _state?.Client is not { } client)
+        {
             return;
+        }
 
         // Bis der Agent bestätigt, die neue Lage schon zeigen, sonst springt die Gruppe kurz zurück.
         _state = _state with { Client = client with { OffsetX = offset.X, OffsetY = offset.Y } };
@@ -286,7 +307,10 @@ public partial class MainWindow : Window
     private void OnArrangementLostCapture(object sender, MouseEventArgs e)
     {
         if (!_dragging)
+        {
             return;
+        }
+
         _dragging = false;
         RenderArrangement(recenter: false);
     }

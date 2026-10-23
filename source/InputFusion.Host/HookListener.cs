@@ -27,7 +27,10 @@ internal sealed class HookListener
                 // Die Hooks feuern von selbst; abzuholen ist nur WM_INPUT. DispatchMessage gibt es an die
                 // Fensterprozedur weiter, die den Raw-Input-Puffer aufräumt.
                 if (msg.message == PInvoke.WM_INPUT)
+                {
                     RawMouse.Handle(msg.lParam);
+                }
+
                 PInvoke.DispatchMessage(msg);
             }
             RawMouse.Unregister();
@@ -42,7 +45,10 @@ internal sealed class HookListener
     public void Stop()
     {
         if (_threadId != 0)
+        {
             PInvoke.PostThreadMessage(_threadId, 0x0012 /* WM_QUIT */, default, default);
+        }
+
         _thread?.Join(1000);
     }
 }

@@ -62,9 +62,15 @@ public sealed class InputDispatcher(InputPlayer player)
     private SwitchBackRequest? TryExit(int dx, int dy)
     {
         if (!_active || !PInvoke.GetCursorPos(out Point cursor))
+        {
             return null;
+        }
+
         if (ReturnEdge.Find(_returnEdges, cursor.X, cursor.Y, dx, dy) is not { } edge)
+        {
             return null;
+        }
+
         _active = false;
         return new SwitchBackRequest(edge.Side, cursor.X, cursor.Y);
     }

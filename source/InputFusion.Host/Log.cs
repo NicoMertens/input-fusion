@@ -27,7 +27,10 @@ internal static class Log
                 // Eine Vorgängerdatei genügt; das Protokoll dient der Fehlersuche, nicht der Nachweisführung.
                 FileInfo info = new FileInfo(FilePath);
                 if (info.Exists && info.Length > MaxFileSize)
+                {
                     File.Move(FilePath, FilePath + ".old", overwrite: true);
+                }
+
                 File.AppendAllText(FilePath, line + Environment.NewLine);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

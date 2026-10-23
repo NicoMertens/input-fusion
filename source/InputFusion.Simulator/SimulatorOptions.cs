@@ -37,7 +37,9 @@ internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> 
         // Host und Simulator laufen beim Entwickeln meist auf demselben Rechner und unter demselben Benutzer.
         key ??= HostConfig.TryLoad()?.Key;
         if (string.IsNullOrEmpty(key))
+        {
             throw new ArgumentException($"Kein Schlüssel: --key angeben oder den Host auf diesem Rechner einmal starten ({HostConfig.FilePath}).");
+        }
 
         return new SimulatorOptions(host, ParseMonitors(monitors), delay, key);
     }
@@ -49,11 +51,17 @@ internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> 
         {
             int[] v = part.Split(',').Select(s => int.Parse(s.Trim(), CultureInfo.InvariantCulture)).ToArray();
             if (v.Length is not (4 or 5))
+            {
                 throw new ArgumentException($"Monitor \"{part}\" braucht x,y,breite,höhe[,dpi]");
+            }
+
             result.Add(new MonitorRect(v[0], v[1], v[2], v[3], v.Length == 5 ? v[4] : 96, $"SIM-{result.Count + 1}"));
         }
         if (result.Count == 0)
+        {
             throw new ArgumentException("Mindestens ein Monitor nötig");
+        }
+
         return result;
     }
 }

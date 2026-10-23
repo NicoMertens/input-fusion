@@ -85,7 +85,10 @@ public class HandshakeTests
         // schließen beendet das wie im echten Betrieb sofort.
         bool hostResult = await host;
         if (!hostResult)
+        {
             hostConn.Dispose();
+        }
+
         return (hostResult, await client);
     }
 }

@@ -34,9 +34,14 @@ public sealed class InputPlayer
     {
         bool down = button.State == ButtonState.Down;
         if (down)
+        {
             _buttonsDown.Add(button.Button);
+        }
         else
+        {
             _buttonsDown.Remove(button.Button);
+        }
+
         (MOUSE_EVENT_FLAGS flags, uint data) = button.Button switch
         {
             0 => (down ? MOUSE_EVENT_FLAGS.MOUSEEVENTF_LEFTDOWN : MOUSE_EVENT_FLAGS.MOUSEEVENTF_LEFTUP, 0u),
@@ -56,14 +61,23 @@ public sealed class InputPlayer
     {
         KEYBD_EVENT_FLAGS flags = KEYBD_EVENT_FLAGS.KEYEVENTF_SCANCODE;
         if (key.State == ButtonState.Up)
+        {
             flags |= KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP;
+        }
+
         if (key.Extended)
+        {
             flags |= KEYBD_EVENT_FLAGS.KEYEVENTF_EXTENDEDKEY;
+        }
 
         if (key.State == ButtonState.Up)
+        {
             _keysDown.Remove(key.VirtualKey);
+        }
         else
+        {
             _keysDown[key.VirtualKey] = key;
+        }
 
         INPUT input = new INPUT { type = INPUT_TYPE.INPUT_KEYBOARD };
         input.Anonymous.ki = new KEYBDINPUT
@@ -80,9 +94,14 @@ public sealed class InputPlayer
     public void ReleaseAll()
     {
         foreach (KeyEvent key in _keysDown.Values.ToArray())
+        {
             Key(key with { State = ButtonState.Up });
+        }
+
         foreach (byte button in _buttonsDown.ToArray())
+        {
             Button(new MouseButton(button, ButtonState.Up));
+        }
     }
 
     private void SendMouse(int dx, int dy, uint data, MOUSE_EVENT_FLAGS flags)

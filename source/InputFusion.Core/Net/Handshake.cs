@@ -37,10 +37,15 @@ public static class Handshake
 
             byte[]? response = await ReceiveAsync(connection, MessageType.HelloResponse, NonceSize + MacSize, timeout.Token);
             if (response is null)
+            {
                 return false;
+            }
+
             byte[] clientNonce = response[..NonceSize];
             if (!CryptographicOperations.FixedTimeEquals(response.AsSpan(NonceSize), Mac(key, "client", hostNonce, clientNonce)))
+            {
                 return false;
+            }
 
             await connection.SendAsync(MessageType.HelloAccept, Mac(key, "host", hostNonce, clientNonce), timeout.Token);
             return true;
@@ -61,7 +66,10 @@ public static class Handshake
         {
             byte[]? hostNonce = await ReceiveAsync(connection, MessageType.Hello, NonceSize, timeout.Token);
             if (hostNonce is null)
+            {
                 return false;
+            }
+
             byte[] clientNonce = RandomNumberGenerator.GetBytes(NonceSize);
             byte[] response = [.. clientNonce, .. Mac(key, "client", hostNonce, clientNonce)];
             await connection.SendAsync(MessageType.HelloResponse, response, timeout.Token);
@@ -87,7 +95,10 @@ public static class Handshake
     private static async Task<byte[]?> ReceiveAsync(MessageConnection connection, MessageType expected, int length, CancellationToken ct)
     {
         await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(ct))
+        {
             return type == expected && payload.Length == length ? payload : null;
+        }
+
         return null;
     }
 }

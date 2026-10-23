@@ -69,9 +69,14 @@ internal static class LowLevelHooks
             MSLLHOOKSTRUCT data = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam.Value);
             bool injected = (data.flags & 1) != 0;
             if (!injected)
+            {
                 Publish((uint)wParam.Value, data);
+            }
+
             if (Swallow)
+            {
                 return (LRESULT)1;
+            }
         }
         return PInvoke.CallNextHookEx((HHOOK)default, nCode, wParam, lParam);
     }
@@ -91,7 +96,9 @@ internal static class LowLevelHooks
                 _channel.Writer.TryWrite(new KeyInputEvent((ushort)data.vkCode, (ushort)data.scanCode, down, extended));
             }
             if (Swallow)
+            {
                 return (LRESULT)1;
+            }
         }
         return PInvoke.CallNextHookEx((HHOOK)default, nCode, wParam, lParam);
     }
@@ -112,7 +119,9 @@ internal static class LowLevelHooks
             _ => null,
         };
         if (e is not null)
+        {
             _channel.Writer.TryWrite(e);
+        }
     }
 
     /// <summary>

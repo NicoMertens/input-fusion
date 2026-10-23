@@ -39,12 +39,16 @@ public static unsafe class MonitorEnumerator
         MONITORINFOEXW info = new MONITORINFOEXW();
         info.monitorInfo.cbSize = (uint)sizeof(MONITORINFOEXW);
         if (!PInvoke.GetMonitorInfo(monitor, (MONITORINFO*)&info))
+        {
             return true;
+        }
 
         uint dpi = 96;
         if (OperatingSystem.IsWindowsVersionAtLeast(10)
             && PInvoke.GetDpiForMonitor(monitor, MONITOR_DPI_TYPE.MDT_EFFECTIVE_DPI, out uint dpiX, out _).Succeeded)
+        {
             dpi = dpiX;
+        }
 
         RECT r = info.monitorInfo.rcMonitor;
         string device = info.szDevice.ToString();
@@ -63,7 +67,9 @@ public static unsafe class MonitorEnumerator
         {
             string id = display.DeviceID.ToString();
             if (id.Length > 0)
+            {
                 return id;
+            }
         }
         return device;
     }

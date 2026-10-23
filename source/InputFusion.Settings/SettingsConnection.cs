@@ -36,7 +36,10 @@ internal sealed class SettingsConnection(Dispatcher dispatcher)
                 await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(ct))
                 {
                     if (type != MessageType.Settings)
+                    {
                         continue;
+                    }
+
                     switch (SettingsMessage.FromPayload(payload))
                     {
                         case HostStateMessage state:
@@ -72,7 +75,10 @@ internal sealed class SettingsConnection(Dispatcher dispatcher)
     {
         MessageConnection? connection = _connection;
         if (connection is null)
+        {
             return;
+        }
+
         try
         {
             await connection.SendAsync(MessageType.Settings, message.ToPayload());

@@ -20,16 +20,25 @@ internal static unsafe class SessionLauncher
         HANDLE own, primary;
         if (!PInvoke.OpenProcessToken(PInvoke.GetCurrentProcess(),
                 TOKEN_ACCESS_MASK.TOKEN_DUPLICATE | TOKEN_ACCESS_MASK.TOKEN_QUERY, &own))
+        {
             throw new Win32Exception();
+        }
+
         try
         {
             if (!PInvoke.DuplicateTokenEx(own, TOKEN_ACCESS_MASK.TOKEN_ALL_ACCESS, null,
                     SECURITY_IMPERSONATION_LEVEL.SecurityIdentification, TOKEN_TYPE.TokenPrimary, &primary))
+            {
                 throw new Win32Exception();
+            }
+
             try
             {
                 if (!PInvoke.SetTokenInformation(primary, TOKEN_INFORMATION_CLASS.TokenSessionId, &sessionId, sizeof(uint)))
+                {
                     throw new Win32Exception();
+                }
+
                 return CreateProcess(primary, exePath, arguments);
             }
             finally
@@ -55,7 +64,9 @@ internal static unsafe class SessionLauncher
             // CREATE_NO_WINDOW: Die exe ist eine Konsolenanwendung, sonst öffnet sich beim Benutzer ein Fenster.
             if (!PInvoke.CreateProcessAsUser(token, null, cmd, null, null, false,
                     PROCESS_CREATION_FLAGS.CREATE_NO_WINDOW, null, null, &startup, &info))
+            {
                 throw new Win32Exception();
+            }
 
             PInvoke.CloseHandle(info.hThread);
             try

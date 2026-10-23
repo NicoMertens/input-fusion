@@ -32,8 +32,13 @@ public readonly record struct ReturnEdge(EdgeSide Side, int Edge, int From, int 
     public static ReturnEdge? Find(IReadOnlyList<ReturnEdge> edges, int x, int y, int dx, int dy)
     {
         foreach (ReturnEdge edge in edges)
+        {
             if (edge.IsHit(x, y, dx, dy))
+            {
                 return edge;
+            }
+        }
+
         return null;
     }
 }

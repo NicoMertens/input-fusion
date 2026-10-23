@@ -28,7 +28,9 @@ public static class InputPipe
 
         SecurityIdentifier? me = WindowsIdentity.GetCurrent().User;
         if (me is not null && me != system)
+        {
             security.AddAccessRule(new PipeAccessRule(me, PipeAccessRights.FullControl, AccessControlType.Allow));
+        }
 
         // Kleiner Puffer, damit das Weiterreichen winziger Eingabe-Frames nicht auf die Lese-Kadenz des
         // Injectors wartet. Ohne Puffer blockiert schon ein einzelner Write, bis der Injector liest.

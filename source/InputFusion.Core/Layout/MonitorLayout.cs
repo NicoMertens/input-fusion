@@ -80,7 +80,10 @@ public sealed class MonitorLayout
                 foreach ((int X, int Y) candidate in Candidates(h, c, x, y))
                 {
                     if (Overlaps(hostMonitors, clientMonitors, candidate.X, candidate.Y))
+                    {
                         continue;
+                    }
+
                     long dx = candidate.X - x, dy = candidate.Y - y;
                     long distance = dx * dx + dy * dy;
                     if (distance < bestDistance)
@@ -109,7 +112,9 @@ public sealed class MonitorLayout
         {
             MonitorRect h = t.HostMonitor;
             if (!h.Contains(px, py))
+            {
                 continue;
+            }
 
             bool crossing = t.Side switch
             {
@@ -119,7 +124,9 @@ public sealed class MonitorLayout
                 _ => (dy < 0 || still) && y <= h.Top && px >= t.From && px < t.To,
             };
             if (!crossing)
+            {
                 continue;
+            }
 
             transition = t;
             clientPoint = EntryPoint(t, t.Side.IsVertical() ? py : px);
@@ -157,10 +164,15 @@ public sealed class MonitorLayout
         foreach (EdgeTransition t in Transitions)
         {
             if (t.Side.Opposite() != clientSide)
+            {
                 continue;
+            }
+
             int along = t.Side.IsVertical() ? ly : lx;
             if (along < t.From || along >= t.To)
+            {
                 continue;
+            }
 
             MonitorRect h = t.HostMonitor;
             hostPoint = t.Side switch
@@ -186,13 +198,24 @@ public sealed class MonitorLayout
             {
                 MonitorRect p = Place(c);
                 if (p.Left == h.Right)
+                {
                     AddIfOverlapping(result, EdgeSide.Right, h, c, p, h.Top, h.Bottom, p.Top, p.Bottom);
+                }
+
                 if (p.Right == h.Left)
+                {
                     AddIfOverlapping(result, EdgeSide.Left, h, c, p, h.Top, h.Bottom, p.Top, p.Bottom);
+                }
+
                 if (p.Top == h.Bottom)
+                {
                     AddIfOverlapping(result, EdgeSide.Bottom, h, c, p, h.Left, h.Right, p.Left, p.Right);
+                }
+
                 if (p.Bottom == h.Top)
+                {
                     AddIfOverlapping(result, EdgeSide.Top, h, c, p, h.Left, h.Right, p.Left, p.Right);
+                }
             }
         }
         return result;
@@ -204,7 +227,9 @@ public sealed class MonitorLayout
         int from = Math.Max(hostStart, clientStart);
         int to = Math.Min(hostEnd, clientEnd);
         if (to > from)
+        {
             result.Add(new EdgeTransition(side, h, c, p, from, to));
+        }
     }
 
     private ReturnEdge ToReturnEdge(EdgeTransition t)
@@ -243,8 +268,13 @@ public sealed class MonitorLayout
     private static int AlignEdges(int offset, int hostStart, int hostEnd, int clientStart, int clientEnd, int min, int max)
     {
         foreach (int aligned in new[] { hostStart - clientStart, hostEnd - clientEnd })
+        {
             if (Math.Abs(offset - aligned) <= SnapDistance && aligned >= min && aligned <= max)
+            {
                 return aligned;
+            }
+        }
+
         return offset;
     }
 
@@ -256,7 +286,9 @@ public sealed class MonitorLayout
             {
                 int left = c.Left + offsetX, top = c.Top + offsetY;
                 if (left < h.Right && left + c.Width > h.Left && top < h.Bottom && top + c.Height > h.Top)
+                {
                     return true;
+                }
             }
         }
         return false;

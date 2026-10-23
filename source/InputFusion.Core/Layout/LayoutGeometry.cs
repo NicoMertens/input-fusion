@@ -11,8 +11,13 @@ public static class LayoutGeometry
     public static MonitorRect? MonitorAt(IReadOnlyList<MonitorRect> monitors, int x, int y)
     {
         foreach (MonitorRect m in monitors)
+        {
             if (m.Contains(x, y))
+            {
                 return m;
+            }
+        }
+
         return null;
     }
 
@@ -25,7 +30,9 @@ public static class LayoutGeometry
     {
         int sourceSpan = sourceEnd - sourceStart;
         if (sourceSpan == 0)
+        {
             return targetStart + (targetEnd - targetStart) / 2;
+        }
 
         double t = (double)(value - sourceStart) / sourceSpan;
         t = Math.Clamp(t, 0.0, 1.0);
@@ -47,7 +54,9 @@ public static class LayoutGeometry
     public static (ushort X, ushort Y) NormalizeToVirtualDesktop(IReadOnlyList<MonitorRect> monitors, int x, int y)
     {
         if (monitors.Count == 0)
+        {
             return (0, 0);
+        }
 
         int minX = monitors.Min(m => m.Left);
         int minY = monitors.Min(m => m.Top);
@@ -63,7 +72,9 @@ public static class LayoutGeometry
     public static (int X, int Y) DenormalizeFromVirtualDesktop(IReadOnlyList<MonitorRect> monitors, ushort x, ushort y)
     {
         if (monitors.Count == 0)
+        {
             return (0, 0);
+        }
 
         int minX = monitors.Min(m => m.Left);
         int minY = monitors.Min(m => m.Top);
@@ -79,7 +90,10 @@ public static class LayoutGeometry
     private static ushort Normalize(int value, int min, int max)
     {
         if (max <= min)
+        {
             return 0;
+        }
+
         double t = Math.Clamp((double)(value - min) / (max - min), 0.0, 1.0);
         return (ushort)Math.Round(t * ushort.MaxValue);
     }

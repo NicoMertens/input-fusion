@@ -33,28 +33,39 @@ internal static unsafe class RawMouse
     public static void Unregister()
     {
         if (!_window.IsNull)
+        {
             PInvoke.DestroyWindow(_window);
+        }
     }
 
     public static void Handle(LPARAM lParam)
     {
         // Nur beim Kapern; sonst misst der Hook, und der Kanal soll nicht mit jeder Bewegung volllaufen.
         if (!LowLevelHooks.Swallow)
+        {
             return;
+        }
 
         RAWINPUT raw;
         uint size = (uint)sizeof(RAWINPUT);
         if (PInvoke.GetRawInputData(new HRAWINPUT(lParam.Value), RAW_INPUT_DATA_COMMAND_FLAGS.RID_INPUT,
                 &raw, &size, (uint)sizeof(RAWINPUTHEADER)) == unchecked((uint)-1))
+        {
             return;
+        }
 
         // hDevice 0 heißt per SendInput eingespielt; wie im Hook nicht weiterreichen.
         if (raw.header.dwType != (uint)RID_DEVICE_INFO_TYPE.RIM_TYPEMOUSE || raw.header.hDevice.IsNull)
+        {
             return;
+        }
 
         RAWMOUSE mouse = raw.data.mouse;
         if ((mouse.usFlags & MOUSE_STATE.MOUSE_MOVE_ABSOLUTE) != 0 || (mouse.lLastX == 0 && mouse.lLastY == 0))
+        {
             return;
+        }
+
         LowLevelHooks.Post(new RawMouseMoveEvent(mouse.lLastX, mouse.lLastY));
     }
 }

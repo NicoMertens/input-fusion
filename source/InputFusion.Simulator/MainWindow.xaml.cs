@@ -130,14 +130,20 @@ public partial class MainWindow : Window
                 try
                 {
                     if (_options.DelayMs > 0)
+                    {
                         await ReceiveDelayedAsync(conn, session.Token);
+                    }
                     else
+                    {
                         await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(session.Token))
                         {
                             _desktop.Apply(type, payload);
                             if (_desktop.TryTakeExitRequest() is { } exit)
+                            {
                                 await conn.SendAsync(MessageType.SwitchBackRequest, exit.ToPayload(), session.Token);
+                            }
                         }
+                    }
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
@@ -174,15 +180,22 @@ public partial class MainWindow : Window
             {
                 TimeSpan wait = due - DateTime.UtcNow;
                 if (wait > TimeSpan.Zero)
+                {
                     await Task.Delay(wait, ct);
+                }
+
                 _desktop.Apply(type, payload);
                 if (_desktop.TryTakeExitRequest() is { } exit)
+                {
                     await conn.SendAsync(MessageType.SwitchBackRequest, exit.ToPayload(), ct);
+                }
             }
         }, ct);
 
         await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(ct))
+        {
             delayed.Writer.TryWrite((DateTime.UtcNow.AddMilliseconds(_options.DelayMs), type, payload));
+        }
 
         delayed.Writer.Complete();
         await apply;
@@ -205,7 +218,9 @@ public partial class MainWindow : Window
         {
             Log.Items.Insert(0, line);
             if (Log.Items.Count > MaxLogLines)
+            {
                 Log.Items.RemoveAt(Log.Items.Count - 1);
+            }
         }
     }
 }

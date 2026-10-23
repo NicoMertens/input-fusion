@@ -43,7 +43,9 @@ internal static class SpikeClient
             await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(cts.Token))
             {
                 if (dispatcher.Dispatch(type, payload) is { } exit)
+                {
                     await conn.SendAsync(MessageType.SwitchBackRequest, exit.ToPayload(), cts.Token);
+                }
             }
         }
         catch (Exception ex) when (ex is OperationCanceledException or IOException or SocketException)

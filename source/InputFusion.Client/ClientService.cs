@@ -48,7 +48,10 @@ internal static class ClientService
                     if (accepted)
                     {
                         if (!ct.IsCancellationRequested)
+                        {
                             log("Verbindung zum Host beendet, verbinde neu.");
+                        }
+
                         delay = MinRetryDelay;
                         lastProblem = null;
                         continue;
@@ -61,7 +64,10 @@ internal static class ClientService
 
             // Dieselbe Störung nur einmal melden, sonst läuft das Ereignisprotokoll über, solange der PC aus ist.
             if (problem != lastProblem)
+            {
                 log($"{problem} Neuer Versuch spätestens alle {MaxRetryDelay.TotalSeconds:0} s.");
+            }
+
             lastProblem = problem;
 
             try { await Task.Delay(delay, ct); }

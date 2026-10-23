@@ -52,7 +52,10 @@ internal sealed class SettingsServer(HostState state)
             await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(ct))
             {
                 if (type != MessageType.Settings)
+                {
                     continue;
+                }
+
                 string? error = SettingsMessage.FromPayload(payload) switch
                 {
                     GetStateRequest => null,
@@ -62,7 +65,10 @@ internal sealed class SettingsServer(HostState state)
                 };
                 // Nach jeder Anfrage den Stand schicken: Bei einer Ablehnung setzt er die Anzeige zurück.
                 if (error is not null)
+                {
                     await SendAsync(connection, new SettingsError(error), ct);
+                }
+
                 await SendAsync(connection, state.Snapshot(), ct);
             }
         }

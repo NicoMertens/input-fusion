@@ -42,7 +42,9 @@ public sealed class MouseMoveCoalescer
             }
 
             foreach (MouseMoveRelative move in Split(sumX, sumY))
+            {
                 result.Add((MessageType.MouseMoveRelative, move.ToPayload()));
+            }
         }
 
         _pending.Clear();

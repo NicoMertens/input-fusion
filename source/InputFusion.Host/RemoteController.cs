@@ -44,7 +44,9 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         _desktopWidth = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXVIRTUALSCREEN);
         _desktopHeight = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CYVIRTUALSCREEN);
         if (diag)
+        {
             Log.Write($"Diagnose aktiv, Protokoll in {_diagPath}. Maus über eine Übergangskante bewegen.");
+        }
 
         // Alles läuft über ein gemeinsames Token: Endet die Verbindung oder schweigt der Client, bricht das
         // auch ein Senden ab, das im vollen Puffer hängt. Sonst blieben die Eingaben verschluckt.
@@ -161,7 +163,10 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         {
             // Ohne gemeldete Client-Monitore gibt es kein Layout und damit keinen Übergang.
             if (state.Layout is { } layout && layout.TryLeaveHost(move.X, move.Y, move.Dx, move.Dy, out _, out (int X, int Y) entry))
+            {
                 await EnterRemote(entry, move.X - move.Dx, move.Y - move.Dy, ct);
+            }
+
             return;
         }
 
@@ -177,15 +182,21 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         // Umschalten noch durchgelassen hat, kann Windows erst nach dem SetCursorPos umsetzen. Dann friert
         // er am Rand ein. Deshalb hier zurück in die Mitte holen.
         if (diag)
+        {
             Measure(move);
+        }
         else if (move.X - move.Dx != _parkX || move.Y - move.Dy != _parkY)
+        {
             PInvoke.SetCursorPos(_parkX, _parkY);
+        }
     }
 
     private async Task SendMove(int dx, int dy, CancellationToken ct)
     {
         if (dx == 0 && dy == 0)
+        {
             return;
+        }
 
         if (absolute)
         {
@@ -217,7 +228,10 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         PInvoke.GetCursorPos(out Point after);
         bool held = Math.Abs(after.X - _parkX) <= 2 && Math.Abs(after.Y - _parkY) <= 2;
         if (held)
+        {
             _held++;
+        }
+
         _recenters++;
 
         if (_recenters % 60 == 0)
@@ -234,9 +248,13 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
     {
         TrackModifier(key);
         if (key.Down)
+        {
             _physicalDown[key.VirtualKey] = key;
+        }
         else
+        {
             _physicalDown.Remove(key.VirtualKey);
+        }
 
         if (key.Down && _ctrlDown && _altDown && key.VirtualKey == VkF12 && _remote)
         {
@@ -271,9 +289,13 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
             lock (_clientDown)
             {
                 if (key.Down)
+                {
                     _clientDown[key.VirtualKey] = ev;
+                }
                 else
+                {
                     _clientDown.Remove(key.VirtualKey);
+                }
             }
             await connection.SendAsync(MessageType.Key, ev.ToPayload(), ct);
         }
@@ -287,15 +309,23 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         lock (_clientDown)
         {
             if (_clientDown.Count == 0)
+            {
                 return;
+            }
+
             ups = new KeyEvent[_clientDown.Count];
             int i = 0;
             foreach (KeyEvent ev in _clientDown.Values)
+            {
                 ups[i++] = ev with { State = ButtonState.Up };
+            }
+
             _clientDown.Clear();
         }
         foreach (KeyEvent up in ups)
+        {
             await connection.SendAsync(MessageType.Key, up.ToPayload(), ct);
+        }
     }
 
     private static bool IsModifier(ushort vk) => vk is
@@ -308,8 +338,15 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
     {
         bool isCtrl = key.VirtualKey is 0x11 or 0xA2 or 0xA3;
         bool isAlt = key.VirtualKey is 0x12 or 0xA4 or 0xA5;
-        if (isCtrl) _ctrlDown = key.Down;
-        if (isAlt) _altDown = key.Down;
+        if (isCtrl)
+        {
+            _ctrlDown = key.Down;
+        }
+
+        if (isAlt)
+        {
+            _altDown = key.Down;
+        }
     }
 
     /// <summary>Wechselt auf den Client. <paramref name="entry"/> ist der Eintrittspunkt in dessen Koordinaten,
@@ -348,10 +385,16 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         foreach ((ushort vk, KeyInputEvent k) in _physicalDown)
         {
             if (!IsModifier(vk))
+            {
                 continue;
+            }
+
             KeyEvent down = new KeyEvent(k.VirtualKey, k.ScanCode, ButtonState.Down, k.Extended);
             lock (_clientDown)
+            {
                 _clientDown[vk] = down;
+            }
+
             await connection.SendAsync(MessageType.Key, down.ToPayload(), ct);
         }
     }
