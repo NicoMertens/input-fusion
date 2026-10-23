@@ -107,9 +107,12 @@ public partial class MainWindow : Window
                 _connection = $"Verbinde zu {_options.Host}:{Ports.Input} …";
                 await tcp.ConnectAsync(_options.Host, Ports.Input, ct);
                 using MessageConnection conn = MessageConnection.FromTcp(tcp);
-                if (!await Handshake.ClientAsync(conn, _options.Key, ct))
+                HandshakeResult handshake = await Handshake.ClientAsync(conn, _options.Key, AppVersion.Current, ct);
+                if (handshake.Outcome != HandshakeOutcome.Accepted)
                 {
-                    _connection = $"{_options.Host}:{Ports.Input} hat die Anmeldung abgelehnt, stimmt der Schlüssel? Neuer Versuch …";
+                    _connection = handshake.Outcome == HandshakeOutcome.ProtocolMismatch
+                        ? $"Host spricht Protokoll {handshake.PeerProtocol} (Version {handshake.PeerVersion}), der Simulator {ProtocolVersion.Current}. Neuer Versuch …"
+                        : $"{_options.Host}:{Ports.Input} hat die Anmeldung abgelehnt, stimmt der Schlüssel? Neuer Versuch …";
                     await Task.Delay(3000, ct);
                     continue;
                 }

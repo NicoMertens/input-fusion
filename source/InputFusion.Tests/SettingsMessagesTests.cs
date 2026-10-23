@@ -10,8 +10,8 @@ public class SettingsMessagesTests
     public void HostState_RoundTrip()
     {
         MonitorRect monitor = new MonitorRect(-1920, 0, 1920, 1080, 96, @"\\?\DISPLAY#GSM5B7F#5&1");
-        SettingsMessage message = new HostStateMessage("PC", ["192.168.1.10"], 15111, "abcdefghijkmnpqr",
-            [monitor], new ClientStateInfo("192.168.1.20", [monitor with { DeviceId = "N1" }], 0, -1080));
+        SettingsMessage message = new HostStateMessage("PC", "0.2.0", ["192.168.1.10"], 15111, "abcdefghijkmnpqr",
+            [monitor], new ClientStateInfo("192.168.1.20", "0.2.0", [monitor with { DeviceId = "N1" }], 0, -1080));
 
         HostStateMessage back = Assert.IsType<HostStateMessage>(SettingsMessage.FromPayload(message.ToPayload()));
 

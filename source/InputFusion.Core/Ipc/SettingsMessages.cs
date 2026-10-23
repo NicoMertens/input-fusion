@@ -43,6 +43,7 @@ public sealed record SetClientOffsetRequest(int OffsetX, int OffsetY) : Settings
 /// <summary>Der ganze Zustand des Agents, wie die Einstellungen ihn anzeigen.</summary>
 public sealed record HostStateMessage(
     string MachineName,
+    string Version,
     IReadOnlyList<string> Addresses,
     int Port,
     string Key,
@@ -50,7 +51,7 @@ public sealed record HostStateMessage(
     ClientStateInfo? Client) : SettingsMessage;
 
 /// <summary>Der verbundene Client. <see cref="Monitors"/> ist leer, solange er seine Monitore nicht gemeldet hat.</summary>
-public sealed record ClientStateInfo(string Address, IReadOnlyList<MonitorRect> Monitors, int OffsetX, int OffsetY);
+public sealed record ClientStateInfo(string Address, string Version, IReadOnlyList<MonitorRect> Monitors, int OffsetX, int OffsetY);
 
 /// <summary>Eine Änderung wurde abgelehnt; geht nur an die Einstellungen, die sie verlangt haben.</summary>
 public sealed record SettingsError(string Message) : SettingsMessage;

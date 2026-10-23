@@ -5,6 +5,7 @@ using InputFusion.Core.Display;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Layout;
 using InputFusion.Core.Net;
+using InputFusion.Core.Protocol;
 
 namespace InputFusion.Host;
 
@@ -19,6 +20,7 @@ internal sealed class HostState(HostConfig config)
     private readonly Lock _lock = new();
     private IReadOnlyList<MonitorRect> _hostMonitors = MonitorEnumerator.GetMonitors();
     private string? _clientAddress;
+    private string _clientVersion = "";
     private IReadOnlyList<MonitorRect> _clientMonitors = [];
     private MonitorLayout? _layout;
 
@@ -27,6 +29,9 @@ internal sealed class HostState(HostConfig config)
 
     /// <summary>Das Layout wurde ausgetauscht; die Verbindung schickt dem Client die neuen Rückwege.</summary>
     public event Action<MonitorLayout?>? LayoutChanged;
+
+    /// <summary>Ein Client mit anderer Protokollversion hat sich gemeldet; vielleicht ist der Host der ältere.</summary>
+    public event Action? ProtocolMismatch;
 
     /// <summary>Null, solange kein Client seine Monitore gemeldet hat.</summary>
     public MonitorLayout? Layout => Volatile.Read(ref _layout);
@@ -93,11 +98,12 @@ internal sealed class HostState(HostConfig config)
         RebuildLayout();
     }
 
-    public void ClientConnected(string address)
+    public void ClientConnected(string address, string version)
     {
         lock (_lock)
         {
             _clientAddress = address;
+            _clientVersion = version;
             _clientMonitors = [];
         }
         RebuildLayout();
@@ -117,6 +123,8 @@ internal sealed class HostState(HostConfig config)
         Log.Write($"Monitore des Clients: {Describe(monitors)}");
         RebuildLayout();
     }
+
+    public void ReportProtocolMismatch() => ProtocolMismatch?.Invoke();
 
     public void ClientDisconnected()
     {
@@ -164,8 +172,8 @@ internal sealed class HostState(HostConfig config)
             MonitorLayout? layout = Volatile.Read(ref _layout);
             ClientStateInfo? client = _clientAddress is null
                 ? null
-                : new ClientStateInfo(_clientAddress, _clientMonitors, layout?.OffsetX ?? 0, layout?.OffsetY ?? 0);
-            return new HostStateMessage(Environment.MachineName, Addresses(), Ports.Input, config.Key, _hostMonitors, client);
+                : new ClientStateInfo(_clientAddress, _clientVersion, _clientMonitors, layout?.OffsetX ?? 0, layout?.OffsetY ?? 0);
+            return new HostStateMessage(Environment.MachineName, AppVersion.Current, Addresses(), Ports.Input, config.Key, _hostMonitors, client);
         }
     }
 

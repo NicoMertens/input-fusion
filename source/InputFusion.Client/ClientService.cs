@@ -1,5 +1,6 @@
 ﻿using System.Net.Sockets;
 using InputFusion.Core.Net;
+using InputFusion.Core.Protocol;
 
 namespace InputFusion.Client;
 
@@ -18,7 +19,8 @@ internal static class ClientService
 
     public delegate ClientConfig? ConfigLoader(out string? error);
 
-    public static async Task RunAsync(ConfigLoader loadConfig, bool asService, Action<string> log, CancellationToken ct)
+    /// <param name="protocolMismatch">Wird gerufen, wenn der Host eine andere Protokollversion spricht; der Dienst sucht dann nach einem Update.</param>
+    public static async Task RunAsync(ConfigLoader loadConfig, bool asService, Action<string> log, CancellationToken ct, Action? protocolMismatch = null)
     {
         Task supervisor = new InjectorSupervisor(asService, log).RunAsync(ct);
 
@@ -34,18 +36,24 @@ internal static class ClientService
                 problem = connectError;
                 if (tcp is not null)
                 {
-                    bool accepted;
+                    HandshakeResult handshake;
                     using (tcp)
                     using (MessageConnection conn = MessageConnection.FromTcp(tcp))
                     {
-                        accepted = await Handshake.ClientAsync(conn, config.Key, ct);
-                        if (accepted)
+                        handshake = await Handshake.ClientAsync(conn, config.Key, AppVersion.Current, ct);
+                        if (handshake.Outcome == HandshakeOutcome.Accepted)
                         {
-                            log($"Mit dem Host {tcp.Client.RemoteEndPoint} verbunden.");
+                            log($"Mit dem Host {tcp.Client.RemoteEndPoint} (Version {handshake.PeerVersion}) verbunden.");
                             await new PipeRelay(conn, log).RunAsync(ct);
                         }
                     }
-                    if (accepted)
+                    if (handshake.Outcome == HandshakeOutcome.ProtocolMismatch)
+                    {
+                        problem = $"Host {config.Host} hat Version {handshake.PeerVersion} mit Protokoll {handshake.PeerProtocol}, "
+                            + $"dieser Client {AppVersion.Current} mit Protokoll {ProtocolVersion.Current}. Suche nach einem Update.";
+                        protocolMismatch?.Invoke();
+                    }
+                    else if (handshake.Outcome == HandshakeOutcome.Accepted)
                     {
                         if (!ct.IsCancellationRequested)
                         {
@@ -56,9 +64,12 @@ internal static class ClientService
                         lastProblem = null;
                         continue;
                     }
-                    // Falscher Schlüssel: wie ein nicht erreichbarer Host mit wachsendem Abstand neu versuchen,
-                    // damit eine Korrektur in client.json ohne Neustart greift.
-                    problem = $"Host {config.Host} hat die Anmeldung abgelehnt oder sich nicht ausgewiesen; stimmt der Schlüssel?";
+                    else
+                    {
+                        // Falscher Schlüssel: wie ein nicht erreichbarer Host mit wachsendem Abstand neu versuchen,
+                        // damit eine Korrektur in client.json ohne Neustart greift.
+                        problem = $"Host {config.Host} hat die Anmeldung abgelehnt oder sich nicht ausgewiesen; stimmt der Schlüssel?";
+                    }
                 }
             }
 

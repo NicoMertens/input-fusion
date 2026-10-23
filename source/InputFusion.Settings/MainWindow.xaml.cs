@@ -49,6 +49,7 @@ public partial class MainWindow : Window
     private void OnState(HostStateMessage state)
     {
         _state = state;
+        Status.Text = $"Verbunden mit dem InputFusion-Agent {state.Version} auf diesem PC.";
         MachineName.Text = state.MachineName;
         Addresses.Text = state.Addresses.Count == 0 ? "keine" : string.Join(Environment.NewLine, state.Addresses);
         Port.Text = $"{state.Port} (TCP)";
@@ -64,8 +65,8 @@ public partial class MainWindow : Window
         ClientInfo.Text = state.Client switch
         {
             null => "Kein Notebook verbunden.",
-            { Monitors.Count: 0 } client => $"Notebook verbunden: {client.Address}, Monitore noch nicht gemeldet.",
-            var client => $"Notebook verbunden: {client.Address}, {client.Monitors.Count} Monitor(e).",
+            { Monitors.Count: 0 } client => $"Notebook verbunden: {client.Address}, Version {client.Version}, Monitore noch nicht gemeldet.",
+            var client => $"Notebook verbunden: {client.Address}, Version {client.Version}, {client.Monitors.Count} Monitor(e).",
         };
 
         if (!_dragging)

@@ -20,7 +20,13 @@ internal static class SpikeClient
         Console.WriteLine($"Verbinde zu {host}:{Ports.Input}...");
         await tcp.ConnectAsync(host, Ports.Input, cts.Token);
         using MessageConnection conn = MessageConnection.FromTcp(tcp);
-        if (!await Handshake.ClientAsync(conn, key, cts.Token))
+        HandshakeResult handshake = await Handshake.ClientAsync(conn, key, AppVersion.Current, cts.Token);
+        if (handshake.Outcome == HandshakeOutcome.ProtocolMismatch)
+        {
+            Console.WriteLine($"Host hat Protokoll {handshake.PeerProtocol} (Version {handshake.PeerVersion}), dieser Client {ProtocolVersion.Current}.");
+            return;
+        }
+        if (handshake.Outcome != HandshakeOutcome.Accepted)
         {
             Console.WriteLine("Anmeldung abgelehnt; stimmt der Schlüssel?");
             return;

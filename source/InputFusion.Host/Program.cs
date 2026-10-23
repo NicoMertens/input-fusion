@@ -4,6 +4,7 @@ using Windows.Win32;
 using Windows.Win32.UI.WindowsAndMessaging;
 using InputFusion.Core.Config;
 using InputFusion.Core.Net;
+using InputFusion.Core.Protocol;
 
 namespace InputFusion.Host;
 
@@ -104,22 +105,32 @@ internal static class Program
         using TcpClient _ = tcp;
         using MessageConnection conn = MessageConnection.FromTcp(tcp);
         string address = (tcp.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "?";
-        bool accepted;
+        HandshakeResult handshake;
         try
         {
-            accepted = await Handshake.HostAsync(conn, state.Key, ct);
+            handshake = await Handshake.HostAsync(conn, state.Key, AppVersion.Current, ct);
         }
         catch (OperationCanceledException)
         {
             return;
         }
-        if (!accepted)
+
+        switch (handshake.Outcome)
         {
-            Log.Write($"Client {address} abgewiesen: Anmeldung mit dem Schlüssel fehlgeschlagen.");
-            return;
+            case HandshakeOutcome.Accepted:
+                break;
+            case HandshakeOutcome.ProtocolMismatch:
+                Log.Write($"Client {address} abgewiesen: Version {handshake.PeerVersion} mit Protokoll {handshake.PeerProtocol}, "
+                    + $"der Host hat {AppVersion.Current} mit Protokoll {ProtocolVersion.Current}. Suche nach einem Update.");
+                state.ReportProtocolMismatch();
+                return;
+            default:
+                Log.Write($"Client {address} abgewiesen: Anmeldung mit dem Schlüssel fehlgeschlagen.");
+                return;
         }
-        Log.Write($"Client {address} verbunden. Strg+Alt+F11 schaltet hier um (Test), Strg+Alt+F12 zurück.");
-        state.ClientConnected(address);
+
+        Log.Write($"Client {address} (Version {handshake.PeerVersion}) verbunden. Strg+Alt+F11 schaltet hier um (Test), Strg+Alt+F12 zurück.");
+        state.ClientConnected(address, handshake.PeerVersion);
 
         // Ereignisse aus der vorigen Verbindung verwerfen, sonst löst etwa eine alte Bewegung an der Kante
         // sofort den Wechsel aus.
