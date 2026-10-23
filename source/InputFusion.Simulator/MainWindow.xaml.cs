@@ -106,7 +106,7 @@ public partial class MainWindow : Window
                 using var tcp = new TcpClient();
                 _connection = $"Verbinde zu {_options.Host}:{Ports.Input} …";
                 await tcp.ConnectAsync(_options.Host, Ports.Input, ct);
-                using var conn = new MessageConnection(tcp);
+                using var conn = MessageConnection.FromTcp(tcp);
                 _connection = $"Verbunden mit {_options.Host}:{Ports.Input}";
                 _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  {_connection}");
 

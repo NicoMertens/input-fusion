@@ -1,25 +1,37 @@
-﻿using System.Net.Sockets;
+﻿using System.IO;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using InputFusion.Core.Protocol;
 
 namespace InputFusion.Core.Net;
 
 /// <summary>
-/// Eine Verbindung über TCP, die Nachrichten rahmt und entrahmt. Phase 1 nutzt Klartext;
-/// TLS kommt in Phase 4 als austauschbarer Stream darunter.
+/// Eine Verbindung, die Nachrichten über einen beliebigen Strom rahmt und entrahmt. Über TCP steht sie
+/// zwischen PC und Notebook (siehe <see cref="FromTcp"/>), über eine Named Pipe zwischen Dienst und
+/// Injector (siehe <c>InputFusion.Core.Ipc.InputPipe</c>). Phase 1 nutzt Klartext; TLS kommt in Phase 4
+/// als austauschbarer Strom darunter, ohne diese Klasse zu ändern.
 /// </summary>
 public sealed class MessageConnection : IDisposable
 {
-    private readonly TcpClient _client;
-    private readonly NetworkStream _stream;
+    private readonly Stream _stream;
+    private readonly IDisposable? _owner;
     private readonly FrameReader _reader = new();
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private bool _disposed;
 
-    public MessageConnection(TcpClient client)
+    /// <summary>Über einem offenen Strom. <paramref name="owner"/> wird beim Dispose mit geschlossen,
+    /// etwa der zugrunde liegende <see cref="TcpClient"/>; ist er identisch mit dem Strom, genügt null.</summary>
+    public MessageConnection(Stream stream, IDisposable? owner = null)
     {
-        _client = client;
-        _client.NoDelay = true;
-        _stream = client.GetStream();
+        _stream = stream;
+        _owner = owner;
+    }
+
+    /// <summary>Über einer TCP-Verbindung mit abgeschaltetem Nagle-Algorithmus (kleine Pakete sofort senden).</summary>
+    public static MessageConnection FromTcp(TcpClient client)
+    {
+        client.NoDelay = true;
+        return new MessageConnection(client.GetStream(), client);
     }
 
     public async Task SendAsync(MessageType type, ReadOnlyMemory<byte> payload, CancellationToken ct = default)
@@ -54,8 +66,12 @@ public sealed class MessageConnection : IDisposable
 
     public void Dispose()
     {
+        if (_disposed)
+            return;
+        _disposed = true;
         _stream.Dispose();
-        _client.Dispose();
+        if (!ReferenceEquals(_owner, _stream))
+            _owner?.Dispose();
         _sendLock.Dispose();
     }
 }

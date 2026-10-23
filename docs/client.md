@@ -27,7 +27,17 @@ Worker Service mit `AddWindowsService()`, LocalSystem, Starttyp automatisch.
 
 ## Stand Phase 1 (Durchstich)
 
-Dienst und Injector gibt es noch nicht. Im Durchstich läuft der Client als einfaches Konsolenprogramm: `InputFusion.Client.exe --connect <host>`. Es verbindet sich zum Host, empfängt die Eingaben und spielt sie direkt mit `SendInput` ab. Damit lässt sich das Mausgefühl früh testen, ohne Dienst, Sitzungswechsel und Desktop-Wechsel. Die Aufteilung in Dienst und Injector kommt in Phase 2.
+Im Durchstich läuft der Client als einfaches Konsolenprogramm: `InputFusion.Client.exe --connect <host>`. Es verbindet sich zum Host, empfängt die Eingaben und spielt sie direkt mit `SendInput` ab. Damit lässt sich das Mausgefühl früh testen, ohne Dienst, Sitzungswechsel und Desktop-Wechsel.
+
+## Stand Phase 2 (Schritt 1: IPC und Injector)
+
+Die Aufteilung in Dienst und Injector ist begonnen. Umgesetzt und über Unit-Test und einen lokalen Durchlauf verifiziert ist die **IPC-Kette** Host → TCP → Dienst-Rolle → Named Pipe → Injector → `SendInput`:
+
+- **Injector** (`--injector`): verbindet sich als Pipe-Client, spielt die Frames über denselben [`InputPlayer`](#injector) ab wie der Durchstich-Client und lässt bei Pipe-Abbruch alle gedrückten Tasten los. Er kennt weder Netz noch Konfiguration.
+- **Dienst-Rolle / Relay:** hostet die Pipe (siehe [IPC](ipc.md)) und reicht die vom Host empfangenen Frames unverändert weiter. Zum Entwickeln als Konsole über `InputFusion.Client.exe --relay <host>`, das den Injector als Kindprozess in derselben Sitzung startet.
+- Die Nachricht-zu-Eingabe-Umsetzung liegt geteilt in `InputDispatcher`, genutzt von Durchstich-Client und Injector.
+
+**Noch offen (Schritt 2, nur an echter Hardware testbar):** Im echten Dienst ersetzt `CreateProcessAsUser` mit dupliziertem SYSTEM-Token den schlichten Kindprozess-Start, damit der Injector in der aktiven Konsolensitzung und auf dem richtigen Desktop landet. Dazu `OnSessionChange`, der Desktop-Wechsel (Default, Winlogon, UAC) und das Neustarten des Injectors beim Sitzungswechsel — siehe die Abschnitte [Dienst](#dienst) und [Injector](#injector) oben als Zielbild. Ebenso offen: die Host-Adresse kommt noch aus dem Argument, nicht aus der Konfiguration (Phase 5).
 
 ## Später
 

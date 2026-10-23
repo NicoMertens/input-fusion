@@ -13,6 +13,11 @@ public sealed class InputPlayer
 {
     private static readonly int InputSize = Marshal.SizeOf<INPUT>();
 
+    // Was gerade gedrückt ist, damit sich beim Verbindungsabbruch alles lösen lässt (keine hängenden
+    // Tasten). Einfädrig genutzt: ein Abspiel-Thread je Player.
+    private readonly Dictionary<ushort, KeyEvent> _keysDown = new();
+    private readonly HashSet<byte> _buttonsDown = new();
+
     public void MoveRelative(short dx, short dy) =>
         SendMouse(dx, dy, 0, MOUSE_EVENT_FLAGS.MOUSEEVENTF_MOVE);
 
@@ -24,6 +29,10 @@ public sealed class InputPlayer
     public void Button(MouseButton button)
     {
         bool down = button.State == ButtonState.Down;
+        if (down)
+            _buttonsDown.Add(button.Button);
+        else
+            _buttonsDown.Remove(button.Button);
         (MOUSE_EVENT_FLAGS flags, uint data) = button.Button switch
         {
             0 => (down ? MOUSE_EVENT_FLAGS.MOUSEEVENTF_LEFTDOWN : MOUSE_EVENT_FLAGS.MOUSEEVENTF_LEFTUP, 0u),
@@ -47,6 +56,11 @@ public sealed class InputPlayer
         if (key.Extended)
             flags |= KEYBD_EVENT_FLAGS.KEYEVENTF_EXTENDEDKEY;
 
+        if (key.State == ButtonState.Up)
+            _keysDown.Remove(key.VirtualKey);
+        else
+            _keysDown[key.VirtualKey] = key;
+
         var input = new INPUT { type = INPUT_TYPE.INPUT_KEYBOARD };
         input.Anonymous.ki = new KEYBDINPUT
         {
@@ -55,6 +69,16 @@ public sealed class InputPlayer
             dwFlags = flags,
         };
         Send(input);
+    }
+
+    /// <summary>Lässt alle noch gedrückten Tasten und Maustasten los. Der Injector ruft das beim
+    /// Verbindungsabbruch auf, damit auf dem Notebook nichts hängen bleibt.</summary>
+    public void ReleaseAll()
+    {
+        foreach (var key in _keysDown.Values.ToArray())
+            Key(key with { State = ButtonState.Up });
+        foreach (var button in _buttonsDown.ToArray())
+            Button(new MouseButton(button, ButtonState.Up));
     }
 
     private void SendMouse(int dx, int dy, uint data, MOUSE_EVENT_FLAGS flags)
