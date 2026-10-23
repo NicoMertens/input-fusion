@@ -8,7 +8,7 @@
     <!-- Stilregeln aus der .editorconfig im Wurzelverzeichnis als Warnungen im Build melden. -->
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <Product>InputFusion</Product>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
   </PropertyGroup>
 
   <!--
