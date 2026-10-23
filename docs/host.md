@@ -10,6 +10,17 @@
 
 **Bewusst nicht vorgesehen:** Steuerung bei gesperrtem PC. Der Sperrbildschirm liegt auf dem Secure Desktop, dort laufen die Hooks nicht. Ein Dienst auf dem Server würde das lösen, lohnt sich aber kaum.
 
+## Warum Aufgabe und kein Dienst
+
+Der Host startet über die Aufgabe „InputFusion Host“ (bei der Anmeldung, „mit höchsten Rechten“), nicht als Windows-Dienst:
+
+- **Session 0 erreicht die Eingaben nicht.** Low-Level-Hooks und Raw Input sehen nur den Desktop, auf dem ihr Thread sitzt; `SetCursorPos` zum Parken wirkt nur dort. Ein Dienst läuft in Session 0, der Desktop des Benutzers liegt in dessen Sitzung. Auch das Tray-Symbol braucht den Explorer dieser Sitzung, und Konfiguration (`%LOCALAPPDATA%`) und [Settings-Pipe](ipc.md) gehören dem Benutzer.
+- **Ein Dienst wäre nur Starter.** Wie beim [Client](client.md) müsste er einen Prozess in der Benutzersitzung starten, und der wäre der eigentliche Host. Diese Rolle übernimmt die Aufgabe ohne eigenen Code.
+- **Erhöht ohne Abfrage.** Wegen UIPI muss der Host erhöht laufen (siehe oben). Run-Schlüssel und Autostart-Ordner starten nicht erhöht, ein Manifest mit `requireAdministrator` fragte bei jeder Anmeldung per UAC. Die Aufgabe startet erhöht ohne Abfrage; UAC kommt nur einmal beim Einrichten.
+- **Keine Rechteausweitung.** Velopack installiert pro Benutzer nach `%LOCALAPPDATA%`, siehe [Updates](updates.md). Ein SYSTEM-Dienst, der eine exe aus einem vom Benutzer beschreibbaren Ordner startet, gäbe jedem Prozess des Benutzers SYSTEM-Rechte.
+
+Der Client ist dagegen ein Dienst, weil er auf dem Sperr- und Anmeldebildschirm abspielen muss; „Winlogon“ ist nur für SYSTEM zugänglich. Beim Host brächte ein Dienst nur die Steuerung bei gesperrtem PC, und die ist bewusst nicht vorgesehen.
+
 Fallstricke, die auch den Host betreffen, etwa hängende Tasten und nicht abfangbare Tastenkombinationen, stehen unter [Fallstricke](fallstricke.md).
 
 ## Stand: Tray-Agent
