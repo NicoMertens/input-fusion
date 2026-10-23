@@ -3,7 +3,7 @@
 ## Ordner
 
 - **Im Wurzelverzeichnis** liegen nur `source/`, `docs/`, `README.md`, `global.json`, `.gitignore` und `.gitattributes`. Build- und Veröffentlichungsskripte kommen nach `build/` parallel zu `source/`, sobald es welche gibt.
-- **`source/`** enthält flach nebeneinander alle Projekte einschließlich der Testprojekte (`*.Tests`, kein eigener Unterordner), dazu `InputFusion.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `nuget.config` und das gemeinsame `app.manifest`.
+- **`source/`** enthält flach nebeneinander alle Projekte einschließlich der Testprojekte (`*.Tests`, kein eigener Unterordner), dazu `InputFusion.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `nuget.config`, das gemeinsame `app.manifest` und das Programmsymbol `InputFusion.ico` für Host und Einstellungen.
 - **`docs/`** enthält diese Doku, Einstieg und Regeln in [README.md](README.md).
 - **`_out/`** sammelt die Build-Ausgaben, parallel zu `source/`, je Projekt ein eigener Ordner (`_out/InputFusion.Host/` …) ohne Configuration- und TargetFramework-Unterordner. Wird erzeugt und ist per `.gitignore` ausgenommen; die Zwischendateien (`obj/`) bleiben beim jeweiligen Projekt.
 

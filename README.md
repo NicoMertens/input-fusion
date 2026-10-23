@@ -39,7 +39,7 @@ InputFusion.Host.exe            # oder --absolute zum Vergleich des Mausgefühls
 InputFusion.Client.exe --connect <pc-name-oder-ip> --key <schlüssel>
 ```
 
-Die Maus wechselt an der rechten Bildschirmkante des PCs auf das Notebook; zurück geht es nach links über die Kante oder mit `Strg+Alt+F12`. Der Schlüssel steht beim Start in der Konsole des Hosts. Noch ohne Verschlüsselung und ohne Layout, nur zum Testen des Mausgefühls.
+Die Maus wechselt an der rechten Bildschirmkante des PCs auf das Notebook; zurück geht es nach links über die Kante oder mit `Strg+Alt+F12`. Der Host läuft als Tray-Symbol; den Schlüssel zeigen seine Einstellungen (Doppelklick auf das Symbol). Noch ohne Verschlüsselung und ohne Layout, nur zum Testen des Mausgefühls.
 
 Ohne zweiten Rechner: `InputFusion.Simulator.exe` statt des Clients starten. Er zeigt die simulierten Monitore, den Cursor und die gedrückten Tasten in einem Fenster, siehe [`docs/simulator.md`](docs/simulator.md).
 

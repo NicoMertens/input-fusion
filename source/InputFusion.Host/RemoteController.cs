@@ -40,9 +40,9 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         _desktopWidth = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXVIRTUALSCREEN);
         _desktopHeight = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CYVIRTUALSCREEN);
         _edgeX = _desktopLeft + _desktopWidth - 1;
-        Console.WriteLine($"Rechte Kante bei x={_edgeX} (Desktop {_desktopWidth}x{_desktopHeight} ab {_desktopLeft},{_desktopTop}).");
+        Log.Write($"Rechte Kante bei x={_edgeX} (Desktop {_desktopWidth}x{_desktopHeight} ab {_desktopLeft},{_desktopTop}).");
         if (diag)
-            Console.WriteLine($"Diagnose aktiv, Protokoll in {_diagPath}. Maus an die rechte Kante bewegen.");
+            Log.Write($"Diagnose aktiv, Protokoll in {_diagPath}. Maus an die rechte Kante bewegen.");
 
         // Alles läuft über ein gemeinsames Token: Endet die Verbindung oder schweigt der Client, bricht das
         // auch ein Senden ab, das im vollen Puffer hängt. Sonst blieben die Eingaben verschluckt.
@@ -97,7 +97,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
     {
         if (await connection.MonitorAsync(linked.Token))
         {
-            Console.WriteLine($"Client antwortet seit {MessageConnection.HeartbeatTimeout.TotalSeconds:0} s nicht mehr, trenne.");
+            Log.Write($"Client antwortet seit {MessageConnection.HeartbeatTimeout.TotalSeconds:0} s nicht mehr, trenne.");
             LowLevelHooks.Swallow = false;
             linked.Cancel();
         }
@@ -116,7 +116,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
                     LowLevelHooks.Swallow = false;
                     await ReleaseClientKeysAsync(linked.Token);
                     PInvoke.SetCursorPos(_edgeX - 5, _parkY);
-                    Console.WriteLine("Remote-Modus aus (Client an der Kante)");
+                    Log.Write("Remote-Modus aus (Client an der Kante)");
                 }
             }
         }
@@ -198,7 +198,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         {
             string line = $"{DateTime.Now:HH:mm:ss}  SetCursorPos direkt gehalten: {_held}/{_recenters} "
                 + $"({100 * _held / _recenters} %), groesste Drift aus der Mitte: {_maxDrift}px";
-            Console.WriteLine(line);
+            Log.Write(line);
             try { File.AppendAllText(_diagPath, line + Environment.NewLine); } catch (IOException) { }
             _maxDrift = 0;
         }
@@ -300,7 +300,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
             LowLevelHooks.Swallow = true;
             PInvoke.SetCursorPos(_parkX, _parkY);
         }
-        Console.WriteLine($"Remote-Modus an{(observe ? " (Beobachtung)" : "")} (Strg+Alt+F12 zurueck)");
+        Log.Write($"Remote-Modus an{(observe ? " (Beobachtung)" : "")} (Strg+Alt+F12 zurueck)");
 
         ushort entryY = (ushort)(_virtualY / _desktopHeight * ushort.MaxValue);
         await connection.SendAsync(MessageType.SwitchToClient, new SwitchToClient(entryY).ToPayload(), ct);
@@ -324,7 +324,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         LowLevelHooks.Swallow = false;
         await ReleaseClientKeysAsync(ct);
         PInvoke.SetCursorPos(_edgeX - 5, _parkY);
-        Console.WriteLine("Remote-Modus aus");
+        Log.Write("Remote-Modus aus");
         await connection.SendAsync(MessageType.SwitchToHost, ReadOnlyMemory<byte>.Empty, ct);
     }
 }

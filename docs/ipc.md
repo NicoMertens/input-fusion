@@ -15,6 +15,26 @@ Der Wechsel läuft über `SwitchToClient` und `SwitchToHost` (Host → Client) s
 - Gerahmt wird wie im Netzwerkprotokoll mit Länge und Typ.
 - **Kein StreamJsonRpc:** Ob es mit AOT funktioniert, ist nicht geprüft, und für eine Handvoll Nachrichten lohnt die Abhängigkeit nicht.
 
+## Stand Einstellungen ↔ Agent
+
+Umgesetzt in `InputFusion.Core.Ipc.SettingsPipe` (Pipe), `SettingsMessages` (Nachrichten) und auf Seiten des Agents in `SettingsServer`:
+
+- **Pipe-Name:** `\\.\pipe\InputFusion.Settings.<SID des Benutzers>`. Die SID im Namen sorgt dafür, dass bei mehreren angemeldeten Benutzern jeder seinen eigenen Agent erreicht. Der Agent nimmt beliebig viele Verbindungen gleichzeitig an.
+- **ACL** als SDDL `D:P(A;;GA;;;<SID>)(A;;GA;;;SY)S:(ML;;NW;;;ME)`: nur der Benutzer selbst und SYSTEM, ohne Vererbung, dazu ausdrücklich die Integritätsstufe **Mittel**. Der Agent läuft erhöht, die Einstellungen aus dem Startmenü nicht; ohne die Stufe Mittel trüge die Pipe die hohe Stufe des Agents, und die Einstellungen kämen nicht heran.
+- **Nachrichten:** JSON im Frame-Typ `Settings` (32), polymorph über das Feld `type`, mit Source-Generator (AOT-fähig):
+
+  | `type` | Richtung | Inhalt |
+  |---|---|---|
+  | `getState` | Einstellungen → Agent | fordert den Zustand an |
+  | `setKey` | Einstellungen → Agent | neuer Schlüssel; der Agent prüft ihn (mindestens 16 Zeichen, keine Leerzeichen am Rand, keine Steuerzeichen) und speichert ihn |
+  | `setClientOffset` | Einstellungen → Agent | neue Lage der Client-Gruppe; der Agent rastet sie selbst noch einmal ein (`MonitorLayout.Snap`) und speichert sie für die Monitor-Kombination |
+  | `hostState` | Agent → Einstellungen | Rechnername, IPv4-Adressen, Port, Schlüssel, eigene Monitore, verbundener Client mit Adresse, Monitoren und Lage |
+  | `error` | Agent → Einstellungen | eine Änderung wurde abgelehnt, mit Grund |
+
+- **Ablauf:** Der Agent schickt jeder neuen Verbindung sofort `hostState`, danach bei jeder Änderung von selbst (Client verbunden oder getrennt, Monitore, Schlüssel, Layout) und nach jeder Anfrage. Bei einer Ablehnung kommt erst `error`, dann der unveränderte Zustand, der die Anzeige zurücksetzt.
+- **Angelegt per `CreateNamedPipe`** mit einem Security-Descriptor aus SDDL, nicht über `PipeSecurity`: Mit dem Label in dessen SACL scheitert das Anlegen an „A required privilege is not held by the client“ (SeSecurityPrivilege), gemessen mit nicht erhöhtem Agent. Mit `PIPE_REJECT_REMOTE_CLIENTS`, die Pipe ist nur lokal erreichbar.
+- **Verifiziert** mit nicht erhöhtem Agent über ein Testskript: Zustand bei Verbindung, Ablehnung eines zu kurzen Schlüssels und einer Lage ohne Client, Schlüsselwechsel samt Speichern. Der Zugriff nicht erhöhter Einstellungen auf den erhöhten Agent ist noch am echten Aufbau zu prüfen.
+
 ## Stand Dienst ↔ Injector (Phase 2, Schritt 1)
 
 Umgesetzt in `InputFusion.Core.Ipc.InputPipe` und über Unit-Test und einen lokalen Durchlauf verifiziert:

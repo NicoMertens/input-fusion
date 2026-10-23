@@ -4,6 +4,8 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsAotCompatible>true</IsAotCompatible>
+    <!-- NOTIFYICONDATAW (Tray) gibt es nur je Architektur. x64 hat dieselbe Ausrichtung wie ARM64; x86 wird nicht ausgeliefert. -->
+    <CsWin32PlatformTarget>x64</CsWin32PlatformTarget>
   </PropertyGroup>
 
   <ItemGroup>
