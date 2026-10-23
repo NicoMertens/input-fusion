@@ -14,4 +14,8 @@
     <ProjectReference Include="..\InputFusion.Core\InputFusion.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Velopack" />
+  </ItemGroup>
+
 </Project>

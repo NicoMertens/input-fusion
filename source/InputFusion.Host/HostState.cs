@@ -23,6 +23,7 @@ internal sealed class HostState(HostConfig config)
     private string _clientVersion = "";
     private IReadOnlyList<MonitorRect> _clientMonitors = [];
     private MonitorLayout? _layout;
+    private bool _isRemote;
 
     /// <summary>Irgendetwas hat sich geändert; die Einstellungen und der Tray holen sich den neuen Stand.</summary>
     public event Action? Changed;
@@ -32,6 +33,13 @@ internal sealed class HostState(HostConfig config)
 
     /// <summary>Ein Client mit anderer Protokollversion hat sich gemeldet; vielleicht ist der Host der ältere.</summary>
     public event Action? ProtocolMismatch;
+
+    /// <summary>Die Maus ist gerade auf dem Notebook; solange wird kein Update eingespielt.</summary>
+    public bool IsRemote
+    {
+        get => Volatile.Read(ref _isRemote);
+        set => Volatile.Write(ref _isRemote, value);
+    }
 
     /// <summary>Null, solange kein Client seine Monitore gemeldet hat.</summary>
     public MonitorLayout? Layout => Volatile.Read(ref _layout);

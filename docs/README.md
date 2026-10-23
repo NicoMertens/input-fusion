@@ -48,6 +48,7 @@ PC (Server)                                    Notebook (Client)
 | [aot-und-speicher.md](aot-und-speicher.md) | AOT-Fähigkeit, Voraussetzungen für NativeAOT, gemessener Speicher |
 | [repo-aufbau.md](repo-aufbau.md) | Ordner, Projekte, Build-Einstellungen und warum es so wenige Projekte sind |
 | [installation.md](installation.md) | Einrichtung für die Entwicklung: Client-Dienst per Skript, Firewall-Regel für den Host |
+| [updates.md](updates.md) | Selbst-Update von Host (Velopack, geplante Aufgabe) und Client, Releases |
 | [simulator.md](simulator.md) | Entwicklungswerkzeug, das einen Client mit mehreren Monitoren in einem Fenster simuliert |
 
 ## Regeln für diese Doku

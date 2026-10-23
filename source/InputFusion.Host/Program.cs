@@ -5,6 +5,7 @@ using Windows.Win32.UI.WindowsAndMessaging;
 using InputFusion.Core.Config;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
+using Velopack;
 
 namespace InputFusion.Host;
 
@@ -14,12 +15,50 @@ internal static class Program
 
     private static async Task Main(string[] args)
     {
-        // Ein Agent je Sitzung; ein zweiter Start öffnet nur die Einstellungen.
-        using Mutex instance = new Mutex(initiallyOwned: true, InstanceMutexName, out bool first);
+        // Vor allem anderen: Setup und Updater starten die exe mit Hook-Argumenten und erwarten ein sofortiges Ende.
+        VelopackApp.Build()
+            .OnBeforeUninstallFastCallback(_ => ElevatedStartup.Uninstall())
+            .Run();
+
+        // Ein Agent je Sitzung; ein zweiter Start öffnet nur die Einstellungen. Läuft der Agent erhöht, darf ein
+        // nicht erhöhter Prozess dessen Mutex nicht öffnen; auch das heißt: läuft schon.
+        Mutex instance;
+        bool first;
+        try
+        {
+            instance = new Mutex(initiallyOwned: true, InstanceMutexName, out first);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            SettingsLauncher.Open();
+            return;
+        }
+        using Mutex firstInstance = instance;
         if (!first)
         {
             SettingsLauncher.Open();
             return;
+        }
+
+        // Eine installierte Kopie startet sich erhöht über die geplante Aufgabe, siehe ElevatedStartup. Den Mutex
+        // vorher freigeben, sonst hielte die Instanz aus der Aufgabe sich für die zweite.
+        UpdateService updates = new UpdateService();
+        if (updates.IsInstalled && !ElevatedStartup.IsElevated
+            && (ElevatedStartup.TaskExists() || ElevatedStartup.Install(Environment.ProcessPath!)))
+        {
+            instance.ReleaseMutex();
+            instance.Dispose();
+            if (ElevatedStartup.StartTask())
+            {
+                return;
+            }
+
+            Log.Write("Geplante Aufgabe ließ sich nicht starten; der Host läuft ohne Adminrechte.");
+            instance = new Mutex(initiallyOwned: true, InstanceMutexName, out first);
+            if (!first)
+            {
+                return;
+            }
         }
 
         bool absolute = args.Contains("--absolute");
@@ -42,11 +81,15 @@ internal static class Program
             + $"{(observe ? ", Beobachtung (kapert die Maus nicht)" : "")}"
             + $"{(diag ? ", Diagnose" : "")}{(remoteSession ? " [RDP erkannt]" : "")}.");
 
-        TrayIcon tray = new TrayIcon(SettingsLauncher.Open, cts.Cancel, state.RefreshHostMonitors);
+        TrayIcon tray = new TrayIcon(SettingsLauncher.Open, cts.Cancel, state.RefreshHostMonitors, $"Version {AppVersion.Current}");
         tray.Start();
         tray.SetTooltip(state.StatusText);
         state.Changed += () => tray.SetTooltip(state.StatusText);
         Task settings = new SettingsServer(state).RunAsync(cts.Token);
+
+        state.ProtocolMismatch += updates.CheckSoon;
+        updates.UpdateReady += version => _ = ApplyWhenIdleAsync(updates, state, version, cts);
+        Task updateLoop = updates.RunAsync(cts.Token);
 
         try
         {
@@ -56,8 +99,34 @@ internal static class Program
         {
             cts.Cancel();
             await settings;
+            await updateLoop;
             tray.Stop();
             Log.Write("Host beendet.");
+        }
+    }
+
+    /// <summary>
+    /// Spielt ein geladenes Update ein, sobald die Maus nicht gerade auf dem Notebook ist: Der Host beendet sich, der
+    /// Updater von Velopack tauscht die Dateien und startet ihn neu. Das Notebook verbindet sich danach von selbst neu.
+    /// </summary>
+    private static async Task ApplyWhenIdleAsync(UpdateService updates, HostState state, string version, CancellationTokenSource cts)
+    {
+        try
+        {
+            while (state.IsRemote)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5), cts.Token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (updates.ApplyOnExit())
+        {
+            Log.Write($"Spiele Update auf {version} ein, der Host startet neu.");
+            cts.Cancel();
         }
     }
 

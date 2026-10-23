@@ -14,11 +14,12 @@ namespace InputFusion.Host;
 /// Nachrichtenschleife, und der Hook darf nie warten. Das Fenster ist ein echtes Top-Level-Fenster und kein
 /// Nachrichtenfenster, weil nur solche <c>WM_DISPLAYCHANGE</c> und <c>TaskbarCreated</c> bekommen.
 /// </summary>
-internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action displayChanged)
+internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action displayChanged, string versionLabel)
 {
     private readonly Action _openSettings = openSettings;
     private readonly Action _exit = exit;
     private readonly Action _displayChanged = displayChanged;
+    private readonly string _versionLabel = versionLabel;
 
     private const uint CallbackMessage = PInvoke.WM_APP + 1;
     private const uint UpdateMessage = PInvoke.WM_APP + 2;
@@ -113,9 +114,12 @@ internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action d
     private void ShowMenu()
     {
         HMENU menu = PInvoke.CreatePopupMenu();
+        fixed (char* version = _versionLabel)
         fixed (char* settings = "Einstellungen …")
         fixed (char* exit = "Beenden")
         {
+            PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING | MENU_ITEM_FLAGS.MF_GRAYED, 0, version);
+            PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_SEPARATOR, 0, default(PCWSTR));
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, MenuSettings, settings);
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_SEPARATOR, 0, default(PCWSTR));
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, MenuExit, exit);

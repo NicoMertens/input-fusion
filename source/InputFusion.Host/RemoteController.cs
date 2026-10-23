@@ -24,7 +24,6 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
     // Wo der Host-Cursor beim Verlassen stand; dorthin kehrt er bei Strg+Alt+F12 oder Verbindungsabbruch zurück.
     private int _returnX, _returnY;
     private double _virtualX, _virtualY;
-    private volatile bool _remote;
     private bool _ctrlDown, _altDown;
 
     // Alle Tasten, die der Hook gerade als gedrückt sieht (down ohne up). Damit lässt sich beim Wechsel
@@ -66,14 +65,14 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
                     case MouseMoveEvent move:
                         await HandleMove(move, token);
                         break;
-                    case RawMouseMoveEvent raw when _remote && !observe:
+                    case RawMouseMoveEvent raw when state.IsRemote && !observe:
                         await SendMove(raw.Dx, raw.Dy, token);
                         break;
-                    case MouseButtonEvent button when _remote:
+                    case MouseButtonEvent button when state.IsRemote:
                         await connection.SendAsync(MessageType.MouseButton,
                             new MouseButton(button.Button, button.Down ? ButtonState.Down : ButtonState.Up).ToPayload(), token);
                         break;
-                    case MouseWheelEvent wheel when _remote:
+                    case MouseWheelEvent wheel when state.IsRemote:
                         await connection.SendAsync(MessageType.MouseWheel,
                             new MouseWheel(wheel.Delta, wheel.Horizontal).ToPayload(), token);
                         break;
@@ -88,9 +87,9 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
             state.LayoutChanged -= layoutChanged;
             LowLevelHooks.Swallow = false;
             // Brach die Verbindung im Remote-Modus ab, die Maus dort zurückgeben, wo sie den Host verlassen hat.
-            if (_remote)
+            if (state.IsRemote)
             {
-                _remote = false;
+                state.IsRemote = false;
                 PInvoke.SetCursorPos(_returnX, _returnY);
             }
             linked.Cancel();
@@ -133,9 +132,9 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
                 {
                     state.ClientMonitorsReported(MonitorList.FromPayload(payload));
                 }
-                else if (type == MessageType.SwitchBackRequest && _remote)
+                else if (type == MessageType.SwitchBackRequest && state.IsRemote)
                 {
-                    _remote = false;
+                    state.IsRemote = false;
                     LowLevelHooks.Swallow = false;
                     await ReleaseClientKeysAsync(linked.Token);
                     SwitchBackRequest request = SwitchBackRequest.FromPayload(payload);
@@ -159,7 +158,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
 
     private async Task HandleMove(MouseMoveEvent move, CancellationToken ct)
     {
-        if (!_remote)
+        if (!state.IsRemote)
         {
             // Ohne gemeldete Client-Monitore gibt es kein Layout und damit keinen Übergang.
             if (state.Layout is { } layout && layout.TryLeaveHost(move.X, move.Y, move.Dx, move.Dy, out _, out (int X, int Y) entry))
@@ -256,7 +255,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
             _physicalDown.Remove(key.VirtualKey);
         }
 
-        if (key.Down && _ctrlDown && _altDown && key.VirtualKey == VkF12 && _remote)
+        if (key.Down && _ctrlDown && _altDown && key.VirtualKey == VkF12 && state.IsRemote)
         {
             await ExitRemote(ct);
             return;
@@ -266,7 +265,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         // greift (RDP): Der Client-Cursor erscheint in der Mitte des ersten Übergangs.
         if (key.Down && _ctrlDown && _altDown && key.VirtualKey == VkF11)
         {
-            if (_remote)
+            if (state.IsRemote)
             {
                 await ExitRemote(ct);
             }
@@ -283,7 +282,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
             return;
         }
 
-        if (_remote)
+        if (state.IsRemote)
         {
             KeyEvent ev = new KeyEvent(key.VirtualKey, key.ScanCode, key.Down ? ButtonState.Down : ButtonState.Up, key.Extended);
             lock (_clientDown)
@@ -363,7 +362,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
             _virtualX = (double)nx / ushort.MaxValue * _desktopWidth;
             _virtualY = (double)ny / ushort.MaxValue * _desktopHeight;
         }
-        _remote = true;
+        state.IsRemote = true;
 
         if (observe)
         {
@@ -401,7 +400,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
 
     private async Task ExitRemote(CancellationToken ct)
     {
-        _remote = false;
+        state.IsRemote = false;
         LowLevelHooks.Swallow = false;
         await ReleaseClientKeysAsync(ct);
         PInvoke.SetCursorPos(_returnX, _returnY);
