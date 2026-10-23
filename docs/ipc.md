@@ -8,7 +8,7 @@ Named Pipes zwischen den Prozessen eines Rechners. Die Verbindung zwischen PC un
 | [Einstellungen](einstellungen.md) → [Dienst](client.md#dienst) | Named Pipe, JSON-Nachrichten | interaktive Benutzer |
 | [Dienst](client.md#dienst) ↔ [Injector](client.md#injector) | Named Pipe, binär | nur SYSTEM |
 
-Der Wechsel läuft über `SwitchToClient`, `SwitchToHost` und `ReturnEdges` (Host → Client) sowie `Monitors` und `SwitchBackRequest` (Client → Host, wenn der Cursor eine Rückkehrkante erreicht). Bedeutung siehe [Layout](layout.md).
+Der Wechsel läuft über `SwitchToClient`, `SwitchToHost`, `ReturnEdges` und `LockWorkstation` (Host → Client) sowie `Monitors` und `SwitchBackRequest` (Client → Host, wenn der Cursor eine Rückkehrkante erreicht). Bedeutung siehe [Layout](layout.md).
 
 - Die Nachrichten liegen in `InputFusion.Core`.
 - JSON läuft über System.Text.Json mit Source-Generator, damit Agent und Dienst AOT-fähig bleiben, siehe [AOT und Speicher](aot-und-speicher.md).

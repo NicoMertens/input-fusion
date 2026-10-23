@@ -70,6 +70,12 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
                 case MessageType.Heartbeat:
                     break;
 
+                case MessageType.LockWorkstation:
+                    Active = false;
+                    _pressed.Clear();
+                    log = "Win+L auf dem Host: Ein echtes Notebook würde sich jetzt sperren";
+                    break;
+
                 case MessageType.SwitchToHost:
                     Active = false;
                     log = _pressed.Count == 0
