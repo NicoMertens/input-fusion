@@ -57,10 +57,11 @@ internal sealed class ClientUpdater
             return;
         }
 
-        CleanUpPreviousUpdate();
         try
         {
             await _soon.WaitAsync(_firstCheckDelay, ct);
+            // Erst jetzt: Direkt nach einem Update läuft der Helfer noch kurz aus dem Staging-Ordner.
+            CleanUpPreviousUpdate();
             while (!ct.IsCancellationRequested && !_applying)
             {
                 await CheckAsync(ct);

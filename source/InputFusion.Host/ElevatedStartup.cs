@@ -43,11 +43,11 @@ internal static class ElevatedStartup
     public static bool Install(string exePath)
     {
         // Der Benutzer vor der Erhöhung: Meldet sich ein Standardbenutzer mit Admin-Kennwort an, liefe die Aufgabe
-        // sonst unter dem Admin-Konto.
+        // sonst unter dem Admin-Konto. Als SID, weil der Name bei Microsoft-Konten je nach Zusammenhang anders lautet.
         string user;
         using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
         {
-            user = identity.Name;
+            user = identity.User?.Value ?? identity.Name;
         }
 
         string file = Path.Combine(Path.GetTempPath(), "InputFusion.Host.task.xml");
@@ -79,10 +79,14 @@ internal static class ElevatedStartup
     /// <summary>
     /// Beendet den laufenden Host und entfernt Aufgabe und Firewall-Regel, mit einer UAC-Abfrage. Läuft im
     /// Deinstallations-Hook von Velopack: Dessen Updater läuft nicht erhöht und könnte den erhöhten Host selbst
-    /// nicht beenden, dann blieben dessen Dateien gesperrt.
+    /// nicht beenden, dann blieben dessen Dateien gesperrt. <c>schtasks /End</c> allein genügt nicht: Nach einem
+    /// Update hat der Updater den Host direkt gestartet, nicht über die Aufgabe. Der Hook selbst ist ebenfalls
+    /// <c>InputFusion.Host.exe</c> und wird deshalb ausgenommen.
     /// </summary>
     public static void Uninstall() =>
-        RunElevated("cmd.exe", $"/c schtasks /End /TN \"{TaskName}\" & schtasks /Delete /TN \"{TaskName}\" /F"
+        RunElevated("cmd.exe", $"/c schtasks /End /TN \"{TaskName}\""
+            + $" & taskkill /F /IM InputFusion.Host.exe /FI \"PID ne {Environment.ProcessId}\""
+            + $" & schtasks /Delete /TN \"{TaskName}\" /F"
             + $" & netsh advfirewall firewall delete rule name=\"{FirewallRuleName}\"");
 
     /// <summary>
