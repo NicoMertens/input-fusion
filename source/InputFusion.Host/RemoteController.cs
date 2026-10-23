@@ -24,6 +24,13 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
     private volatile bool _remote;
     private bool _ctrlDown, _altDown;
 
+    // Alle Tasten, die der Hook gerade als gedrückt sieht (down ohne up). Damit lässt sich beim Wechsel
+    // der Modifier-Zustand des Hosts an den Client mitschicken. Wird nur auf dem Hook-Thread berührt.
+    private readonly Dictionary<ushort, KeyInputEvent> _physicalDown = new();
+    // Tasten, die als "down" an den Client gingen und dort noch gedrückt sind. Beim Verlassen werden sie
+    // losgelassen, sonst bleiben sie auf der Gegenseite kleben. Hook-Thread und PumpIncoming greifen zu.
+    private readonly Dictionary<ushort, KeyEvent> _clientDown = new();
+
     private int _recenters, _held, _maxDrift;
     private readonly string _diagPath = Path.Combine(Path.GetTempPath(), "inputfusion-diag.log");
 
@@ -84,6 +91,7 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
                 {
                     _remote = false;
                     LowLevelHooks.Swallow = false;
+                    await ReleaseClientKeysAsync(linked.Token);
                     PInvoke.SetCursorPos(_edgeX - 5, _parkY);
                     Console.WriteLine("Remote-Modus aus (Client an der Kante)");
                 }
@@ -181,6 +189,10 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
     private async Task HandleKey(KeyInputEvent key, CancellationToken ct)
     {
         TrackModifier(key);
+        if (key.Down)
+            _physicalDown[key.VirtualKey] = key;
+        else
+            _physicalDown.Remove(key.VirtualKey);
 
         if (key.Down && _ctrlDown && _altDown && key.VirtualKey == VkF12 && _remote)
         {
@@ -205,9 +217,43 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
         }
 
         if (_remote)
-            await connection.SendAsync(MessageType.Key,
-                new KeyEvent(key.VirtualKey, key.ScanCode, key.Down ? ButtonState.Down : ButtonState.Up, key.Extended).ToPayload(), ct);
+        {
+            var ev = new KeyEvent(key.VirtualKey, key.ScanCode, key.Down ? ButtonState.Down : ButtonState.Up, key.Extended);
+            lock (_clientDown)
+            {
+                if (key.Down)
+                    _clientDown[key.VirtualKey] = ev;
+                else
+                    _clientDown.Remove(key.VirtualKey);
+            }
+            await connection.SendAsync(MessageType.Key, ev.ToPayload(), ct);
+        }
     }
+
+    /// <summary>Lässt auf dem Client alle Tasten los, die noch als gedrückt gelten. Wird beim Verlassen des
+    /// Remote-Modus aufgerufen, damit Modifier (etwa das Strg+Alt des Austritts-Hotkeys) nicht kleben bleiben.</summary>
+    private async Task ReleaseClientKeysAsync(CancellationToken ct)
+    {
+        KeyEvent[] ups;
+        lock (_clientDown)
+        {
+            if (_clientDown.Count == 0)
+                return;
+            ups = new KeyEvent[_clientDown.Count];
+            int i = 0;
+            foreach (var ev in _clientDown.Values)
+                ups[i++] = ev with { State = ButtonState.Up };
+            _clientDown.Clear();
+        }
+        foreach (var up in ups)
+            await connection.SendAsync(MessageType.Key, up.ToPayload(), ct);
+    }
+
+    private static bool IsModifier(ushort vk) => vk is
+        0x10 or 0xA0 or 0xA1 or   // Umschalt (Shift)
+        0x11 or 0xA2 or 0xA3 or   // Strg (Control)
+        0x12 or 0xA4 or 0xA5 or   // Alt (Menu)
+        0x5B or 0x5C;             // Windows
 
     private void TrackModifier(KeyInputEvent key)
     {
@@ -245,12 +291,25 @@ internal sealed class RemoteController(MessageConnection connection, bool absolu
 
         ushort entryY = (ushort)(_virtualY / _desktopHeight * ushort.MaxValue);
         await connection.SendAsync(MessageType.SwitchToClient, new SwitchToClient(entryY).ToPayload(), ct);
+
+        // Modifier, die beim Übertreten gehalten werden (z. B. Umschalt beim Ziehen über die Kante, oder das
+        // Strg+Alt des F11-Hotkeys), an den Client mitschicken, damit der Zustand drüben stimmt.
+        foreach (var (vk, k) in _physicalDown)
+        {
+            if (!IsModifier(vk))
+                continue;
+            var down = new KeyEvent(k.VirtualKey, k.ScanCode, ButtonState.Down, k.Extended);
+            lock (_clientDown)
+                _clientDown[vk] = down;
+            await connection.SendAsync(MessageType.Key, down.ToPayload(), ct);
+        }
     }
 
     private async Task ExitRemote(CancellationToken ct)
     {
         _remote = false;
         LowLevelHooks.Swallow = false;
+        await ReleaseClientKeysAsync(ct);
         PInvoke.SetCursorPos(_edgeX - 5, _parkY);
         Console.WriteLine("Remote-Modus aus");
         await connection.SendAsync(MessageType.SwitchToHost, ReadOnlyMemory<byte>.Empty, ct);
