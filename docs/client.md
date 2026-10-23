@@ -16,7 +16,7 @@ Worker Service mit `AddWindowsService()`, LocalSystem, Starttyp automatisch.
   3. `CreateProcessAsUser` auf die eigene exe mit `--injector` und `lpDesktop = "winsta0\\default"`.
 
   Die exe ist eine Konsolenanwendung, damit der Dienst beim Entwickeln ins Terminal loggt. Deshalb braucht der Start `CREATE_NO_WINDOW`, sonst öffnet sich in der Benutzersitzung ein Konsolenfenster.
-- **Konfiguration** in `%ProgramData%\InputFusion\client.json` (Rechnername des PCs, gemeinsamer Schlüssel, optional feste IP), ACL nur für SYSTEM und Administratoren. Der Dienst ist ihr einziger Besitzer; die [Einstellungen](einstellungen.md) ändern sie später nur über IPC. Bis dahin schreibt sie das Installationsskript, siehe [Installation](installation.md).
+- **Konfiguration** in `%ProgramData%\InputFusion\client.json` (Rechnername des PCs, gemeinsamer Schlüssel, optional feste IP und Port, Standard 15111), ACL nur für SYSTEM und Administratoren. Der Dienst ist ihr einziger Besitzer; die [Einstellungen](einstellungen.md) ändern sie später nur über IPC. Bis dahin schreibt sie das Installationsskript, siehe [Installation](installation.md).
 - **`Strg+Alt+Entf`** optional über `SendSAS` (sas.dll). Setzt die Richtlinie *SoftwareSASGeneration* voraus, die Diensten das erlauben muss.
 
 ## Injector
@@ -28,7 +28,7 @@ Worker Service mit `AddWindowsService()`, LocalSystem, Starttyp automatisch.
 
 ## Stand Phase 1 (Durchstich)
 
-Im Durchstich läuft der Client als einfaches Konsolenprogramm: `InputFusion.Client.exe --connect <host> --key <schlüssel>`. Es verbindet sich zum Host, empfängt die Eingaben und spielt sie direkt mit `SendInput` ab. Damit lässt sich das Mausgefühl früh testen, ohne Dienst, Sitzungswechsel und Desktop-Wechsel.
+Im Durchstich läuft der Client als einfaches Konsolenprogramm: `InputFusion.Client.exe --connect <host> --key <schlüssel> [--port <nummer>]`; `--relay` nimmt dieselben Argumente. Es verbindet sich zum Host, empfängt die Eingaben und spielt sie direkt mit `SendInput` ab. Damit lässt sich das Mausgefühl früh testen, ohne Dienst, Sitzungswechsel und Desktop-Wechsel.
 
 ## Stand Phase 2 (Schritt 1: IPC und Injector)
 
@@ -69,7 +69,7 @@ Umgesetzt wie unter [Injector](#injector) geplant, weil am gesperrten Notebook M
 `ClientSetup`: Startet die exe ohne Argument, nicht als Dienst und nicht aus `%ProgramFiles%\InputFusion\Client`, gilt das als Doppelklick auf ein Setup.
 
 1. Nachfrage im Konsolenfenster „als Dienst installieren? [J/n]“. Nein beendet ohne Änderung.
-2. Neustart per UAC mit `--setup` (ist der Prozess schon erhöht, entfällt das). Im erhöhten Fenster fragt sie PC-Name, Schlüssel (mit denselben Regeln wie der Host, `HostConfig.ValidateKey`) und optional eine feste IP ab. Gibt es schon eine `client.json`, stehen deren Werte als Vorschlag in Klammern; Enter übernimmt sie.
+2. Neustart per UAC mit `--setup` (ist der Prozess schon erhöht, entfällt das). Im erhöhten Fenster fragt sie PC-Name, Schlüssel (mit denselben Regeln wie der Host, `HostConfig.ValidateKey`), optional eine feste IP und den Port (Vorschlag 15111) ab. Gibt es schon eine `client.json`, stehen deren Werte als Vorschlag in Klammern; Enter übernimmt sie.
 3. Danach dasselbe wie `install-client.ps1`: vorhandenen Dienst stoppen, übrige Client-Prozesse beenden, **nur die exe selbst** als `InputFusion.Client.exe` nach `%ProgramFiles%\InputFusion\Client` kopieren (als Setup liegt sie umbenannt im Download-Ordner, neben fremden Dateien), `client.json` schreiben, Dienst anlegen bzw. umkonfigurieren, Neustart nach Absturz einstellen, starten. Das Fenster bleibt bis zu einem Tastendruck offen.
 4. `client.json` entsteht gleich mit ihrer ACL (nur SYSTEM und Administratoren, ohne Vererbung); nachträglich gesetzt, wäre sie mit dem Schlüssel kurz für alle Benutzer lesbar, weil `%ProgramData%` Lesen vererbt.
 

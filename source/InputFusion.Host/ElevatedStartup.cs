@@ -4,7 +4,6 @@ using System.IO;
 using System.Security;
 using System.Security.Principal;
 using System.Text;
-using InputFusion.Core.Net;
 
 namespace InputFusion.Host;
 
@@ -40,7 +39,7 @@ internal static class ElevatedStartup
     public static bool StartTask() => Run("schtasks.exe", $"/Run /TN \"{TaskName}\"") == 0;
 
     /// <summary>Legt Aufgabe und Firewall-Regel an, mit einer UAC-Abfrage. False, wenn abgelehnt oder fehlgeschlagen.</summary>
-    public static bool Install(string exePath)
+    public static bool Install(string exePath, int port)
     {
         // Der Benutzer vor der Erhöhung: Meldet sich ein Standardbenutzer mit Admin-Kennwort an, liefe die Aufgabe
         // sonst unter dem Admin-Konto. Als SID, weil der Name bei Microsoft-Konten je nach Zusammenhang anders lautet.
@@ -57,7 +56,7 @@ internal static class ElevatedStartup
         {
             string script = $"schtasks /Create /TN \"{TaskName}\" /XML \"{file}\" /F"
                 + $" && (netsh advfirewall firewall delete rule name=\"{FirewallRuleName}\" >nul"
-                + $" & netsh advfirewall firewall add rule name=\"{FirewallRuleName}\" dir=in action=allow protocol=TCP localport={Ports.Input} profile=any)";
+                + $" & netsh {AddFirewallRule(port)})";
             int exitCode = RunElevated("cmd.exe", $"/c {script}");
             if (exitCode != 0)
             {
@@ -66,7 +65,7 @@ internal static class ElevatedStartup
                     : $"Geplante Aufgabe ließ sich nicht anlegen (Exitcode {exitCode}); der Host läuft ohne Adminrechte.");
                 return false;
             }
-            Log.Write($"Geplante Aufgabe „{TaskName}“ und Firewall-Regel für Port {Ports.Input} angelegt.");
+            Log.Write($"Geplante Aufgabe „{TaskName}“ und Firewall-Regel für Port {port} angelegt.");
             return true;
         }
         finally
@@ -75,6 +74,30 @@ internal static class ElevatedStartup
             catch (IOException) { }
         }
     }
+
+    /// <summary>
+    /// Stellt die Firewall-Regel auf <paramref name="port"/>, legt sie an, falls sie fehlt. Nur erhöht aufrufen, also
+    /// aus der Aufgabe gestartet; ein von Hand geänderter Port greift so beim nächsten Start ohne UAC-Abfrage.
+    /// </summary>
+    public static void UpdateFirewall(int port)
+    {
+        if (Run("netsh.exe", $"advfirewall firewall set rule name=\"{FirewallRuleName}\" new localport={port}") == 0)
+        {
+            return;
+        }
+
+        if (Run("netsh.exe", AddFirewallRule(port)) == 0)
+        {
+            Log.Write($"Firewall-Regel „{FirewallRuleName}“ für Port {port} neu angelegt.");
+        }
+        else
+        {
+            Log.Write($"Firewall-Regel „{FirewallRuleName}“ ließ sich nicht auf Port {port} stellen.");
+        }
+    }
+
+    private static string AddFirewallRule(int port) =>
+        $"advfirewall firewall add rule name=\"{FirewallRuleName}\" dir=in action=allow protocol=TCP localport={port} profile=any";
 
     /// <summary>
     /// Beendet den laufenden Host und entfernt Aufgabe und Firewall-Regel, mit einer UAC-Abfrage. Läuft im

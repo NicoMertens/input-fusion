@@ -1,4 +1,5 @@
 ﻿using InputFusion.Client;
+using InputFusion.Core.Net;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Logging.EventLog;
 
@@ -13,19 +14,20 @@ if (args is [Injector.Argument, ..])
     return;
 }
 
-if (args is ["--connect", var hostName, "--key", var spikeKey, ..])
+if (args is ["--connect", var hostName, "--key", var spikeKey, .. var spikeRest])
 {
-    await SpikeClient.RunAsync(hostName, spikeKey);
+    await SpikeClient.RunAsync(hostName, spikeKey, PortArgument(spikeRest));
     return;
 }
 
 // Dev-Einstieg: derselbe Ablauf wie im Dienst, aber mit Host und Schlüssel aus den Argumenten statt aus
 // client.json und dem Injector als Kindprozess statt per CreateProcessAsUser.
-if (args is ["--relay", var relayHost, "--key", var relayKey, ..])
+if (args is ["--relay", var relayHost, "--key", var relayKey, .. var relayRest])
 {
+    int relayPort = PortArgument(relayRest);
     using CancellationTokenSource cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
-    ClientService.ConfigLoader fixedHost = (out string? error) => { error = null; return new ClientConfig(relayHost, relayKey); };
+    ClientService.ConfigLoader fixedHost = (out string? error) => { error = null; return new ClientConfig(relayHost, relayKey, Port: relayPort); };
     await ClientService.RunAsync(fixedHost, asService: false, Console.WriteLine, cts.Token);
     return;
 }
@@ -52,3 +54,14 @@ builder.Services.AddHostedService<Worker>();
 
 IHost host = builder.Build();
 host.Run();
+
+// Optional hinter den Dev-Einstiegen: --port <nummer>, sonst der Standard.
+static int PortArgument(string[] rest)
+{
+    if (rest is not ["--port", string text, ..])
+    {
+        return Ports.Input;
+    }
+
+    return Ports.Validate(text, out int port) is { } error ? throw new ArgumentException(error) : port;
+}

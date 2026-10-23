@@ -1,18 +1,20 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.ServiceProcess;
 using System.Text.Json;
 using InputFusion.Core.Config;
+using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
 
 namespace InputFusion.Client;
 
 /// <summary>
 /// Die exe installiert sich selbst, wenn sie per Doppelklick außerhalb des Installationsordners startet: erst eine
-/// Nachfrage, dann per UAC erhöht neu starten, PC-Name und Schlüssel abfragen und dasselbe tun wie
+/// Nachfrage, dann per UAC erhöht neu starten, PC-Name, Schlüssel, IP und Port abfragen und dasselbe tun wie
 /// <c>build/install-client.ps1</c>. Dateien nach <see cref="ClientUpdater.InstallDirectory"/> (nur Administratoren
 /// schreiben dort, wichtig, weil der Dienst die exe als SYSTEM ausführt), <c>client.json</c> mit ACL nur für SYSTEM
 /// und Administratoren, Dienst anlegen und starten.
@@ -73,9 +75,12 @@ internal static class ClientSetup
             string host = Ask("PC-Name des Hosts (in dessen Einstellungen, Reiter Verbindung)", existing?.Host, value => value.Length > 0 ? null : "Bitte einen Namen angeben.");
             string key = Ask("Schlüssel", existing?.Key, HostConfig.ValidateKey);
             string ip = Ask("Feste IP des Hosts, optional", existing?.Ip ?? "", _ => null);
+            string portText = Ask("Port (wie beim Host, Reiter Verbindung)", (existing?.Port ?? Ports.Input).ToString(CultureInfo.InvariantCulture),
+                value => Ports.Validate(value, out _));
+            Ports.Validate(portText, out int port);
             Console.WriteLine();
 
-            Install(new ClientConfig(host, key, ip.Length == 0 ? null : ip));
+            Install(new ClientConfig(host, key, ip.Length == 0 ? null : ip, port));
             Console.WriteLine();
             Console.WriteLine("Fertig. Der Dienst läuft und verbindet sich mit dem Host; Updates holt er sich selbst.");
             Console.WriteLine("Protokoll: Ereignisanzeige > Windows-Protokolle > Anwendung, Quelle InputFusion.Client.");

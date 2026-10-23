@@ -104,20 +104,20 @@ public partial class MainWindow : Window
             try
             {
                 using TcpClient tcp = new TcpClient();
-                _connection = $"Verbinde zu {_options.Host}:{Ports.Input} …";
-                await tcp.ConnectAsync(_options.Host, Ports.Input, ct);
+                _connection = $"Verbinde zu {_options.Host}:{_options.Port} …";
+                await tcp.ConnectAsync(_options.Host, _options.Port, ct);
                 using MessageConnection conn = MessageConnection.FromTcp(tcp);
                 HandshakeResult handshake = await Handshake.ClientAsync(conn, _options.Key, AppVersion.Current, ct);
                 if (handshake.Outcome != HandshakeOutcome.Accepted)
                 {
                     _connection = handshake.Outcome == HandshakeOutcome.ProtocolMismatch
                         ? $"Host spricht Protokoll {handshake.PeerProtocol} (Version {handshake.PeerVersion}), der Simulator {ProtocolVersion.Current}. Neuer Versuch …"
-                        : $"{_options.Host}:{Ports.Input} hat die Anmeldung abgelehnt, stimmt der Schlüssel? Neuer Versuch …";
+                        : $"{_options.Host}:{_options.Port} hat die Anmeldung abgelehnt, stimmt der Schlüssel? Neuer Versuch …";
                     await Task.Delay(3000, ct);
                     continue;
                 }
                 await conn.SendAsync(MessageType.Monitors, MonitorList.ToPayload(_options.Monitors), ct);
-                _connection = $"Verbunden mit {_options.Host}:{Ports.Input}";
+                _connection = $"Verbunden mit {_options.Host}:{_options.Port}";
                 _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  {_connection}");
 
                 // Heartbeat zum Host, sonst trennt er nach dem Timeout; schweigt der Host, neu verbinden.
@@ -166,7 +166,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex) when (ex is SocketException or IOException)
             {
-                _connection = $"Kein Host unter {_options.Host}:{Ports.Input}, neuer Versuch …";
+                _connection = $"Kein Host unter {_options.Host}:{_options.Port}, neuer Versuch …";
             }
 
             await Task.Delay(1000, ct).ContinueWith(_ => { }, TaskScheduler.Default);

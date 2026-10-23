@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using InputFusion.Core.Net;
 
 namespace InputFusion.Client;
 
@@ -8,9 +9,10 @@ namespace InputFusion.Client;
 /// Konfiguration des Dienstes in <c>%ProgramData%\InputFusion\client.json</c>, ACL nur für SYSTEM und
 /// Administratoren (setzt das Installationsskript). <see cref="Host"/> ist der Rechnername des PCs, per DNS
 /// aufgelöst; <see cref="Ip"/> eine optionale feste Adresse, die zusätzlich versucht wird. <see cref="Key"/> ist
-/// der gemeinsame Schlüssel aus den Einstellungen des Hosts, siehe <c>Handshake</c>.
+/// der gemeinsame Schlüssel aus den Einstellungen des Hosts, siehe <c>Handshake</c>. <see cref="Port"/> muss zu dem
+/// des Hosts passen; fehlt er in der Datei, gilt der Standard.
 /// </summary>
-public sealed record ClientConfig(string Host, string Key, string? Ip = null)
+public sealed record ClientConfig(string Host, string Key, string? Ip = null, int Port = Ports.Input)
 {
     public static string FilePath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "InputFusion", "client.json");
@@ -31,6 +33,11 @@ public sealed record ClientConfig(string Host, string Key, string? Ip = null)
             if (string.IsNullOrEmpty(config.Key))
             {
                 error = $"{FilePath}: \"key\" fehlt";
+                return null;
+            }
+            if (Ports.Validate(config.Port) is { } portError)
+            {
+                error = $"{FilePath}: \"port\": {portError}";
                 return null;
             }
             error = null;

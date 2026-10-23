@@ -44,7 +44,7 @@ internal static class Program
         // vorher freigeben, sonst hielte die Instanz aus der Aufgabe sich für die zweite.
         UpdateService updates = new UpdateService();
         if (updates.IsInstalled && !ElevatedStartup.IsElevated
-            && (ElevatedStartup.TaskExists() || ElevatedStartup.Install(Environment.ProcessPath!)))
+            && (ElevatedStartup.TaskExists() || ElevatedStartup.Install(Environment.ProcessPath!, HostConfig.LoadOrCreate().Port)))
         {
             instance.ReleaseMutex();
             instance.Dispose();
@@ -77,7 +77,13 @@ internal static class Program
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
         HostState state = new HostState(HostConfig.LoadOrCreate());
-        Log.Write($"InputFusion Host auf Port {Ports.Input}, Konfiguration {HostConfig.FilePath}. Modus: {(absolute ? "absolut" : "relativ")}"
+        if (updates.IsInstalled && ElevatedStartup.IsElevated)
+        {
+            // Erhöht aus der Aufgabe: Die Firewall-Regel folgt einem von Hand geänderten Port ohne UAC-Abfrage.
+            ElevatedStartup.UpdateFirewall(state.Port);
+        }
+
+        Log.Write($"InputFusion Host auf Port {state.Port}, Konfiguration {HostConfig.FilePath}. Modus: {(absolute ? "absolut" : "relativ")}"
             + $"{(observe ? ", Beobachtung (kapert die Maus nicht)" : "")}"
             + $"{(diag ? ", Diagnose" : "")}{(remoteSession ? " [RDP erkannt]" : "")}.");
 
@@ -136,7 +142,7 @@ internal static class Program
     /// </summary>
     private static async Task ListenAsync(HostState state, bool absolute, bool observe, bool diag, CancellationToken ct)
     {
-        TcpListener listener = new TcpListener(IPAddress.Any, Ports.Input);
+        TcpListener listener = new TcpListener(IPAddress.Any, state.Port);
         while (!ct.IsCancellationRequested)
         {
             TcpClient tcp;
@@ -153,7 +159,7 @@ internal static class Program
             catch (SocketException ex)
             {
                 // Port belegt, etwa von einem zweiten Agent unter einem anderen Benutzer: später erneut versuchen.
-                Log.Write($"Port {Ports.Input} nicht verfügbar ({ex.SocketErrorCode}), neuer Versuch in 10 s.");
+                Log.Write($"Port {state.Port} nicht verfügbar ({ex.SocketErrorCode}), neuer Versuch in 10 s.");
                 try { await Task.Delay(TimeSpan.FromSeconds(10), ct); }
                 catch (OperationCanceledException) { break; }
                 continue;

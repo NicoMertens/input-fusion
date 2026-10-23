@@ -100,16 +100,16 @@ internal static class ClientService
             timeout.CancelAfter(_connectTimeout);
             try
             {
-                await tcp.ConnectAsync(target, Ports.Input, timeout.Token);
+                await tcp.ConnectAsync(target, config.Port, timeout.Token);
                 return (tcp, null);
             }
             catch (SocketException ex)
             {
-                error = $"Host {target}:{Ports.Input} nicht erreichbar ({ex.SocketErrorCode}).";
+                error = $"Host {target}:{config.Port} nicht erreichbar ({ex.SocketErrorCode}).";
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                error = $"Host {target}:{Ports.Input} antwortet nicht.";
+                error = $"Host {target}:{config.Port} antwortet nicht.";
             }
             catch (OperationCanceledException)
             {

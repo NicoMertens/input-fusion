@@ -9,7 +9,7 @@
 
 ## Auf dem PC
 
-Layout-Editor, Kopplung, Tastenkürzel, Port (später; bis dahin fest, siehe [Netzwerk](netzwerk.md)). Wie der Editor funktioniert, steht unter [Layout](layout.md).
+Layout-Editor, Kopplung, Tastenkürzel, Port (später; bis dahin von Hand in der Konfiguration, siehe [Netzwerk](netzwerk.md)). Wie der Editor funktioniert, steht unter [Layout](layout.md).
 
 ## Auf dem Notebook
 

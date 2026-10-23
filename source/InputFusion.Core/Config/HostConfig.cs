@@ -2,6 +2,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using InputFusion.Core.Net;
 
 namespace InputFusion.Core.Config;
 
@@ -22,6 +23,10 @@ public sealed class HostConfig
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InputFusion", "config.json");
 
     public string Key { get; set; } = "";
+
+    /// <summary>Port, auf dem der Agent lauscht. Nur von Hand in der Datei zu ändern, bei beendetem Agent: Er liest
+    /// ihn beim Start und schreibt beim nächsten Speichern seinen Stand zurück.</summary>
+    public int Port { get; set; } = Ports.Input;
 
     /// <summary>Gespeicherte Anordnungen je Monitor-Kombination, siehe <c>MonitorLayout.CombinationKey</c>.</summary>
     public List<SavedLayout> Layouts { get; set; } = [];
@@ -63,13 +68,27 @@ public sealed class HostConfig
         }
     }
 
-    /// <summary>Liest die Datei. Fehlt sie oder taugt der Schlüssel nicht, wird ein neuer erzeugt und gespeichert.</summary>
+    /// <summary>Liest die Datei. Fehlt sie oder taugt der Schlüssel nicht, wird ein neuer erzeugt und gespeichert;
+    /// ein ungültiger Port fällt auf den Standard zurück. Steht in der Datei noch kein Port, kommt er beim nächsten Speichern
+    /// hinzu, damit man ihn dort findet.</summary>
     public static HostConfig LoadOrCreate()
     {
         HostConfig config = TryLoad() ?? new HostConfig();
+        bool changed = false;
         if (ValidateKey(config.Key) is not null)
         {
             config.Key = GenerateKey();
+            changed = true;
+        }
+
+        if (Ports.Validate(config.Port) is not null)
+        {
+            config.Port = Ports.Input;
+            changed = true;
+        }
+
+        if (changed)
+        {
             config.Save();
         }
         return config;
