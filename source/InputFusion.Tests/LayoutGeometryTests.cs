@@ -10,7 +10,7 @@ public class LayoutGeometryTests
     [Fact]
     public void MonitorAt_FindsContainingMonitor()
     {
-        var monitors = new[] { Pc, Notebook };
+        MonitorRect[] monitors = new[] { Pc, Notebook };
         Assert.Equal("PC-1", LayoutGeometry.MonitorAt(monitors, 100, 100)!.Value.DeviceId);
         Assert.Equal("NB-1", LayoutGeometry.MonitorAt(monitors, 2000, 100)!.Value.DeviceId);
         Assert.Null(LayoutGeometry.MonitorAt(monitors, -5, 0));
@@ -39,7 +39,7 @@ public class LayoutGeometryTests
     public void MapAcrossRightEdge_ScalesForDifferentHeights()
     {
         // Austritt in der Mitte der PC-Höhe (540 von 1080) -> Mitte der Notebook-Höhe (720 von 1440)
-        var (x, y) = LayoutGeometry.MapAcrossRightEdge(Pc, Notebook, 540);
+        (int x, int y) = LayoutGeometry.MapAcrossRightEdge(Pc, Notebook, 540);
         Assert.Equal(Notebook.Left, x);
         Assert.Equal(720, y);
     }
@@ -47,16 +47,16 @@ public class LayoutGeometryTests
     [Fact]
     public void MapAcrossRightEdge_TopStaysTop()
     {
-        var (_, y) = LayoutGeometry.MapAcrossRightEdge(Pc, Notebook, Pc.Top);
+        (int _, int y) = LayoutGeometry.MapAcrossRightEdge(Pc, Notebook, Pc.Top);
         Assert.Equal(Notebook.Top, y);
     }
 
     [Fact]
     public void NormalizeToVirtualDesktop_CornersMapToBounds()
     {
-        var monitors = new[] { Pc, Notebook };
+        MonitorRect[] monitors = new[] { Pc, Notebook };
         Assert.Equal((ushort)0, LayoutGeometry.NormalizeToVirtualDesktop(monitors, 0, 0).X);
-        var (x, _) = LayoutGeometry.NormalizeToVirtualDesktop(monitors, Notebook.Right, 0);
+        (ushort x, ushort _) = LayoutGeometry.NormalizeToVirtualDesktop(monitors, Notebook.Right, 0);
         Assert.Equal((ushort)65535, x);
     }
 
@@ -66,9 +66,9 @@ public class LayoutGeometryTests
     [InlineData(4480, 1440)]
     public void DenormalizeFromVirtualDesktop_InvertsNormalize(int x, int y)
     {
-        var monitors = new[] { Pc, Notebook };
-        var (nx, ny) = LayoutGeometry.NormalizeToVirtualDesktop(monitors, x, y);
-        var (rx, ry) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, nx, ny);
+        MonitorRect[] monitors = new[] { Pc, Notebook };
+        (ushort nx, ushort ny) = LayoutGeometry.NormalizeToVirtualDesktop(monitors, x, y);
+        (int rx, int ry) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, nx, ny);
 
         // Normierung auf 16 Bit kostet höchstens einen Pixel Genauigkeit
         Assert.InRange(rx, x - 1, x + 1);

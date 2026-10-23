@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Drawing;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
 using Windows.Win32;
@@ -65,7 +66,7 @@ internal static class LowLevelHooks
     {
         if (nCode >= 0)
         {
-            var data = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam.Value);
+            MSLLHOOKSTRUCT data = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam.Value);
             bool injected = (data.flags & 1) != 0;
             if (!injected)
                 Publish((uint)wParam.Value, data);
@@ -80,7 +81,7 @@ internal static class LowLevelHooks
     {
         if (nCode >= 0)
         {
-            var data = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam.Value);
+            KBDLLHOOKSTRUCT data = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam.Value);
             bool injected = ((uint)data.flags & 0x10) != 0;
             if (!injected)
             {
@@ -121,7 +122,7 @@ internal static class LowLevelHooks
     /// </summary>
     private static MouseMoveEvent MouseMove(MSLLHOOKSTRUCT data)
     {
-        PInvoke.GetCursorPos(out var cursor);
+        PInvoke.GetCursorPos(out Point cursor);
         return new MouseMoveEvent(data.pt.X, data.pt.Y, data.pt.X - cursor.X, data.pt.Y - cursor.Y);
     }
 }

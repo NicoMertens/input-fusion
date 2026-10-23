@@ -16,7 +16,7 @@ if (args is ["--connect", var hostName, "--key", var spikeKey, ..])
 // client.json und dem Injector als Kindprozess statt per CreateProcessAsUser.
 if (args is ["--relay", var relayHost, "--key", var relayKey, ..])
 {
-    using var cts = new CancellationTokenSource();
+    using CancellationTokenSource cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
     ClientService.ConfigLoader fixedHost = (out string? error) => { error = null; return new ClientConfig(relayHost, relayKey); };
     await ClientService.RunAsync(fixedHost, asService: false, Console.WriteLine, cts.Token);
@@ -24,9 +24,9 @@ if (args is ["--relay", var relayHost, "--key", var relayKey, ..])
 }
 
 // Ohne Argument: der Windows-Dienst. Aus einer Konsole gestartet läuft derselbe Ablauf sichtbar mit.
-var builder = Host.CreateApplicationBuilder(args);
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddWindowsService(options => options.ServiceName = ClientService.ServiceName);
 builder.Services.AddHostedService<Worker>();
 
-var host = builder.Build();
+IHost host = builder.Build();
 host.Run();

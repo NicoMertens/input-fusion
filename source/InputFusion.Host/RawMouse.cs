@@ -20,7 +20,7 @@ internal static unsafe class RawMouse
         // Ein Nachrichtenfenster der vordefinierten Klasse "Static" genügt als Ziel; ausgewertet wird
         // WM_INPUT direkt in der Schleife. RIDEV_INPUTSINK, damit es auch ohne Fokus ankommt.
         _window = PInvoke.CreateWindowEx(0, "Static", null, 0, 0, 0, 0, 0, HWND.HWND_MESSAGE, null, null, null);
-        var device = new RAWINPUTDEVICE
+        RAWINPUTDEVICE device = new RAWINPUTDEVICE
         {
             usUsagePage = 0x01, // Generic Desktop
             usUsage = 0x02,     // Maus
@@ -52,7 +52,7 @@ internal static unsafe class RawMouse
         if (raw.header.dwType != (uint)RID_DEVICE_INFO_TYPE.RIM_TYPEMOUSE || raw.header.hDevice.IsNull)
             return;
 
-        var mouse = raw.data.mouse;
+        RAWMOUSE mouse = raw.data.mouse;
         if ((mouse.usFlags & MOUSE_STATE.MOUSE_MOVE_ABSOLUTE) != 0 || (mouse.lLastX == 0 && mouse.lLastY == 0))
             return;
         LowLevelHooks.Post(new RawMouseMoveEvent(mouse.lLastX, mouse.lLastY));

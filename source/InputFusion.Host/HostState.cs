@@ -69,7 +69,7 @@ internal sealed class HostState(HostConfig config)
 
     public void RefreshHostMonitors()
     {
-        var monitors = MonitorEnumerator.GetMonitors();
+        IReadOnlyList<MonitorRect> monitors = MonitorEnumerator.GetMonitors();
         lock (_lock)
         {
             if (monitors.SequenceEqual(_hostMonitors))
@@ -120,7 +120,7 @@ internal sealed class HostState(HostConfig config)
         {
             if (_clientMonitors.Count == 0)
                 return "Kein Client mit Monitoren verbunden.";
-            var (x, y) = MonitorLayout.Snap(_hostMonitors, _clientMonitors, offsetX, offsetY);
+            (int x, int y) = MonitorLayout.Snap(_hostMonitors, _clientMonitors, offsetX, offsetY);
             layout = new MonitorLayout(_hostMonitors, _clientMonitors, x, y);
             if (!layout.IsValid)
                 return "An dieser Stelle grenzt kein Client-Monitor an einen eigenen Monitor.";
@@ -140,7 +140,7 @@ internal sealed class HostState(HostConfig config)
     {
         lock (_lock)
         {
-            var layout = Volatile.Read(ref _layout);
+            MonitorLayout? layout = Volatile.Read(ref _layout);
             ClientStateInfo? client = _clientAddress is null
                 ? null
                 : new ClientStateInfo(_clientAddress, _clientMonitors, layout?.OffsetX ?? 0, layout?.OffsetY ?? 0);
@@ -157,12 +157,12 @@ internal sealed class HostState(HostConfig config)
             if (_clientMonitors.Count > 0 && _hostMonitors.Count > 0)
             {
                 string combination = MonitorLayout.CombinationKey(_hostMonitors, _clientMonitors);
-                var saved = config.Layouts.FirstOrDefault(l => l.Combination == combination);
+                SavedLayout? saved = config.Layouts.FirstOrDefault(l => l.Combination == combination);
                 if (saved is not null)
                     layout = new MonitorLayout(_hostMonitors, _clientMonitors, saved.OffsetX, saved.OffsetY);
                 if (layout is not { IsValid: true })
                 {
-                    var (x, y) = MonitorLayout.DefaultOffset(_hostMonitors, _clientMonitors);
+                    (int x, int y) = MonitorLayout.DefaultOffset(_hostMonitors, _clientMonitors);
                     layout = new MonitorLayout(_hostMonitors, _clientMonitors, x, y);
                 }
             }

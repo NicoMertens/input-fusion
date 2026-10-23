@@ -11,7 +11,7 @@ public class MessagesTests
     [InlineData(short.MaxValue, short.MinValue)]
     public void MouseMoveRelative_RoundTrips(short dx, short dy)
     {
-        var move = new MouseMoveRelative(dx, dy);
+        MouseMoveRelative move = new MouseMoveRelative(dx, dy);
         Assert.Equal(move, MouseMoveRelative.FromPayload(move.ToPayload()));
     }
 
@@ -20,7 +20,7 @@ public class MessagesTests
     [InlineData((ushort)65535, (ushort)32768)]
     public void MouseMoveAbsolute_RoundTrips(ushort x, ushort y)
     {
-        var move = new MouseMoveAbsolute(x, y);
+        MouseMoveAbsolute move = new MouseMoveAbsolute(x, y);
         Assert.Equal(move, MouseMoveAbsolute.FromPayload(move.ToPayload()));
     }
 
@@ -29,14 +29,14 @@ public class MessagesTests
     [InlineData((short)-240, true)]
     public void MouseWheel_RoundTrips(short delta, bool horizontal)
     {
-        var wheel = new MouseWheel(delta, horizontal);
+        MouseWheel wheel = new MouseWheel(delta, horizontal);
         Assert.Equal(wheel, MouseWheel.FromPayload(wheel.ToPayload()));
     }
 
     [Fact]
     public void KeyEvent_RoundTrips()
     {
-        var key = new KeyEvent(0x5B, 0x1D, ButtonState.Down, Extended: true);
+        KeyEvent key = new KeyEvent(0x5B, 0x1D, ButtonState.Down, Extended: true);
         Assert.Equal(key, KeyEvent.FromPayload(key.ToPayload()));
     }
 
@@ -44,14 +44,14 @@ public class MessagesTests
     public void SwitchToClient_RoundTrips()
     {
         // Negative Koordinaten kommen vor, wenn ein Monitor des Clients links vom Hauptmonitor steht.
-        var sw = new SwitchToClient(-1920, 40000);
+        SwitchToClient sw = new SwitchToClient(-1920, 40000);
         Assert.Equal(sw, SwitchToClient.FromPayload(sw.ToPayload()));
     }
 
     [Fact]
     public void SwitchBackRequest_RoundTrips()
     {
-        var request = new SwitchBackRequest(EdgeSide.Top, 800, -1);
+        SwitchBackRequest request = new SwitchBackRequest(EdgeSide.Top, 800, -1);
         Assert.Equal(request, SwitchBackRequest.FromPayload(request.ToPayload()));
     }
 
@@ -77,7 +77,7 @@ public class MessagesTests
     [Fact]
     public void MouseButton_RoundTrips()
     {
-        var button = new MouseButton(2, ButtonState.Up);
+        MouseButton button = new MouseButton(2, ButtonState.Up);
         Assert.Equal(button, MouseButton.FromPayload(button.ToPayload()));
     }
 }

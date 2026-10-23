@@ -23,7 +23,7 @@ internal static class MonitorReporter
         {
             while (!ct.IsCancellationRequested)
             {
-                var monitors = MonitorEnumerator.GetMonitors();
+                IReadOnlyList<MonitorRect> monitors = MonitorEnumerator.GetMonitors();
                 if (monitors.Count > 0 && !monitors.SequenceEqual(last))
                 {
                     await connection.SendAsync(MessageType.Monitors, MonitorList.ToPayload(monitors), ct);

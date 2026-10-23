@@ -20,7 +20,7 @@ public static unsafe class MonitorEnumerator
 
     public static IReadOnlyList<MonitorRect> GetMonitors()
     {
-        var result = new List<MonitorRect>();
+        List<MonitorRect> result = new List<MonitorRect>();
         _collecting = result;
         try
         {
@@ -36,7 +36,7 @@ public static unsafe class MonitorEnumerator
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static BOOL Collect(HMONITOR monitor, HDC hdc, RECT* clip, LPARAM data)
     {
-        var info = new MONITORINFOEXW();
+        MONITORINFOEXW info = new MONITORINFOEXW();
         info.monitorInfo.cbSize = (uint)sizeof(MONITORINFOEXW);
         if (!PInvoke.GetMonitorInfo(monitor, (MONITORINFO*)&info))
             return true;
@@ -46,7 +46,7 @@ public static unsafe class MonitorEnumerator
             && PInvoke.GetDpiForMonitor(monitor, MONITOR_DPI_TYPE.MDT_EFFECTIVE_DPI, out uint dpiX, out _).Succeeded)
             dpi = dpiX;
 
-        var r = info.monitorInfo.rcMonitor;
+        RECT r = info.monitorInfo.rcMonitor;
         string device = info.szDevice.ToString();
         _collecting?.Add(new MonitorRect(r.left, r.top, r.right - r.left, r.bottom - r.top, (int)dpi, StableId(device)));
         return true;
@@ -58,7 +58,7 @@ public static unsafe class MonitorEnumerator
     /// </summary>
     private static string StableId(string device)
     {
-        var display = new DISPLAY_DEVICEW { cb = (uint)sizeof(DISPLAY_DEVICEW) };
+        DISPLAY_DEVICEW display = new DISPLAY_DEVICEW { cb = (uint)sizeof(DISPLAY_DEVICEW) };
         if (PInvoke.EnumDisplayDevices(device, 0, ref display, PInvoke.EDD_GET_DEVICE_INTERFACE_NAME))
         {
             string id = display.DeviceID.ToString();

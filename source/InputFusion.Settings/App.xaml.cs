@@ -31,8 +31,8 @@ public partial class App : Application
     /// <summary>Ein zweiter Start (etwa ein weiterer Doppelklick aufs Tray-Symbol) holt das offene Fenster nach vorn.</summary>
     private static void BringExistingToFront()
     {
-        using var current = Process.GetCurrentProcess();
-        foreach (var process in Process.GetProcessesByName(current.ProcessName))
+        using Process current = Process.GetCurrentProcess();
+        foreach (Process process in Process.GetProcessesByName(current.ProcessName))
         {
             using (process)
             {

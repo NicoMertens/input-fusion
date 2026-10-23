@@ -12,7 +12,7 @@ public class HandshakeTests
     [Fact]
     public async Task SameKey_BothSidesAccept()
     {
-        var (host, client) = await RunAsync(Key, Key);
+        (bool host, bool client) = await RunAsync(Key, Key);
         Assert.True(host);
         Assert.True(client);
     }
@@ -20,7 +20,7 @@ public class HandshakeTests
     [Fact]
     public async Task DifferentKey_HostRejects_ClientRejects()
     {
-        var (host, client) = await RunAsync(Key, Key + "x");
+        (bool host, bool client) = await RunAsync(Key, Key + "x");
         Assert.False(host);
         Assert.False(client);
     }
@@ -28,21 +28,21 @@ public class HandshakeTests
     [Fact]
     public async Task FramesAfterHandshake_ArriveEvenIfReadTogether()
     {
-        using var server = new AnonymousPipeServerStream(PipeDirection.Out);
-        using var reader = new AnonymousPipeClientStream(PipeDirection.In, server.ClientSafePipeHandle);
-        using var outgoing = new MessageConnection(server);
-        using var incoming = new MessageConnection(reader);
+        using AnonymousPipeServerStream server = new AnonymousPipeServerStream(PipeDirection.Out);
+        using AnonymousPipeClientStream reader = new AnonymousPipeClientStream(PipeDirection.In, server.ClientSafePipeHandle);
+        using MessageConnection outgoing = new MessageConnection(server);
+        using MessageConnection incoming = new MessageConnection(reader);
 
         // Zwei Frames in einem Rutsch: Der erste wird einzeln gelesen, der zweite muss beim nächsten Lesen kommen.
         await outgoing.SendAsync(MessageType.Hello, new byte[Handshake.NonceSize]);
         await outgoing.SendAsync(MessageType.Key, new KeyEvent(0x41, 0x1E, ButtonState.Down, false).ToPayload());
 
-        await foreach (var (type, _) in incoming.ReceiveAsync())
+        await foreach ((MessageType type, byte[] _) in incoming.ReceiveAsync())
         {
             Assert.Equal(MessageType.Hello, type);
             break;
         }
-        await foreach (var (type, _) in incoming.ReceiveAsync())
+        await foreach ((MessageType type, byte[] _) in incoming.ReceiveAsync())
         {
             Assert.Equal(MessageType.Key, type);
             break;
@@ -70,16 +70,16 @@ public class HandshakeTests
     private static async Task<(bool Host, bool Client)> RunAsync(string hostKey, string clientKey)
     {
         string name = "InputFusion.Test." + Guid.NewGuid().ToString("N");
-        using var serverPipe = new NamedPipeServerStream(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-        using var clientPipe = new NamedPipeClientStream(".", name, PipeDirection.InOut, PipeOptions.Asynchronous);
-        var accept = serverPipe.WaitForConnectionAsync();
+        using NamedPipeServerStream serverPipe = new NamedPipeServerStream(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+        using NamedPipeClientStream clientPipe = new NamedPipeClientStream(".", name, PipeDirection.InOut, PipeOptions.Asynchronous);
+        Task accept = serverPipe.WaitForConnectionAsync();
         await clientPipe.ConnectAsync();
         await accept;
 
-        using var hostConn = new MessageConnection(serverPipe);
-        using var clientConn = new MessageConnection(clientPipe);
-        var host = Handshake.HostAsync(hostConn, hostKey, CancellationToken.None);
-        var client = Handshake.ClientAsync(clientConn, clientKey, CancellationToken.None);
+        using MessageConnection hostConn = new MessageConnection(serverPipe);
+        using MessageConnection clientConn = new MessageConnection(clientPipe);
+        Task<bool> host = Handshake.HostAsync(hostConn, hostKey, CancellationToken.None);
+        Task<bool> client = Handshake.ClientAsync(clientConn, clientKey, CancellationToken.None);
 
         // Lehnt der Host ab, schickt er nichts mehr; der Client wartet dann bis zum Timeout. Die Verbindung zu
         // schließen beendet das wie im echten Betrieb sofort.

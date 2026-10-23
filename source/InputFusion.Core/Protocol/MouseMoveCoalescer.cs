@@ -20,11 +20,11 @@ public sealed class MouseMoveCoalescer
     /// </summary>
     public List<(MessageType Type, byte[] Payload)> Flush()
     {
-        var result = new List<(MessageType, byte[])>();
+        List<(MessageType, byte[])> result = new List<(MessageType, byte[])>();
         int i = 0;
         while (i < _pending.Count)
         {
-            var (type, payload) = _pending[i];
+            (MessageType type, byte[] payload) = _pending[i];
             if (type != MessageType.MouseMoveRelative)
             {
                 result.Add((type, payload));
@@ -35,13 +35,13 @@ public sealed class MouseMoveCoalescer
             int sumX = 0, sumY = 0;
             while (i < _pending.Count && _pending[i].Type == MessageType.MouseMoveRelative)
             {
-                var move = MouseMoveRelative.FromPayload(_pending[i].Payload);
+                MouseMoveRelative move = MouseMoveRelative.FromPayload(_pending[i].Payload);
                 sumX += move.Dx;
                 sumY += move.Dy;
                 i++;
             }
 
-            foreach (var move in Split(sumX, sumY))
+            foreach (MouseMoveRelative move in Split(sumX, sumY))
                 result.Add((MessageType.MouseMoveRelative, move.ToPayload()));
         }
 

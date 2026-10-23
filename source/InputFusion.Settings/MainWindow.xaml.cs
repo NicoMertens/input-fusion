@@ -137,8 +137,8 @@ public partial class MainWindow : Window
     private void RenderArrangement(bool recenter)
     {
         Arrangement.Children.Clear();
-        var host = HostMonitors;
-        var client = ClientMonitors;
+        IReadOnlyList<MonitorRect> host = HostMonitors;
+        IReadOnlyList<MonitorRect> client = ClientMonitors;
         if (host.Count == 0)
             return;
 
@@ -163,10 +163,10 @@ public partial class MainWindow : Window
         double unit = Math.Max(Arrangement.Width, Arrangement.Height) / 100.0;
 
         // Von links nach rechts nummeriert; die Nummern von Windows kennt der Agent nicht.
-        var ordered = host.OrderBy(m => m.Left).ThenBy(m => m.Top).ToList();
+        List<MonitorRect> ordered = host.OrderBy(m => m.Left).ThenBy(m => m.Top).ToList();
         for (int i = 0; i < ordered.Count; i++)
         {
-            var m = ordered[i];
+            MonitorRect m = ordered[i];
             string primary = m.X == 0 && m.Y == 0 ? " · Hauptmonitor" : "";
             AddMonitor(m, $"{i + 1}{primary}\n{m.Width} × {m.Height}", "HostMonitorBrush", "HostMonitorBorderBrush", unit, draggable: false);
         }
@@ -174,20 +174,20 @@ public partial class MainWindow : Window
         if (client.Count == 0)
             return;
 
-        var (ox, oy) = CurrentOffset;
-        var layout = new MonitorLayout(host, client, ox, oy);
+        (int ox, int oy) = CurrentOffset;
+        MonitorLayout layout = new MonitorLayout(host, client, ox, oy);
         for (int i = 0; i < client.Count; i++)
         {
-            var m = layout.Place(client[i]);
+            MonitorRect m = layout.Place(client[i]);
             AddMonitor(m, $"Notebook {i + 1}\n{m.Width} × {m.Height}", "ClientMonitorBrush", "ClientMonitorBorderBrush", unit, draggable: true);
         }
-        foreach (var t in layout.Transitions)
+        foreach (EdgeTransition t in layout.Transitions)
             AddTransition(t, unit);
     }
 
     private void AddMonitor(MonitorRect m, string label, string fill, string border, double unit, bool draggable)
     {
-        var box = new Border
+        Border box = new Border
         {
             Width = m.Width,
             Height = m.Height,
@@ -220,8 +220,8 @@ public partial class MainWindow : Window
 
     private void AddTransition(EdgeTransition t, double unit)
     {
-        var h = t.HostMonitor;
-        var (x1, y1, x2, y2) = t.Side switch
+        MonitorRect h = t.HostMonitor;
+        (int x1, int y1, int x2, int y2) = t.Side switch
         {
             EdgeSide.Right => (h.Right, t.From, h.Right, t.To),
             EdgeSide.Left => (h.Left, t.From, h.Left, t.To),
@@ -255,10 +255,10 @@ public partial class MainWindow : Window
     {
         if (!_dragging)
             return;
-        var p = e.GetPosition(Arrangement);
+        Point p = e.GetPosition(Arrangement);
         int x = _dragStartOffset.X + (int)Math.Round(p.X - _dragStart.X);
         int y = _dragStartOffset.Y + (int)Math.Round(p.Y - _dragStart.Y);
-        var snapped = MonitorLayout.Snap(HostMonitors, ClientMonitors, x, y);
+        (int X, int Y) snapped = MonitorLayout.Snap(HostMonitors, ClientMonitors, x, y);
         if (snapped == _previewOffset)
             return;
         _previewOffset = snapped;
@@ -269,7 +269,7 @@ public partial class MainWindow : Window
     {
         if (!_dragging)
             return;
-        var offset = _previewOffset;
+        (int X, int Y) offset = _previewOffset;
         Arrangement.ReleaseMouseCapture();
         if (offset == _dragStartOffset || _state?.Client is not { } client)
             return;

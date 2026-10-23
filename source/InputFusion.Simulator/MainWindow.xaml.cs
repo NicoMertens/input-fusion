@@ -61,9 +61,9 @@ public partial class MainWindow : Window
         Desktop.Height = height;
         double unit = Math.Max(width, height) / 100.0;
 
-        foreach (var (m, i) in _options.Monitors.Select((m, i) => (m, i)))
+        foreach ((Core.Layout.MonitorRect m, int i) in _options.Monitors.Select((m, i) => (m, i)))
         {
-            var label = new TextBlock
+            TextBlock label = new TextBlock
             {
                 Text = $"Monitor {i + 1}\n{m.Width} × {m.Height}\n{m.Dpi} DPI ({m.Dpi * 100 / 96} %)",
                 Foreground = Brushes.Gray,
@@ -72,7 +72,7 @@ public partial class MainWindow : Window
                 VerticalAlignment = VerticalAlignment.Center,
                 TextAlignment = TextAlignment.Center,
             };
-            var monitor = new Border
+            Border monitor = new Border
             {
                 Width = m.Width,
                 Height = m.Height,
@@ -86,7 +86,7 @@ public partial class MainWindow : Window
             Desktop.Children.Add(monitor);
         }
 
-        var cursor = new Ellipse
+        Ellipse cursor = new Ellipse
         {
             Width = unit * 1.6,
             Height = unit * 1.6,
@@ -103,10 +103,10 @@ public partial class MainWindow : Window
         {
             try
             {
-                using var tcp = new TcpClient();
+                using TcpClient tcp = new TcpClient();
                 _connection = $"Verbinde zu {_options.Host}:{Ports.Input} …";
                 await tcp.ConnectAsync(_options.Host, Ports.Input, ct);
-                using var conn = MessageConnection.FromTcp(tcp);
+                using MessageConnection conn = MessageConnection.FromTcp(tcp);
                 if (!await Handshake.ClientAsync(conn, _options.Key, ct))
                 {
                     _connection = $"{_options.Host}:{Ports.Input} hat die Anmeldung abgelehnt, stimmt der Schlüssel? Neuer Versuch …";
@@ -118,8 +118,8 @@ public partial class MainWindow : Window
                 _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  {_connection}");
 
                 // Heartbeat zum Host, sonst trennt er nach dem Timeout; schweigt der Host, neu verbinden.
-                using var session = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                var monitor = Task.Run(async () =>
+                using CancellationTokenSource session = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                Task monitor = Task.Run(async () =>
                 {
                     if (await conn.MonitorAsync(session.Token))
                     {
@@ -132,7 +132,7 @@ public partial class MainWindow : Window
                     if (_options.DelayMs > 0)
                         await ReceiveDelayedAsync(conn, session.Token);
                     else
-                        await foreach (var (type, payload) in conn.ReceiveAsync(session.Token))
+                        await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(session.Token))
                         {
                             _desktop.Apply(type, payload);
                             if (_desktop.TryTakeExitRequest() is { } exit)
@@ -167,12 +167,12 @@ public partial class MainWindow : Window
     /// <summary>Hält jede Nachricht um die eingestellte Latenz zurück, ohne den Durchsatz zu drosseln.</summary>
     private async Task ReceiveDelayedAsync(MessageConnection conn, CancellationToken ct)
     {
-        var delayed = Channel.CreateUnbounded<(DateTime Due, MessageType Type, byte[] Payload)>();
-        var apply = Task.Run(async () =>
+        Channel<(DateTime Due, MessageType Type, byte[] Payload)> delayed = Channel.CreateUnbounded<(DateTime Due, MessageType Type, byte[] Payload)>();
+        Task apply = Task.Run(async () =>
         {
-            await foreach (var (due, type, payload) in delayed.Reader.ReadAllAsync(ct))
+            await foreach ((DateTime due, MessageType type, byte[] payload) in delayed.Reader.ReadAllAsync(ct))
             {
-                var wait = due - DateTime.UtcNow;
+                TimeSpan wait = due - DateTime.UtcNow;
                 if (wait > TimeSpan.Zero)
                     await Task.Delay(wait, ct);
                 _desktop.Apply(type, payload);
@@ -181,7 +181,7 @@ public partial class MainWindow : Window
             }
         }, ct);
 
-        await foreach (var (type, payload) in conn.ReceiveAsync(ct))
+        await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(ct))
             delayed.Writer.TryWrite((DateTime.UtcNow.AddMilliseconds(_options.DelayMs), type, payload));
 
         delayed.Writer.Complete();
@@ -190,7 +190,7 @@ public partial class MainWindow : Window
 
     private void Refresh()
     {
-        var (x, y, active, pressed, moves) = _desktop.Snapshot();
+        (int x, int y, bool active, string[] pressed, long moves) = _desktop.Snapshot();
 
         _cursor.Visibility = active ? Visibility.Visible : Visibility.Hidden;
         Canvas.SetLeft(_cursor, x - _minX - _cursor.Width / 2);
@@ -201,7 +201,7 @@ public partial class MainWindow : Window
             + (_options.DelayMs > 0 ? $" · Latenz {_options.DelayMs} ms" : "");
         Pressed.Text = pressed.Length == 0 ? "–" : string.Join(", ", pressed);
 
-        while (_pendingLog.TryDequeue(out var line))
+        while (_pendingLog.TryDequeue(out string? line))
         {
             Log.Items.Insert(0, line);
             if (Log.Items.Count > MaxLogLines)

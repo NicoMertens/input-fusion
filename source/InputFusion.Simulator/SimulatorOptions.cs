@@ -44,7 +44,7 @@ internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> 
 
     private static List<MonitorRect> ParseMonitors(string spec)
     {
-        var result = new List<MonitorRect>();
+        List<MonitorRect> result = new List<MonitorRect>();
         foreach (string part in spec.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             int[] v = part.Split(',').Select(s => int.Parse(s.Trim(), CultureInfo.InvariantCulture)).ToArray();

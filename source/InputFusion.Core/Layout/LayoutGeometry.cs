@@ -10,7 +10,7 @@ public static class LayoutGeometry
     /// <summary>Der Monitor, der den Punkt enthält, oder null.</summary>
     public static MonitorRect? MonitorAt(IReadOnlyList<MonitorRect> monitors, int x, int y)
     {
-        foreach (var m in monitors)
+        foreach (MonitorRect m in monitors)
             if (m.Contains(x, y))
                 return m;
         return null;

@@ -32,7 +32,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
     {
         lock (_lock)
         {
-            var request = _exitRequest;
+            SwitchBackRequest? request = _exitRequest;
             _exitRequest = null;
             return request;
         }
@@ -53,7 +53,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
             {
                 case MessageType.SwitchToClient:
                     Active = true;
-                    var entry = SwitchToClient.FromPayload(payload);
+                    SwitchToClient entry = SwitchToClient.FromPayload(payload);
                     MoveTo(entry.X, entry.Y);
                     log = $"Steuerung übernommen, Eintritt bei ({_x}, {_y})";
                     break;
@@ -76,35 +76,35 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
                     break;
 
                 case MessageType.MouseMoveRelative:
-                    var rel = MouseMoveRelative.FromPayload(payload);
+                    MouseMoveRelative rel = MouseMoveRelative.FromPayload(payload);
                     MoveTo(_x + rel.Dx, _y + rel.Dy);
                     MoveCount++;
                     log = CheckExit(rel.Dx, rel.Dy);
                     break;
 
                 case MessageType.MouseMoveAbsolute:
-                    var abs = MouseMoveAbsolute.FromPayload(payload);
-                    var (ax, ay) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, abs.X, abs.Y);
-                    var (bx, by) = (_x, _y);
+                    MouseMoveAbsolute abs = MouseMoveAbsolute.FromPayload(payload);
+                    (int ax, int ay) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, abs.X, abs.Y);
+                    (int bx, int by) = (_x, _y);
                     MoveTo(ax, ay);
                     MoveCount++;
                     log = CheckExit(_x - bx, _y - by);
                     break;
 
                 case MessageType.MouseButton:
-                    var button = MouseButton.FromPayload(payload);
+                    MouseButton button = MouseButton.FromPayload(payload);
                     string name = $"Maus {(button.Button < ButtonNames.Length ? ButtonNames[button.Button] : button.Button.ToString())}";
                     Toggle(name, button.State == ButtonState.Down);
                     log = $"{name} {(button.State == ButtonState.Down ? "gedrückt" : "losgelassen")} bei ({_x}, {_y})";
                     break;
 
                 case MessageType.MouseWheel:
-                    var wheel = MouseWheel.FromPayload(payload);
+                    MouseWheel wheel = MouseWheel.FromPayload(payload);
                     log = $"{(wheel.Horizontal ? "Querrad" : "Rad")} {wheel.Delta:+#;-#;0}";
                     break;
 
                 case MessageType.Key:
-                    var key = KeyEvent.FromPayload(payload);
+                    KeyEvent key = KeyEvent.FromPayload(payload);
                     string keyName = KeyInterop.KeyFromVirtualKey(key.VirtualKey).ToString();
                     Toggle(keyName, key.State == ButtonState.Down);
                     log = $"Taste {keyName} {(key.State == ButtonState.Down ? "unten" : "oben")}"
@@ -154,7 +154,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
             return;
         }
 
-        var current = LayoutGeometry.MonitorAt(monitors, _x, _y) ?? monitors[0];
+        MonitorRect current = LayoutGeometry.MonitorAt(monitors, _x, _y) ?? monitors[0];
         _x = Math.Clamp(x, current.Left, current.Right - 1);
         _y = Math.Clamp(y, current.Top, current.Bottom - 1);
     }

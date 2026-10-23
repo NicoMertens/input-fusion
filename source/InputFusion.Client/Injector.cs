@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.IO.Pipes;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
@@ -20,11 +21,11 @@ internal static class Injector
 
     private static async Task RunAsync()
     {
-        using var cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
-        var player = new InputPlayer();
-        var dispatcher = new InputDispatcher(player);
+        InputPlayer player = new InputPlayer();
+        InputDispatcher dispatcher = new InputDispatcher(player);
         Console.WriteLine($"Injector gestartet. Warte auf Pipe \\\\.\\pipe\\{InputPipe.Name}. Strg+C beendet.");
 
         // Bricht die Pipe ab (Dienst neu gestartet, Sitzungswechsel), erneut verbinden. Nach jedem Abbruch
@@ -33,17 +34,17 @@ internal static class Injector
         {
             try
             {
-                using var pipe = InputPipe.CreateClient();
+                using NamedPipeClientStream pipe = InputPipe.CreateClient();
                 await pipe.ConnectAsync(cts.Token);
-                using var conn = new MessageConnection(pipe);
+                using MessageConnection conn = new MessageConnection(pipe);
                 Console.WriteLine("Mit dem Dienst verbunden, spiele Eingaben ab.");
-                using var session = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
-                var monitors = MonitorReporter.RunAsync(conn, session.Token);
+                using CancellationTokenSource session = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
+                Task monitors = MonitorReporter.RunAsync(conn, session.Token);
 
                 try
                 {
                     // Den Austritt an der Kante meldet der Injector über die Pipe; der Dienst reicht ihn weiter.
-                    await foreach (var (type, payload) in conn.ReceiveAsync(cts.Token))
+                    await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(cts.Token))
                     {
                         if (dispatcher.Dispatch(type, payload) is { } exit)
                             await conn.SendAsync(MessageType.SwitchBackRequest, exit.ToPayload(), cts.Token);

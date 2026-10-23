@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.IO.Pipes;
 using System.Net.Sockets;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Net;
@@ -22,19 +23,19 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
 
     public async Task RunAsync(CancellationToken ct)
     {
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var injectors = AcceptInjectorsAsync(linked);
-        var monitor = WatchHost(linked);
+        using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        Task injectors = AcceptInjectorsAsync(linked);
+        Task monitor = WatchHost(linked);
         try
         {
-            await foreach (var (type, payload) in host.ReceiveAsync(linked.Token))
+            await foreach ((MessageType type, byte[] payload) in host.ReceiveAsync(linked.Token))
             {
                 // Heartbeats sind Sache der Verbindung, nicht des Injectors.
                 if (type == MessageType.Heartbeat)
                     continue;
                 if (type == MessageType.ReturnEdges)
                     _returnEdges = payload;
-                var injector = _injector;
+                MessageConnection? injector = _injector;
                 if (injector is null)
                     continue;
                 try
@@ -72,11 +73,11 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
     /// <summary>Nimmt nacheinander Injector-Verbindungen an der Pipe an und reicht deren Meldungen zum Host.</summary>
     private async Task AcceptInjectorsAsync(CancellationTokenSource linked)
     {
-        var ct = linked.Token;
+        CancellationToken ct = linked.Token;
         while (!ct.IsCancellationRequested)
         {
-            var server = InputPipe.CreateServer();
-            using var conn = new MessageConnection(server);
+            NamedPipeServerStream server = InputPipe.CreateServer();
+            using MessageConnection conn = new MessageConnection(server);
             try
             {
                 await server.WaitForConnectionAsync(ct);
@@ -92,7 +93,7 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
             {
                 if (_returnEdges is { } edges)
                     await conn.SendAsync(MessageType.ReturnEdges, edges, ct);
-                await foreach (var (type, payload) in conn.ReceiveAsync(ct))
+                await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(ct))
                     await host.SendAsync(type, payload, ct);
             }
             catch (Exception ex) when (ex is OperationCanceledException or IOException or ObjectDisposedException)

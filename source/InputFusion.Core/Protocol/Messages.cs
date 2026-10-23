@@ -11,7 +11,7 @@ public readonly record struct MouseMoveRelative(short Dx, short Dy)
 {
     public byte[] ToPayload()
     {
-        var p = new byte[4];
+        byte[] p = new byte[4];
         BinaryPrimitives.WriteInt16LittleEndian(p, Dx);
         BinaryPrimitives.WriteInt16LittleEndian(p.AsSpan(2), Dy);
         return p;
@@ -27,7 +27,7 @@ public readonly record struct MouseMoveAbsolute(ushort X, ushort Y)
 {
     public byte[] ToPayload()
     {
-        var p = new byte[4];
+        byte[] p = new byte[4];
         BinaryPrimitives.WriteUInt16LittleEndian(p, X);
         BinaryPrimitives.WriteUInt16LittleEndian(p.AsSpan(2), Y);
         return p;
@@ -60,7 +60,7 @@ public readonly record struct SwitchToClient(int X, int Y)
 {
     public byte[] ToPayload()
     {
-        var p = new byte[8];
+        byte[] p = new byte[8];
         BinaryPrimitives.WriteInt32LittleEndian(p, X);
         BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(4), Y);
         return p;
@@ -77,7 +77,7 @@ public readonly record struct SwitchBackRequest(EdgeSide Side, int X, int Y)
 {
     public byte[] ToPayload()
     {
-        var p = new byte[9];
+        byte[] p = new byte[9];
         p[0] = (byte)Side;
         BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(1), X);
         BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(5), Y);
@@ -95,13 +95,13 @@ public static class MonitorList
 {
     public static byte[] ToPayload(IReadOnlyList<MonitorRect> monitors)
     {
-        var ids = monitors.Select(m => Encoding.UTF8.GetBytes(m.DeviceId)).ToArray();
-        var p = new byte[1 + monitors.Count * 20 + ids.Sum(id => id.Length)];
+        byte[][] ids = monitors.Select(m => Encoding.UTF8.GetBytes(m.DeviceId)).ToArray();
+        byte[] p = new byte[1 + monitors.Count * 20 + ids.Sum(id => id.Length)];
         p[0] = (byte)monitors.Count;
         int o = 1;
         for (int i = 0; i < monitors.Count; i++)
         {
-            var m = monitors[i];
+            MonitorRect m = monitors[i];
             BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(o), m.X);
             BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(o + 4), m.Y);
             BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(o + 8), m.Width);
@@ -116,7 +116,7 @@ public static class MonitorList
 
     public static MonitorRect[] FromPayload(ReadOnlySpan<byte> p)
     {
-        var result = new MonitorRect[p[0]];
+        MonitorRect[] result = new MonitorRect[p[0]];
         int o = 1;
         for (int i = 0; i < result.Length; i++)
         {
@@ -139,7 +139,7 @@ public static class ReturnEdgeList
 {
     public static byte[] ToPayload(IReadOnlyList<ReturnEdge> edges)
     {
-        var p = new byte[1 + edges.Count * 13];
+        byte[] p = new byte[1 + edges.Count * 13];
         p[0] = (byte)edges.Count;
         for (int i = 0; i < edges.Count; i++)
         {
@@ -154,7 +154,7 @@ public static class ReturnEdgeList
 
     public static ReturnEdge[] FromPayload(ReadOnlySpan<byte> p)
     {
-        var result = new ReturnEdge[p[0]];
+        ReturnEdge[] result = new ReturnEdge[p[0]];
         for (int i = 0; i < result.Length; i++)
         {
             int o = 1 + i * 13;
@@ -172,7 +172,7 @@ public readonly record struct KeyEvent(ushort VirtualKey, ushort ScanCode, Butto
 {
     public byte[] ToPayload()
     {
-        var p = new byte[6];
+        byte[] p = new byte[6];
         BinaryPrimitives.WriteUInt16LittleEndian(p, VirtualKey);
         BinaryPrimitives.WriteUInt16LittleEndian(p.AsSpan(2), ScanCode);
         p[4] = (byte)State;

@@ -64,7 +64,7 @@ internal sealed class InjectorSupervisor(bool asService, Action<string> log)
         if (asService)
             return SessionLauncher.Start(session, exe, Injector.Argument);
 
-        var info = new ProcessStartInfo(exe, Injector.Argument) { UseShellExecute = false };
+        ProcessStartInfo info = new ProcessStartInfo(exe, Injector.Argument) { UseShellExecute = false };
         return Process.Start(info) ?? throw new InvalidOperationException("Injector-Prozess ließ sich nicht starten.");
     }
 

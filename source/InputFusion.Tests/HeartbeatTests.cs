@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using InputFusion.Core.Net;
+using InputFusion.Core.Protocol;
 
 namespace InputFusion.Tests;
 
@@ -14,22 +15,22 @@ public class HeartbeatTests
     [Fact]
     public async Task Monitor_DetectsSilentPeer()
     {
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var (a, b) = await ConnectPairAsync(cts.Token);
-        using var monitored = a;
-        using var silent = b;
+        using CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        (MessageConnection a, MessageConnection b) = await ConnectPairAsync(cts.Token);
+        using MessageConnection monitored = a;
+        using MessageConnection silent = b;
 
         // Die Gegenseite liest zwar (nimmt die Heartbeats ab), schickt aber selbst nichts.
-        var draining = Task.Run(async () =>
+        Task draining = Task.Run(async () =>
         {
-            try { await foreach (var _ in silent.ReceiveAsync(cts.Token)) { } }
+            try { await foreach ((MessageType Type, byte[] Payload) _ in silent.ReceiveAsync(cts.Token)) { } }
             catch (OperationCanceledException) { }
         });
-        var receiving = ReceiveAllAsync(monitored, cts.Token);
+        Task receiving = ReceiveAllAsync(monitored, cts.Token);
 
-        var started = DateTime.UtcNow;
+        DateTime started = DateTime.UtcNow;
         bool lost = await monitored.MonitorAsync(cts.Token);
-        var elapsed = DateTime.UtcNow - started;
+        TimeSpan elapsed = DateTime.UtcNow - started;
 
         Assert.True(lost);
         Assert.InRange(elapsed, MessageConnection.HeartbeatTimeout, MessageConnection.HeartbeatTimeout + TimeSpan.FromSeconds(2));
@@ -40,15 +41,15 @@ public class HeartbeatTests
     [Fact]
     public async Task Monitor_KeepsAnsweringPeer()
     {
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var (a, b) = await ConnectPairAsync(cts.Token);
-        using var left = a;
-        using var right = b;
+        using CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        (MessageConnection a, MessageConnection b) = await ConnectPairAsync(cts.Token);
+        using MessageConnection left = a;
+        using MessageConnection right = b;
 
-        var receivingLeft = ReceiveAllAsync(left, cts.Token);
-        var receivingRight = ReceiveAllAsync(right, cts.Token);
-        var leftMonitor = left.MonitorAsync(cts.Token);
-        var rightMonitor = right.MonitorAsync(cts.Token);
+        Task receivingLeft = ReceiveAllAsync(left, cts.Token);
+        Task receivingRight = ReceiveAllAsync(right, cts.Token);
+        Task<bool> leftMonitor = left.MonitorAsync(cts.Token);
+        Task<bool> rightMonitor = right.MonitorAsync(cts.Token);
 
         // Deutlich länger als der Timeout; keine Seite darf die andere für verloren halten.
         await Task.Delay(MessageConnection.HeartbeatTimeout + TimeSpan.FromSeconds(2));
@@ -63,14 +64,14 @@ public class HeartbeatTests
 
     private static async Task<(MessageConnection, MessageConnection)> ConnectPairAsync(CancellationToken ct)
     {
-        var listener = new TcpListener(IPAddress.Loopback, 0);
+        TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         try
         {
-            var client = new TcpClient();
-            var accept = listener.AcceptTcpClientAsync(ct).AsTask();
+            TcpClient client = new TcpClient();
+            Task<TcpClient> accept = listener.AcceptTcpClientAsync(ct).AsTask();
             await client.ConnectAsync(IPAddress.Loopback, ((IPEndPoint)listener.LocalEndpoint).Port, ct);
-            var server = await accept;
+            TcpClient server = await accept;
             return (MessageConnection.FromTcp(server), MessageConnection.FromTcp(client));
         }
         finally
@@ -82,7 +83,7 @@ public class HeartbeatTests
     /// <summary>Liest wie im Betrieb nebenher mit; erst das setzt die Zeit des letzten Empfangs.</summary>
     private static Task ReceiveAllAsync(MessageConnection connection, CancellationToken ct) => Task.Run(async () =>
     {
-        try { await foreach (var _ in connection.ReceiveAsync(ct)) { } }
+        try { await foreach ((MessageType Type, byte[] Payload) _ in connection.ReceiveAsync(ct)) { } }
         catch (Exception ex) when (ex is OperationCanceledException or IOException or SocketException) { }
     });
 }

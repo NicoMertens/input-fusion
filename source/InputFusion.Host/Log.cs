@@ -25,7 +25,7 @@ internal static class Log
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
                 // Eine Vorgängerdatei genügt; das Protokoll dient der Fehlersuche, nicht der Nachweisführung.
-                var info = new FileInfo(FilePath);
+                FileInfo info = new FileInfo(FilePath);
                 if (info.Exists && info.Length > MaxFileSize)
                     File.Move(FilePath, FilePath + ".old", overwrite: true);
                 File.AppendAllText(FilePath, line + Environment.NewLine);

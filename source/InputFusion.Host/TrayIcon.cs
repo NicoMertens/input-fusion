@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Drawing;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -37,7 +38,7 @@ internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action d
     public void Start()
     {
         _instance = this;
-        var ready = new ManualResetEventSlim();
+        ManualResetEventSlim ready = new ManualResetEventSlim();
         _thread = new Thread(() =>
         {
             CreateWindow();
@@ -69,10 +70,10 @@ internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action d
 
     private void CreateWindow()
     {
-        var module = PInvoke.GetModuleHandle((string?)null);
+        FreeLibrarySafeHandle module = PInvoke.GetModuleHandle((string?)null);
         fixed (char* className = "InputFusion.Tray")
         {
-            var windowClass = new WNDCLASSEXW
+            WNDCLASSEXW windowClass = new WNDCLASSEXW
             {
                 cbSize = (uint)sizeof(WNDCLASSEXW),
                 lpfnWndProc = &WndProc,
@@ -90,13 +91,13 @@ internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action d
     private static HICON LoadIcon(nint module)
     {
         int size = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXSMICON);
-        var handle = PInvoke.LoadImage((HINSTANCE)module, (char*)ApplicationIconId, GDI_IMAGE_TYPE.IMAGE_ICON, size, size, 0);
+        HANDLE handle = PInvoke.LoadImage((HINSTANCE)module, (char*)ApplicationIconId, GDI_IMAGE_TYPE.IMAGE_ICON, size, size, 0);
         return handle.IsNull ? PInvoke.LoadIcon(HINSTANCE.Null, PInvoke.IDI_APPLICATION) : (HICON)handle.Value;
     }
 
     private void Notify(NOTIFY_ICON_MESSAGE message)
     {
-        var data = new NOTIFYICONDATAW
+        NOTIFYICONDATAW data = new NOTIFYICONDATAW
         {
             cbSize = (uint)sizeof(NOTIFYICONDATAW),
             hWnd = _window,
@@ -111,7 +112,7 @@ internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action d
 
     private void ShowMenu()
     {
-        var menu = PInvoke.CreatePopupMenu();
+        HMENU menu = PInvoke.CreatePopupMenu();
         fixed (char* settings = "Einstellungen …")
         fixed (char* exit = "Beenden")
         {
@@ -119,7 +120,7 @@ internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action d
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_SEPARATOR, 0, default(PCWSTR));
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, MenuExit, exit);
         }
-        PInvoke.GetCursorPos(out var cursor);
+        PInvoke.GetCursorPos(out Point cursor);
         // Ohne Vordergrund schließt das Menü nicht, wenn daneben geklickt wird (bekanntes Shell-Verhalten).
         PInvoke.SetForegroundWindow(_window);
         PInvoke.TrackPopupMenu(menu, TRACK_POPUP_MENU_FLAGS.TPM_RIGHTBUTTON, cursor.X, cursor.Y, 0, _window, null);
@@ -129,7 +130,7 @@ internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action d
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
     private static LRESULT WndProc(HWND hwnd, uint message, WPARAM wParam, LPARAM lParam)
     {
-        var tray = _instance;
+        TrayIcon? tray = _instance;
         if (tray is null)
             return PInvoke.DefWindowProc(hwnd, message, wParam, lParam);
 

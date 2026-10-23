@@ -1,6 +1,7 @@
 ﻿using Windows.Win32;
 using InputFusion.Core.Layout;
 using InputFusion.Core.Protocol;
+using System.Drawing;
 
 namespace InputFusion.Client;
 
@@ -27,21 +28,21 @@ public sealed class InputDispatcher(InputPlayer player)
                 break;
             case MessageType.SwitchToClient:
                 _active = true;
-                var entry = SwitchToClient.FromPayload(payload);
+                SwitchToClient entry = SwitchToClient.FromPayload(payload);
                 player.SetCursor(entry.X, entry.Y);
                 break;
             case MessageType.SwitchToHost:
                 _active = false;
                 break;
             case MessageType.MouseMoveRelative:
-                var move = MouseMoveRelative.FromPayload(payload);
+                MouseMoveRelative move = MouseMoveRelative.FromPayload(payload);
                 player.MoveRelative(move.Dx, move.Dy);
                 return TryExit(move.Dx, move.Dy);
             case MessageType.MouseMoveAbsolute:
-                var abs = MouseMoveAbsolute.FromPayload(payload);
-                PInvoke.GetCursorPos(out var before);
+                MouseMoveAbsolute abs = MouseMoveAbsolute.FromPayload(payload);
+                PInvoke.GetCursorPos(out Point before);
                 player.MoveAbsolute(abs.X, abs.Y);
-                PInvoke.GetCursorPos(out var after);
+                PInvoke.GetCursorPos(out Point after);
                 return TryExit(after.X - before.X, after.Y - before.Y);
             case MessageType.MouseButton:
                 player.Button(MouseButton.FromPayload(payload));
@@ -60,7 +61,7 @@ public sealed class InputDispatcher(InputPlayer player)
     /// außen, ist der Austritt fällig.</summary>
     private SwitchBackRequest? TryExit(int dx, int dy)
     {
-        if (!_active || !PInvoke.GetCursorPos(out var cursor))
+        if (!_active || !PInvoke.GetCursorPos(out Point cursor))
             return null;
         if (ReturnEdge.Find(_returnEdges, cursor.X, cursor.Y, dx, dy) is not { } edge)
             return null;

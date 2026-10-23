@@ -4,6 +4,7 @@ using Windows.Win32.UI.WindowsAndMessaging;
 using InputFusion.Core.Layout;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
+using System.Drawing;
 
 namespace InputFusion.Host;
 
@@ -47,16 +48,16 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
 
         // Alles läuft über ein gemeinsames Token: Endet die Verbindung oder schweigt der Client, bricht das
         // auch ein Senden ab, das im vollen Puffer hängt. Sonst blieben die Eingaben verschluckt.
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var token = linked.Token;
+        using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        CancellationToken token = linked.Token;
         Action<MonitorLayout?> layoutChanged = layout => _ = SendReturnEdgesAsync(layout, token);
         state.LayoutChanged += layoutChanged;
-        var incoming = Task.Run(() => PumpIncoming(linked));
-        var monitor = WatchClient(linked);
+        Task incoming = Task.Run(() => PumpIncoming(linked));
+        Task monitor = WatchClient(linked);
 
         try
         {
-            await foreach (var e in LowLevelHooks.Events.ReadAllAsync(token))
+            await foreach (InputEvent e in LowLevelHooks.Events.ReadAllAsync(token))
             {
                 switch (e)
                 {
@@ -124,7 +125,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
     {
         try
         {
-            await foreach (var (type, payload) in connection.ReceiveAsync(linked.Token))
+            await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(linked.Token))
             {
                 if (type == MessageType.Monitors)
                 {
@@ -135,8 +136,8 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
                     _remote = false;
                     LowLevelHooks.Swallow = false;
                     await ReleaseClientKeysAsync(linked.Token);
-                    var request = SwitchBackRequest.FromPayload(payload);
-                    var (x, y) = state.Layout is { } layout && layout.TryReturn(request.Side, request.X, request.Y, out var point)
+                    SwitchBackRequest request = SwitchBackRequest.FromPayload(payload);
+                    (int x, int y) = state.Layout is { } layout && layout.TryReturn(request.Side, request.X, request.Y, out (int X, int Y) point)
                         ? point
                         : (_returnX, _returnY);
                     PInvoke.SetCursorPos(x, y);
@@ -159,7 +160,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         if (!_remote)
         {
             // Ohne gemeldete Client-Monitore gibt es kein Layout und damit keinen Übergang.
-            if (state.Layout is { } layout && layout.TryLeaveHost(move.X, move.Y, move.Dx, move.Dy, out _, out var entry))
+            if (state.Layout is { } layout && layout.TryLeaveHost(move.X, move.Y, move.Dx, move.Dy, out _, out (int X, int Y) entry))
                 await EnterRemote(entry, move.X - move.Dx, move.Y - move.Dy, ct);
             return;
         }
@@ -213,7 +214,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         _maxDrift = Math.Max(_maxDrift, drift);
 
         PInvoke.SetCursorPos(_parkX, _parkY);
-        PInvoke.GetCursorPos(out var after);
+        PInvoke.GetCursorPos(out Point after);
         bool held = Math.Abs(after.X - _parkX) <= 2 && Math.Abs(after.Y - _parkY) <= 2;
         if (held)
             _held++;
@@ -253,8 +254,8 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
             }
             else if (state.Layout is { Transitions.Count: > 0 } layout)
             {
-                var t = layout.Transitions[0];
-                PInvoke.GetCursorPos(out var p);
+                EdgeTransition t = layout.Transitions[0];
+                PInvoke.GetCursorPos(out Point p);
                 await EnterRemote(layout.EntryPoint(t, (t.From + t.To) / 2), p.X, p.Y, ct);
             }
             else
@@ -266,7 +267,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
 
         if (_remote)
         {
-            var ev = new KeyEvent(key.VirtualKey, key.ScanCode, key.Down ? ButtonState.Down : ButtonState.Up, key.Extended);
+            KeyEvent ev = new KeyEvent(key.VirtualKey, key.ScanCode, key.Down ? ButtonState.Down : ButtonState.Up, key.Extended);
             lock (_clientDown)
             {
                 if (key.Down)
@@ -289,11 +290,11 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
                 return;
             ups = new KeyEvent[_clientDown.Count];
             int i = 0;
-            foreach (var ev in _clientDown.Values)
+            foreach (KeyEvent ev in _clientDown.Values)
                 ups[i++] = ev with { State = ButtonState.Up };
             _clientDown.Clear();
         }
-        foreach (var up in ups)
+        foreach (KeyEvent up in ups)
             await connection.SendAsync(MessageType.Key, up.ToPayload(), ct);
     }
 
@@ -321,7 +322,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         // Für den absoluten Vergleichsmodus: Startpunkt anteilig auf die Fläche des Hosts übertragen.
         if (state.Layout is { } layout)
         {
-            var (nx, ny) = LayoutGeometry.NormalizeToVirtualDesktop(layout.ClientMonitors, entry.X, entry.Y);
+            (ushort nx, ushort ny) = LayoutGeometry.NormalizeToVirtualDesktop(layout.ClientMonitors, entry.X, entry.Y);
             _virtualX = (double)nx / ushort.MaxValue * _desktopWidth;
             _virtualY = (double)ny / ushort.MaxValue * _desktopHeight;
         }
@@ -344,11 +345,11 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
 
         // Modifier, die beim Übertreten gehalten werden (z. B. Umschalt beim Ziehen über die Kante, oder das
         // Strg+Alt des F11-Hotkeys), an den Client mitschicken, damit der Zustand drüben stimmt.
-        foreach (var (vk, k) in _physicalDown)
+        foreach ((ushort vk, KeyInputEvent k) in _physicalDown)
         {
             if (!IsModifier(vk))
                 continue;
-            var down = new KeyEvent(k.VirtualKey, k.ScanCode, ButtonState.Down, k.Extended);
+            KeyEvent down = new KeyEvent(k.VirtualKey, k.ScanCode, ButtonState.Down, k.Extended);
             lock (_clientDown)
                 _clientDown[vk] = down;
             await connection.SendAsync(MessageType.Key, down.ToPayload(), ct);

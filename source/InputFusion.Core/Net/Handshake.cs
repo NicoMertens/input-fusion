@@ -28,14 +28,14 @@ public static class Handshake
     /// <summary>Hostseite. True, wenn der Client den Schlüssel kennt; dann ist auch der Nachweis des Hosts verschickt.</summary>
     public static async Task<bool> HostAsync(MessageConnection connection, string key, CancellationToken ct)
     {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(Timeout);
         try
         {
             byte[] hostNonce = RandomNumberGenerator.GetBytes(NonceSize);
             await connection.SendAsync(MessageType.Hello, hostNonce, timeout.Token);
 
-            var response = await ReceiveAsync(connection, MessageType.HelloResponse, NonceSize + MacSize, timeout.Token);
+            byte[]? response = await ReceiveAsync(connection, MessageType.HelloResponse, NonceSize + MacSize, timeout.Token);
             if (response is null)
                 return false;
             byte[] clientNonce = response[..NonceSize];
@@ -55,7 +55,7 @@ public static class Handshake
     /// <summary>Clientseite. True, wenn der Host angenommen hat und seinerseits den Schlüssel kennt.</summary>
     public static async Task<bool> ClientAsync(MessageConnection connection, string key, CancellationToken ct)
     {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(Timeout);
         try
         {
@@ -86,7 +86,7 @@ public static class Handshake
     /// <summary>Die nächste Nachricht, wenn sie den erwarteten Typ und die erwartete Länge hat, sonst null.</summary>
     private static async Task<byte[]?> ReceiveAsync(MessageConnection connection, MessageType expected, int length, CancellationToken ct)
     {
-        await foreach (var (type, payload) in connection.ReceiveAsync(ct))
+        await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(ct))
             return type == expected && payload.Length == length ? payload : null;
         return null;
     }

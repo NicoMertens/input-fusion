@@ -36,7 +36,7 @@ public static unsafe class SettingsPipe
             throw new Win32Exception();
         try
         {
-            var attributes = new SECURITY_ATTRIBUTES
+            SECURITY_ATTRIBUTES attributes = new SECURITY_ATTRIBUTES
             {
                 nLength = (uint)sizeof(SECURITY_ATTRIBUTES),
                 lpSecurityDescriptor = descriptor.Value,

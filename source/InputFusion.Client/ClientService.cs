@@ -20,23 +20,23 @@ internal static class ClientService
 
     public static async Task RunAsync(ConfigLoader loadConfig, bool asService, Action<string> log, CancellationToken ct)
     {
-        var supervisor = new InjectorSupervisor(asService, log).RunAsync(ct);
+        Task supervisor = new InjectorSupervisor(asService, log).RunAsync(ct);
 
-        var delay = MinRetryDelay;
+        TimeSpan delay = MinRetryDelay;
         string? lastProblem = null;
         while (!ct.IsCancellationRequested)
         {
-            var config = loadConfig(out string? error);
+            ClientConfig? config = loadConfig(out string? error);
             string? problem = error;
             if (config is not null)
             {
-                var (tcp, connectError) = await ConnectAsync(config, ct);
+                (TcpClient? tcp, string? connectError) = await ConnectAsync(config, ct);
                 problem = connectError;
                 if (tcp is not null)
                 {
                     bool accepted;
                     using (tcp)
-                    using (var conn = MessageConnection.FromTcp(tcp))
+                    using (MessageConnection conn = MessageConnection.FromTcp(tcp))
                     {
                         accepted = await Handshake.ClientAsync(conn, config.Key, ct);
                         if (accepted)
@@ -76,10 +76,10 @@ internal static class ClientService
     private static async Task<(TcpClient? Client, string? Error)> ConnectAsync(ClientConfig config, CancellationToken ct)
     {
         string? error = null;
-        foreach (var target in config.Ip is null ? [config.Host] : new[] { config.Host, config.Ip })
+        foreach (string? target in config.Ip is null ? [config.Host] : new[] { config.Host, config.Ip })
         {
-            var tcp = new TcpClient();
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            TcpClient tcp = new TcpClient();
+            using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(ConnectTimeout);
             try
             {

@@ -22,11 +22,11 @@ public static class InputPipe
     /// <summary>Erzeugt den lauschenden Server mit der oben beschriebenen ACL.</summary>
     public static NamedPipeServerStream CreateServer()
     {
-        var security = new PipeSecurity();
-        var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+        PipeSecurity security = new PipeSecurity();
+        SecurityIdentifier system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
         security.AddAccessRule(new PipeAccessRule(system, PipeAccessRights.FullControl, AccessControlType.Allow));
 
-        var me = WindowsIdentity.GetCurrent().User;
+        SecurityIdentifier? me = WindowsIdentity.GetCurrent().User;
         if (me is not null && me != system)
             security.AddAccessRule(new PipeAccessRule(me, PipeAccessRights.FullControl, AccessControlType.Allow));
 

@@ -14,7 +14,7 @@ internal static class Program
     private static async Task Main(string[] args)
     {
         // Ein Agent je Sitzung; ein zweiter Start öffnet nur die Einstellungen.
-        using var instance = new Mutex(initiallyOwned: true, InstanceMutexName, out bool first);
+        using Mutex instance = new Mutex(initiallyOwned: true, InstanceMutexName, out bool first);
         if (!first)
         {
             SettingsLauncher.Open();
@@ -31,19 +31,19 @@ internal static class Program
         if (diag || args.Contains("--console"))
             PInvoke.AllocConsole();
 
-        using var cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
-        var state = new HostState(HostConfig.LoadOrCreate());
+        HostState state = new HostState(HostConfig.LoadOrCreate());
         Log.Write($"InputFusion Host auf Port {Ports.Input}, Konfiguration {HostConfig.FilePath}. Modus: {(absolute ? "absolut" : "relativ")}"
             + $"{(observe ? ", Beobachtung (kapert die Maus nicht)" : "")}"
             + $"{(diag ? ", Diagnose" : "")}{(remoteSession ? " [RDP erkannt]" : "")}.");
 
-        var tray = new TrayIcon(SettingsLauncher.Open, cts.Cancel, state.RefreshHostMonitors);
+        TrayIcon tray = new TrayIcon(SettingsLauncher.Open, cts.Cancel, state.RefreshHostMonitors);
         tray.Start();
         tray.SetTooltip(state.StatusText);
         state.Changed += () => tray.SetTooltip(state.StatusText);
-        var settings = new SettingsServer(state).RunAsync(cts.Token);
+        Task settings = new SettingsServer(state).RunAsync(cts.Token);
 
         try
         {
@@ -64,7 +64,7 @@ internal static class Program
     /// </summary>
     private static async Task ListenAsync(HostState state, bool absolute, bool observe, bool diag, CancellationToken ct)
     {
-        var listener = new TcpListener(IPAddress.Any, Ports.Input);
+        TcpListener listener = new TcpListener(IPAddress.Any, Ports.Input);
         while (!ct.IsCancellationRequested)
         {
             TcpClient tcp;
@@ -99,8 +99,8 @@ internal static class Program
 
     private static async Task ServeAsync(TcpClient tcp, HostState state, bool absolute, bool observe, bool diag, CancellationToken ct)
     {
-        using var _ = tcp;
-        using var conn = MessageConnection.FromTcp(tcp);
+        using TcpClient _ = tcp;
+        using MessageConnection conn = MessageConnection.FromTcp(tcp);
         string address = (tcp.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "?";
         bool accepted;
         try
@@ -122,7 +122,7 @@ internal static class Program
         // Ereignisse aus der vorigen Verbindung verwerfen, sonst löst etwa eine alte Bewegung an der Kante
         // sofort den Wechsel aus.
         LowLevelHooks.Drain();
-        var hooks = new HookListener();
+        HookListener hooks = new HookListener();
         hooks.Start();
         try
         {

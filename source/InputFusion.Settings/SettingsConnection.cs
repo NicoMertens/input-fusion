@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.IO.Pipes;
 using System.Windows.Threading;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Net;
@@ -26,13 +27,13 @@ internal sealed class SettingsConnection(Dispatcher dispatcher)
         {
             try
             {
-                using var pipe = SettingsPipe.CreateClient();
+                using NamedPipeClientStream pipe = SettingsPipe.CreateClient();
                 await pipe.ConnectAsync((int)RetryDelay.TotalMilliseconds, ct);
-                using var connection = new MessageConnection(pipe);
+                using MessageConnection connection = new MessageConnection(pipe);
                 _connection = connection;
                 Post(() => ConnectedChanged?.Invoke(true));
 
-                await foreach (var (type, payload) in connection.ReceiveAsync(ct))
+                await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(ct))
                 {
                     if (type != MessageType.Settings)
                         continue;
@@ -69,7 +70,7 @@ internal sealed class SettingsConnection(Dispatcher dispatcher)
     /// <summary>Schickt eine Anfrage; ohne Verbindung geht sie verloren, die Anzeige zeigt das ohnehin.</summary>
     public async Task SendAsync(SettingsMessage message)
     {
-        var connection = _connection;
+        MessageConnection? connection = _connection;
         if (connection is null)
             return;
         try

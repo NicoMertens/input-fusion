@@ -43,7 +43,7 @@ public sealed class MessageConnection : IDisposable
     public static MessageConnection FromTcp(TcpClient client)
     {
         client.NoDelay = true;
-        var socket = client.Client;
+        Socket socket = client.Client;
         socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
         socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, 5);
         socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, 2);
@@ -69,10 +69,10 @@ public sealed class MessageConnection : IDisposable
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         // Frames, die beim vorigen Lesen schon mitkamen (etwa direkt nach der Anmeldung), zuerst ausliefern.
-        while (_reader.TryRead(out var bufferedType, out var bufferedPayload))
+        while (_reader.TryRead(out MessageType bufferedType, out byte[] bufferedPayload))
             yield return (bufferedType, bufferedPayload);
 
-        var buffer = new byte[4096];
+        byte[] buffer = new byte[4096];
         while (!ct.IsCancellationRequested)
         {
             int n = await _stream.ReadAsync(buffer, ct);
@@ -81,7 +81,7 @@ public sealed class MessageConnection : IDisposable
             Volatile.Write(ref _lastReceived, Environment.TickCount64);
 
             _reader.Append(buffer.AsSpan(0, n));
-            while (_reader.TryRead(out var type, out var payload))
+            while (_reader.TryRead(out MessageType type, out byte[] payload))
                 yield return (type, payload);
         }
     }

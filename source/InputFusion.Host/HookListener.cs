@@ -15,7 +15,7 @@ internal sealed class HookListener
 
     public void Start()
     {
-        var ready = new ManualResetEventSlim();
+        ManualResetEventSlim ready = new ManualResetEventSlim();
         _thread = new Thread(() =>
         {
             _threadId = PInvoke.GetCurrentThreadId();

@@ -1,4 +1,5 @@
-﻿using InputFusion.Core.Ipc;
+﻿using System.IO.Pipes;
+using InputFusion.Core.Ipc;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
 
@@ -13,23 +14,23 @@ public class InputPipeTests
     [Fact]
     public async Task ServerToClient_RoundTripsFrames()
     {
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
-        var server = InputPipe.CreateServer();
-        var client = InputPipe.CreateClient();
+        NamedPipeServerStream server = InputPipe.CreateServer();
+        NamedPipeClientStream client = InputPipe.CreateClient();
 
-        var accept = server.WaitForConnectionAsync(cts.Token);
+        Task accept = server.WaitForConnectionAsync(cts.Token);
         await client.ConnectAsync(cts.Token);
         await accept;
 
-        using var serverConn = new MessageConnection(server);
-        using var clientConn = new MessageConnection(client);
+        using MessageConnection serverConn = new MessageConnection(server);
+        using MessageConnection clientConn = new MessageConnection(client);
 
         // Nebenläufig lesen wie der Injector, während der Dienst sendet.
-        var received = new List<(MessageType Type, byte[] Payload)>();
-        var reading = Task.Run(async () =>
+        List<(MessageType Type, byte[] Payload)> received = new List<(MessageType Type, byte[] Payload)>();
+        Task reading = Task.Run(async () =>
         {
-            await foreach (var frame in clientConn.ReceiveAsync(cts.Token))
+            await foreach ((MessageType Type, byte[] Payload) frame in clientConn.ReceiveAsync(cts.Token))
             {
                 received.Add(frame);
                 if (received.Count == 3)

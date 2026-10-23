@@ -50,7 +50,7 @@ internal static unsafe class SessionLauncher
         fixed (char* desktop = "winsta0\\default")
         fixed (char* cmd = commandLine)
         {
-            var startup = new STARTUPINFOW { cb = (uint)sizeof(STARTUPINFOW), lpDesktop = desktop };
+            STARTUPINFOW startup = new STARTUPINFOW { cb = (uint)sizeof(STARTUPINFOW), lpDesktop = desktop };
             PROCESS_INFORMATION info;
             // CREATE_NO_WINDOW: Die exe ist eine Konsolenanwendung, sonst öffnet sich beim Benutzer ein Fenster.
             if (!PInvoke.CreateProcessAsUser(token, null, cmd, null, null, false,

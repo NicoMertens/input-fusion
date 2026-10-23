@@ -43,13 +43,13 @@ internal sealed class SettingsServer(HostState state)
 
     private async Task ServeAsync(NamedPipeServerStream pipe, CancellationToken ct)
     {
-        using var connection = new MessageConnection(pipe);
+        using MessageConnection connection = new MessageConnection(pipe);
         Action push = () => _ = SendAsync(connection, state.Snapshot(), ct);
         state.Changed += push;
         try
         {
             await SendAsync(connection, state.Snapshot(), ct);
-            await foreach (var (type, payload) in connection.ReceiveAsync(ct))
+            await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(ct))
             {
                 if (type != MessageType.Settings)
                     continue;

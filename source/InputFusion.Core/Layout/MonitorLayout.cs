@@ -59,8 +59,8 @@ public sealed class MonitorLayout
     /// <summary>Standard für eine neue Kombination: der Client rechts neben dem rechtesten Host-Monitor, oben bündig.</summary>
     public static (int X, int Y) DefaultOffset(IReadOnlyList<MonitorRect> hostMonitors, IReadOnlyList<MonitorRect> clientMonitors)
     {
-        var host = hostMonitors.MaxBy(m => m.Right);
-        var client = clientMonitors.MinBy(m => m.Left);
+        MonitorRect host = hostMonitors.MaxBy(m => m.Right);
+        MonitorRect client = clientMonitors.MinBy(m => m.Left);
         return Snap(hostMonitors, clientMonitors, host.Right - client.Left, host.Top - client.Top);
     }
 
@@ -73,11 +73,11 @@ public sealed class MonitorLayout
     {
         (int X, int Y)? best = null;
         long bestDistance = long.MaxValue;
-        foreach (var h in hostMonitors)
+        foreach (MonitorRect h in hostMonitors)
         {
-            foreach (var c in clientMonitors)
+            foreach (MonitorRect c in clientMonitors)
             {
-                foreach (var candidate in Candidates(h, c, x, y))
+                foreach ((int X, int Y) candidate in Candidates(h, c, x, y))
                 {
                     if (Overlaps(hostMonitors, clientMonitors, candidate.X, candidate.Y))
                         continue;
@@ -105,9 +105,9 @@ public sealed class MonitorLayout
         // Klemmt Windows die Zielposition schon auf den Rand, kommt beim Drücken gegen die Kante ein Ereignis ganz
         // ohne Bewegung an. Das zählt auf dem Randpixel als Drücken nach außen, eine Bewegung entlang der Kante nicht.
         bool still = dx == 0 && dy == 0;
-        foreach (var t in Transitions)
+        foreach (EdgeTransition t in Transitions)
         {
-            var h = t.HostMonitor;
+            MonitorRect h = t.HostMonitor;
             if (!h.Contains(px, py))
                 continue;
 
@@ -136,8 +136,8 @@ public sealed class MonitorLayout
     public (int X, int Y) EntryPoint(EdgeTransition t, int along)
     {
         int a = Math.Clamp(along, t.From, t.To - 1);
-        var p = t.PlacedClientMonitor;
-        var (lx, ly) = t.Side switch
+        MonitorRect p = t.PlacedClientMonitor;
+        (int lx, int ly) = t.Side switch
         {
             EdgeSide.Right => (p.Left, a),
             EdgeSide.Left => (p.Right - 1, a),
@@ -154,7 +154,7 @@ public sealed class MonitorLayout
     public bool TryReturn(EdgeSide clientSide, int clientX, int clientY, out (int X, int Y) hostPoint)
     {
         int lx = clientX + OffsetX, ly = clientY + OffsetY;
-        foreach (var t in Transitions)
+        foreach (EdgeTransition t in Transitions)
         {
             if (t.Side.Opposite() != clientSide)
                 continue;
@@ -162,7 +162,7 @@ public sealed class MonitorLayout
             if (along < t.From || along >= t.To)
                 continue;
 
-            var h = t.HostMonitor;
+            MonitorRect h = t.HostMonitor;
             hostPoint = t.Side switch
             {
                 EdgeSide.Right => (h.Right - 1 - ReturnInset, ly),
@@ -179,12 +179,12 @@ public sealed class MonitorLayout
 
     private List<EdgeTransition> ComputeTransitions()
     {
-        var result = new List<EdgeTransition>();
-        foreach (var h in HostMonitors)
+        List<EdgeTransition> result = new List<EdgeTransition>();
+        foreach (MonitorRect h in HostMonitors)
         {
-            foreach (var c in ClientMonitors)
+            foreach (MonitorRect c in ClientMonitors)
             {
-                var p = Place(c);
+                MonitorRect p = Place(c);
                 if (p.Left == h.Right)
                     AddIfOverlapping(result, EdgeSide.Right, h, c, p, h.Top, h.Bottom, p.Top, p.Bottom);
                 if (p.Right == h.Left)
@@ -209,7 +209,7 @@ public sealed class MonitorLayout
 
     private ReturnEdge ToReturnEdge(EdgeTransition t)
     {
-        var c = t.ClientMonitor;
+        MonitorRect c = t.ClientMonitor;
         return t.Side switch
         {
             EdgeSide.Right => new ReturnEdge(EdgeSide.Left, c.Left, t.From - OffsetY, t.To - OffsetY),
@@ -250,9 +250,9 @@ public sealed class MonitorLayout
 
     private static bool Overlaps(IReadOnlyList<MonitorRect> hostMonitors, IReadOnlyList<MonitorRect> clientMonitors, int offsetX, int offsetY)
     {
-        foreach (var h in hostMonitors)
+        foreach (MonitorRect h in hostMonitors)
         {
-            foreach (var c in clientMonitors)
+            foreach (MonitorRect c in clientMonitors)
             {
                 int left = c.Left + offsetX, top = c.Top + offsetY;
                 if (left < h.Right && left + c.Width > h.Left && top < h.Bottom && top + c.Height > h.Top)

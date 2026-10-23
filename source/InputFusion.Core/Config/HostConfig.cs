@@ -45,7 +45,7 @@ public sealed class HostConfig
     {
         try
         {
-            using var stream = File.OpenRead(FilePath);
+            using FileStream stream = File.OpenRead(FilePath);
             return JsonSerializer.Deserialize(stream, HostConfigJson.Default.HostConfig);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
@@ -57,7 +57,7 @@ public sealed class HostConfig
     /// <summary>Liest die Datei. Fehlt sie oder taugt der Schlüssel nicht, wird ein neuer erzeugt und gespeichert.</summary>
     public static HostConfig LoadOrCreate()
     {
-        var config = TryLoad() ?? new HostConfig();
+        HostConfig config = TryLoad() ?? new HostConfig();
         if (ValidateKey(config.Key) is not null)
         {
             config.Key = GenerateKey();
@@ -71,7 +71,7 @@ public sealed class HostConfig
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
         // Erst in eine Nachbardatei, dann ersetzen: Ein Absturz mitten im Schreiben ließe sonst eine halbe Datei zurück.
         string temp = FilePath + ".tmp";
-        using (var stream = File.Create(temp))
+        using (FileStream stream = File.Create(temp))
             JsonSerializer.Serialize(stream, this, HostConfigJson.Default.HostConfig);
         File.Move(temp, FilePath, overwrite: true);
     }

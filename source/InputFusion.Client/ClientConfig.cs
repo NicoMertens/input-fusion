@@ -21,8 +21,8 @@ public sealed record ClientConfig(string Host, string Key, string? Ip = null)
     {
         try
         {
-            using var stream = File.OpenRead(FilePath);
-            var config = JsonSerializer.Deserialize(stream, ClientConfigJson.Default.ClientConfig);
+            using FileStream stream = File.OpenRead(FilePath);
+            ClientConfig? config = JsonSerializer.Deserialize(stream, ClientConfigJson.Default.ClientConfig);
             if (config is null || string.IsNullOrWhiteSpace(config.Host))
             {
                 error = $"{FilePath}: \"host\" fehlt";

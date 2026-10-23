@@ -54,7 +54,7 @@ public sealed class InputPlayer
 
     public void Key(KeyEvent key)
     {
-        var flags = KEYBD_EVENT_FLAGS.KEYEVENTF_SCANCODE;
+        KEYBD_EVENT_FLAGS flags = KEYBD_EVENT_FLAGS.KEYEVENTF_SCANCODE;
         if (key.State == ButtonState.Up)
             flags |= KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP;
         if (key.Extended)
@@ -65,7 +65,7 @@ public sealed class InputPlayer
         else
             _keysDown[key.VirtualKey] = key;
 
-        var input = new INPUT { type = INPUT_TYPE.INPUT_KEYBOARD };
+        INPUT input = new INPUT { type = INPUT_TYPE.INPUT_KEYBOARD };
         input.Anonymous.ki = new KEYBDINPUT
         {
             wVk = (VIRTUAL_KEY)key.VirtualKey,
@@ -79,15 +79,15 @@ public sealed class InputPlayer
     /// Verbindungsabbruch auf, damit auf dem Notebook nichts hängen bleibt.</summary>
     public void ReleaseAll()
     {
-        foreach (var key in _keysDown.Values.ToArray())
+        foreach (KeyEvent key in _keysDown.Values.ToArray())
             Key(key with { State = ButtonState.Up });
-        foreach (var button in _buttonsDown.ToArray())
+        foreach (byte button in _buttonsDown.ToArray())
             Button(new MouseButton(button, ButtonState.Up));
     }
 
     private void SendMouse(int dx, int dy, uint data, MOUSE_EVENT_FLAGS flags)
     {
-        var input = new INPUT { type = INPUT_TYPE.INPUT_MOUSE };
+        INPUT input = new INPUT { type = INPUT_TYPE.INPUT_MOUSE };
         input.Anonymous.mi = new MOUSEINPUT { dx = dx, dy = dy, mouseData = data, dwFlags = flags };
         Send(input);
     }

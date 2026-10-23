@@ -29,7 +29,7 @@ public static class FrameCodec
     /// <summary>Allokierende Variante für Tests und selten gesendete Nachrichten.</summary>
     public static byte[] Write(MessageType type, ReadOnlySpan<byte> payload)
     {
-        var buffer = new byte[HeaderSize + payload.Length];
+        byte[] buffer = new byte[HeaderSize + payload.Length];
         Write(buffer, type, payload);
         return buffer;
     }
