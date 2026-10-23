@@ -22,7 +22,7 @@ Veröffentlicht wird framework-abhängig, beide Rechner brauchen die .NET 10 Des
 Aus dem [neuesten Release](https://github.com/NicoMertens/input-fusion/releases/latest):
 
 - **PC:** `InputFusion.Host-win-Setup.exe` ausführen. Beim ersten Start fragt der Host einmal nach Adminrechten, um sich bei der Anmeldung erhöht zu starten und die Firewall für Port 15111 zu öffnen.
-- **Notebook:** `InputFusion.Client-win-x64.zip` entpacken und in einer Admin-PowerShell `install-client.ps1 -HostName <PC-Name> -Key <Schlüssel>` ausführen. PC-Name und Schlüssel zeigen die Einstellungen des Hosts.
+- **Notebook:** `InputFusion.Client-Setup.exe` per Doppelklick starten. Sie fragt nach, holt per UAC Adminrechte, fragt PC-Name und Schlüssel ab (beides zeigen die Einstellungen des Hosts) und richtet den Dienst ein. Alternativ `InputFusion.Client-win-x64.zip` entpacken und `install-client.ps1 -HostName <PC-Name> -Key <Schlüssel>` in einer Admin-PowerShell ausführen.
 
 Einzelheiten unter [`docs/installation.md`](docs/installation.md).
 

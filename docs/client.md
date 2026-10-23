@@ -1,6 +1,6 @@
 # Client: Dienst und Injector auf dem Notebook
 
-Dienst und Injector sind **ein Programm** (`InputFusion.Client.exe`) in zwei Prozessen. Ohne Argument startet der Dienst, mit `--injector` der Injector. Das spart ein zweites Projekt und ein zweites Programm im Installer. Weil der Dienst Session 0 nicht verlassen kann, bleiben es trotzdem zwei Prozesse.
+Dienst und Injector sind **ein Programm** (`InputFusion.Client.exe`) in zwei Prozessen. Ohne Argument startet der Dienst, mit `--injector` der Injector; per Doppelklick außerhalb des Installationsordners installiert sich die exe selbst, siehe [Installation](installation.md). Das spart ein zweites Projekt und ein zweites Programm im Installer. Weil der Dienst Session 0 nicht verlassen kann, bleiben es trotzdem zwei Prozesse.
 
 ## Dienst
 
@@ -45,13 +45,26 @@ Die Aufteilung in Dienst und Injector ist begonnen. Umgesetzt und über Unit-Tes
 
 Der Client läuft als Windows-Dienst `InputFusionClient`, eingerichtet per Skript, siehe [Installation](installation.md).
 
-- **Ein Ablauf für Dienst und Entwicklung:** `ClientService` hält den Injector am Leben (`InjectorSupervisor`) und die Verbindung zum Host, mit Neuverbindung. Im Dienst kommt die Host-Adresse aus `client.json`, und der Injector startet per `CreateProcessAsUser` als SYSTEM in der aktiven Sitzung (`SessionLauncher`), wie oben unter [Dienst](#dienst) beschrieben. Mit `--relay <host> --key <schlüssel>` läuft derselbe Ablauf als Konsole, mit Host und Schlüssel aus den Argumenten und dem Injector als Kindprozess. Ohne Argument aus einer Konsole gestartet, läuft der Dienst-Ablauf sichtbar mit, aber ebenfalls mit Kindprozess, weil nur SYSTEM die Sitzung eines Tokens umsetzen darf.
+- **Ein Ablauf für Dienst und Entwicklung:** `ClientService` hält den Injector am Leben (`InjectorSupervisor`) und die Verbindung zum Host, mit Neuverbindung. Im Dienst kommt die Host-Adresse aus `client.json`, und der Injector startet per `CreateProcessAsUser` als SYSTEM in der aktiven Sitzung (`SessionLauncher`), wie oben unter [Dienst](#dienst) beschrieben. Mit `--relay <host> --key <schlüssel>` läuft derselbe Ablauf als Konsole, mit Host und Schlüssel aus den Argumenten und dem Injector als Kindprozess. Ohne Argument aus einer Konsole im Installationsordner gestartet, läuft der Dienst-Ablauf sichtbar mit (anderswo fragt die exe stattdessen, ob sie sich installieren soll), aber ebenfalls mit Kindprozess, weil nur SYSTEM die Sitzung eines Tokens umsetzen darf.
 - **Verifiziert auf dem PC** mit einem Test-Host: Dienst per Skript installiert, Injector läuft in Sitzung 1, Dienst in Sitzung 0; Verbindung nach Start des Hosts innerhalb des Wiederholungsabstands; Austritt über Dienst und Injector kommt beim Host an; nach Verbindungsabbruch neu verbunden; ein beendeter Injector wird binnen einer Sekunde neu gestartet und übernimmt die Pipe; Deinstallation ohne Reste.
 - **Noch offen:** der Desktop-Wechsel für Sperrbildschirm und UAC-Abfrage (siehe [Injector](#injector)); der Test des Sitzungswechsels (Abmelden, Benutzerwechsel) am Notebook; die Prüfung, dass der SYSTEM-Injector nur mit dem eigenen Dienst spricht. Bisher könnte ein Prozess, der die Pipe vor dem Dienst anlegt, dem Injector Eingaben unterschieben.
 
 ## Updates
 
 Der Dienst aktualisiert sich selbst aus den GitHub-Releases, ohne Velopack; Ablauf, Prüfsumme und Rückfall auf die alte Version stehen unter [Updates](updates.md#client). Weicht die Protokollversion des Hosts ab, sucht er sofort.
+
+## Selbstinstallation
+
+`ClientSetup`: Startet die exe ohne Argument, nicht als Dienst und nicht aus `%ProgramFiles%\InputFusion\Client`, gilt das als Doppelklick auf ein Setup.
+
+1. Nachfrage im Konsolenfenster „als Dienst installieren? [J/n]“. Nein beendet ohne Änderung.
+2. Neustart per UAC mit `--setup` (ist der Prozess schon erhöht, entfällt das). Im erhöhten Fenster fragt sie PC-Name, Schlüssel (mit denselben Regeln wie der Host, `HostConfig.ValidateKey`) und optional eine feste IP ab. Gibt es schon eine `client.json`, stehen deren Werte als Vorschlag in Klammern; Enter übernimmt sie.
+3. Danach dasselbe wie `install-client.ps1`: vorhandenen Dienst stoppen, übrige Client-Prozesse beenden, **nur die exe selbst** als `InputFusion.Client.exe` nach `%ProgramFiles%\InputFusion\Client` kopieren (als Setup liegt sie umbenannt im Download-Ordner, neben fremden Dateien), `client.json` schreiben, Dienst anlegen bzw. umkonfigurieren, Neustart nach Absturz einstellen, starten. Das Fenster bleibt bis zu einem Tastendruck offen.
+4. `client.json` entsteht gleich mit ihrer ACL (nur SYSTEM und Administratoren, ohne Vererbung); nachträglich gesetzt, wäre sie mit dem Schlüssel kurz für alle Benutzer lesbar, weil `%ProgramData%` Lesen vererbt.
+
+Möglich ist das, weil der Release den Client als **einzelne Datei** veröffentlicht (`PublishSingleFile`, framework-abhängig, rund 3 MB). Die Log-Stufen für das Ereignisprotokoll stehen deshalb im Code statt in `appsettings.json`, das der einzelnen exe fehlen würde. Deinstalliert wird weiter mit `uninstall-client.ps1` aus dem Client-Paket.
+
+Geprüft: Veröffentlichen als einzelne Datei, Start, Nachfrage, Abbruch ohne Änderung. Der erhöhte Teil (Dienst anlegen) ist noch nicht am Notebook gelaufen.
 
 ## Später
 

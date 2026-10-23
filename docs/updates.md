@@ -38,7 +38,7 @@ Veröffentlicht wird aus `.github/workflows/release.yml`, ausgelöst durch jeden
 
 1. Version aus `source/Directory.Build.props` lesen; gibt es den Tag `vX.Y.Z` schon, bricht der Workflow vor dem Bauen ab (vergessene Versionserhöhung).
 2. Tests, dann Host und Einstellungen framework-abhängig für `win-x64` in einen Ordner veröffentlichen, den Client in einen zweiten, jeweils mit `-p:RepositoryUrl`.
-3. Client-Ordner samt `install-client.ps1` und `uninstall-client.ps1` als `InputFusion.Client-win-x64.zip` packen, daneben `….zip.sha256` im Format von `sha256sum`.
+3. Den Client als einzelne Datei veröffentlichen. Sie liegt einmal als `InputFusion.Client-Setup.exe` im Release (installiert sich per Doppelklick selbst, siehe [Client](client.md#selbstinstallation)) und einmal mit `install-client.ps1` und `uninstall-client.ps1` als `InputFusion.Client-win-x64.zip` für das Selbst-Update, daneben `….zip.sha256` im Format von `sha256sum`.
 4. Host mit `vpk pack` packen (Paket-ID `InputFusion.Host`, Startmenü-Verknüpfung, kein Autostart, Laufzeit `net10.0-x64-desktop`); mit dem vorigen Release entsteht zusätzlich ein Delta-Paket.
 5. `vpk upload github --publish` legt das Release samt Tag auf dem gemergten Commit an; danach hängt `gh release upload` das Client-Paket an. Clients, die genau dazwischen prüfen, finden das Paket noch nicht und versuchen es später wieder.
 

@@ -20,6 +20,7 @@ env:
   HOST_DIR: _out/publish/host
   CLIENT_DIR: _out/publish/client
   CLIENT_PACKAGE: InputFusion.Client-win-x64.zip
+  CLIENT_SETUP: InputFusion.Client-Setup.exe
   REPO_URL: ${{ github.server_url }}/${{ github.repository }}
 
 jobs:
@@ -58,13 +59,15 @@ jobs:
           dotnet publish source/InputFusion.Host -c Release -r win-x64 --self-contained false -p:RepositoryUrl=${{ env.REPO_URL }} -o ${{ env.HOST_DIR }}
           dotnet publish source/InputFusion.Settings -c Release -r win-x64 --self-contained false -p:RepositoryUrl=${{ env.REPO_URL }} -o ${{ env.HOST_DIR }}
 
-      # Die Installationsskripte liegen mit im Paket; sie nehmen die exe aus ihrem eigenen Ordner.
+      # Eine einzelne exe: Per Doppelklick installiert sie sich selbst, als Setup liegt sie deshalb auch einzeln im
+      # Release. Im Zip für das Selbst-Update liegen dazu die Installationsskripte.
       - name: Client veröffentlichen
         shell: pwsh
         run: |
-          dotnet publish source/InputFusion.Client -c Release -r win-x64 --self-contained false -p:RepositoryUrl=${{ env.REPO_URL }} -o ${{ env.CLIENT_DIR }}
-          Copy-Item build/install-client.ps1, build/uninstall-client.ps1 ${{ env.CLIENT_DIR }}
+          dotnet publish source/InputFusion.Client -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=embedded -p:RepositoryUrl=${{ env.REPO_URL }} -o ${{ env.CLIENT_DIR }}
           New-Item -ItemType Directory -Force _out/client-release | Out-Null
+          Copy-Item ${{ env.CLIENT_DIR }}/InputFusion.Client.exe _out/client-release/${{ env.CLIENT_SETUP }}
+          Copy-Item build/install-client.ps1, build/uninstall-client.ps1 ${{ env.CLIENT_DIR }}
           $zip = "_out/client-release/${{ env.CLIENT_PACKAGE }}"
           Compress-Archive -Path "${{ env.CLIENT_DIR }}/*" -DestinationPath $zip
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -114,3 +117,4 @@ jobs:
           gh release upload ${{ steps.version.outputs.tag }}
           _out/client-release/${{ env.CLIENT_PACKAGE }}
           _out/client-release/${{ env.CLIENT_PACKAGE }}.sha256
+          _out/client-release/${{ env.CLIENT_SETUP }}
