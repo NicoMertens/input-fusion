@@ -37,8 +37,12 @@ internal static class PipeRelay
             await server.WaitForConnectionAsync(ct);
             Console.WriteLine("Injector verbunden. Reiche Eingaben weiter.");
 
-            await foreach (var (type, payload) in hostConn.ReceiveAsync(ct))
-                await pipeConn.SendAsync(type, payload, ct);
+            // Beide Richtungen gleichzeitig: Eingaben zum Injector, dessen Meldungen (Austritt an der Kante)
+            // zurück zum Host. Endet eine Richtung, wird die andere abgebrochen.
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var toHost = ForwardAsync(pipeConn, hostConn, linked);
+            var toInjector = ForwardAsync(hostConn, pipeConn, linked);
+            await Task.WhenAll(toHost, toInjector);
         }
         catch (OperationCanceledException)
         {
@@ -56,6 +60,23 @@ internal static class PipeRelay
             injector?.Dispose();
         }
         Console.WriteLine("Relay beendet.");
+    }
+
+    /// <summary>Reicht Frames unverändert von einer Verbindung zur anderen, bis eine Seite endet.</summary>
+    private static async Task ForwardAsync(MessageConnection from, MessageConnection to, CancellationTokenSource linked)
+    {
+        try
+        {
+            await foreach (var (type, payload) in from.ReceiveAsync(linked.Token))
+                await to.SendAsync(type, payload, linked.Token);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or IOException or SocketException)
+        {
+        }
+        finally
+        {
+            linked.Cancel();
+        }
     }
 
     /// <summary>Startet den Injector als Kindprozess in derselben Sitzung (Dev-Ersatz für CreateProcessAsUser).</summary>

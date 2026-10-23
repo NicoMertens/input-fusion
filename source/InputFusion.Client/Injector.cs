@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Net;
+using InputFusion.Core.Protocol;
 
 namespace InputFusion.Client;
 
@@ -37,8 +38,12 @@ internal static class Injector
                 using var conn = new MessageConnection(pipe);
                 Console.WriteLine("Mit dem Dienst verbunden, spiele Eingaben ab.");
 
+                // Den Austritt an der Kante meldet der Injector über die Pipe; der Dienst reicht ihn weiter.
                 await foreach (var (type, payload) in conn.ReceiveAsync(cts.Token))
-                    dispatcher.Dispatch(type, payload);
+                {
+                    if (dispatcher.Dispatch(type, payload))
+                        await conn.SendAsync(MessageType.SwitchBackRequest, default, cts.Token);
+                }
             }
             catch (OperationCanceledException)
             {

@@ -1,5 +1,6 @@
 ﻿using System.Net.Sockets;
 using InputFusion.Core.Net;
+using InputFusion.Core.Protocol;
 
 namespace InputFusion.Client;
 
@@ -24,7 +25,10 @@ internal static class SpikeClient
         try
         {
             await foreach (var (type, payload) in conn.ReceiveAsync(cts.Token))
-                dispatcher.Dispatch(type, payload);
+            {
+                if (dispatcher.Dispatch(type, payload))
+                    await conn.SendAsync(MessageType.SwitchBackRequest, default, cts.Token);
+            }
         }
         catch (OperationCanceledException)
         {

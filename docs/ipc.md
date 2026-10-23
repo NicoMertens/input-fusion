@@ -19,7 +19,7 @@ Der Wechsel läuft über `SwitchToClient` und `SwitchToHost` (Host → Client) s
 
 Umgesetzt in `InputFusion.Core.Ipc.InputPipe` und über Unit-Test und einen lokalen Durchlauf verifiziert:
 
-- **Dieselbe Rahmung wie im Netz:** Die Pipe trägt genau die Eingabe-Frames, die der Host schickt. Der Dienst (Pipe-Server) reicht sie unverändert an den Injector (Pipe-Client) weiter; beide nutzen `MessageConnection` über dem Pipe-Strom. Für diese binäre Strecke gibt es deshalb kein eigenes JSON — das bleibt der Einstellungs-IPC vorbehalten.
+- **Dieselbe Rahmung wie im Netz:** Die Pipe trägt genau die Eingabe-Frames, die der Host schickt. Der Dienst (Pipe-Server) reicht sie unverändert an den Injector (Pipe-Client) weiter und in der Gegenrichtung dessen `SwitchBackRequest` an den Host; beide nutzen `MessageConnection` über dem Pipe-Strom. Für diese binäre Strecke gibt es deshalb kein eigenes JSON — das bleibt der Einstellungs-IPC vorbehalten.
 - **ACL:** Der Server erlaubt immer SYSTEM mit Vollzugriff. Im Produktivfall laufen Dienst und Injector beide als SYSTEM (der Dienst startet den Injector per `CreateProcessAsUser` mit dupliziertem SYSTEM-Token), also bleibt es bei SYSTEM. Zum Entwickeln laufen beide als der angemeldete Benutzer; dann wird dessen SID zusätzlich erlaubt, sonst käme der Injector nicht an die Pipe.
 - **Pipe-Name:** `\\.\pipe\InputFusion.Input`, ein Server-Exemplar. Ein kleiner Puffer sorgt dafür, dass das Weiterreichen der winzigen Frames nicht auf die Lese-Kadenz des Injectors wartet.
 - **Noch offen:** Der sitzungsabhängige Start des Injectors (`CreateProcessAsUser`, Desktop-Wechsel) kommt in Schritt 2 und ist nur an echter Hardware testbar, siehe [Client](client.md#stand-phase-2-schritt-1-ipc-und-injector).
