@@ -4,31 +4,33 @@ InputFusion ist ein schlanker Ersatz für Mouse Without Borders aus den PowerToy
 
 - **Layout je Monitor statt je Rechner.** Das Vorbild kennt nur ganze Rechner im 1×4- oder 2×2-Raster. Hier liegen alle Monitore beider Rechner frei angeordnet auf einer Fläche, wie in den Windows-Anzeigeeinstellungen.
 - **Oberflächen nur bei Bedarf.** Dauerhaft laufen nur schlanke Hintergrundprozesse. WPF wird nur geladen, wenn jemand die Einstellungen öffnet.
-- **Leichtgewichtige Dauerprozesse.** Auf dem PC läuft dauerhaft nur der Agent, auf dem Notebook nur Dienst und Injector. Veröffentlicht wird framework-abhängig, der Code bleibt aber AOT-fähig, siehe [AOT und Speicher](aot-und-speicher.md).
+- **Leichtgewichtige Dauerprozesse.** Auf dem PC läuft dauerhaft nur der Agent, auf dem Notebook nur Dienst, Injector und das Tray-Symbol. Veröffentlicht wird framework-abhängig, der Code bleibt aber AOT-fähig, siehe [AOT und Speicher](aot-und-speicher.md).
 
 ## Prozesse
 
 ```
 PC (Server)                                    Notebook (Client)
-┌───────────────────────────────┐              ┌──────────────────────────────────────┐
-│ Einstellungen (WPF)           │              │ Einstellungen (WPF)                  │
-│  Settings.exe, bei Bedarf     │              │  Settings.exe, bei Bedarf            │
-│      │ Named Pipe             │              │      │ Named Pipe                    │
-│ Agent  Host.exe               │ TCP, AES-GCM │ Dienst  Client.exe                   │
-│  Benutzerkontext, erhöht      │◄─────────────│  SYSTEM, Session 0                   │
-│  Tray, Hooks, Layout-Engine,  │  Client baut │  Verbindung, Kopplung, Konfiguration │
-│  TCP-Listener                 │  Verbindung  │      │ Named Pipe (nur SYSTEM)       │
-└───────────────────────────────┘     auf      │ Injector  Client.exe --injector      │
-                                               │  SYSTEM, Session N: SendInput,       │
-                                               │  Desktop-Wechsel, Monitore/DPI       │
+                                               ┌──────────────────────────────────────┐
+                                               │ Tray  Client.exe --tray              │
+                                               │  Benutzer, Session N: Status         │
+┌───────────────────────────────┐              │ Einstellungen (WPF), bei Bedarf      │
+│ Einstellungen (WPF)           │              │      │ Named Pipe (beide)            │
+│  Settings.exe, bei Bedarf     │              │ Dienst  Client.exe                   │
+│      │ Named Pipe             │ TCP, AES-GCM │  SYSTEM, Session 0                   │
+│ Agent  Host.exe               │◄─────────────│  Verbindung, Konfiguration           │
+│  Benutzerkontext, erhöht      │  Client baut │      │ Named Pipe (nur SYSTEM)       │
+│  Tray, Hooks, Layout-Engine,  │  Verbindung  │ Injector  Client.exe --injector      │
+│  TCP-Listener                 │     auf      │  SYSTEM, Session N: SendInput,       │
+└───────────────────────────────┘              │  Desktop-Wechsel, Monitore/DPI       │
                                                └──────────────────────────────────────┘
 ```
 
 | Prozess | Programm | Seite | Kontext | Läuft | Aufgabe |
 |---|---|---|---|---|---|
 | [Agent](host.md) | `InputFusion.Host.exe` | PC | Benutzer, erhöht | dauerhaft, Aufgabenplanung bei Anmeldung | Hooks, Layout-Engine, TCP-Listener, Tray, Konfiguration |
-| [Dienst](client.md#dienst) | `InputFusion.Client.exe` | Notebook | SYSTEM, Session 0 | dauerhaft, Windows-Dienst | Verbindung, Kopplung, Konfiguration, startet den Injector |
+| [Dienst](client.md#dienst) | `InputFusion.Client.exe` | Notebook | SYSTEM, Session 0 | dauerhaft, Windows-Dienst | Verbindung, Konfiguration, startet Injector und Tray |
 | [Injector](client.md#injector) | `InputFusion.Client.exe --injector` | Notebook | SYSTEM, Benutzersitzung | solange eine Konsolensitzung aktiv ist | `SendInput`, Desktop-Wechsel, Monitore messen |
+| [Tray](client.md#tray) | `InputFusion.Client.exe --tray` | Notebook | angemeldeter Benutzer | solange jemand an der Konsole angemeldet ist | Tray-Symbol mit dem Zustand des Dienstes |
 | [Einstellungen](einstellungen.md) | `InputFusion.Settings.exe` | beide | Benutzer | bei Bedarf, aus Tray oder Startmenü | WPF: auf dem PC Layout-Editor, Kopplung, Tastenkürzel; auf dem Notebook Server-Adresse, Kopplung, Status |
 
 **Grundsatz:** Die Konfiguration hat je Seite genau einen Besitzer, den Agent bzw. den Dienst. Die Oberflächen lesen und schreiben nur per [IPC](ipc.md). Ob sie laufen, ist für den Betrieb egal.

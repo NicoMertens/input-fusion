@@ -5,6 +5,7 @@ using Windows.Win32.UI.WindowsAndMessaging;
 using InputFusion.Core.Config;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
+using InputFusion.Core.Shell;
 using Velopack;
 
 namespace InputFusion.Host;
@@ -87,7 +88,9 @@ internal static class Program
             + $"{(observe ? ", Beobachtung (kapert die Maus nicht)" : "")}"
             + $"{(diag ? ", Diagnose" : "")}{(remoteSession ? " [RDP erkannt]" : "")}.");
 
-        TrayIcon tray = new TrayIcon(SettingsLauncher.Open, cts.Cancel, state.RefreshHostMonitors, $"Version {AppVersion.Current}");
+        TrayIcon tray = new TrayIcon($"Version {AppVersion.Current}",
+            [new TrayCommand("Einstellungen …", SettingsLauncher.Open), new TrayCommand("Beenden", cts.Cancel)],
+            Log.Write, state.RefreshHostMonitors);
         tray.Start();
         tray.SetTooltip(state.StatusText);
         state.Changed += () => tray.SetTooltip(state.StatusText);

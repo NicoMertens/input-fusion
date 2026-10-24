@@ -1,11 +1,12 @@
-﻿using System.Net.Sockets;
+﻿using System.Net;
+using System.Net.Sockets;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
 
 namespace InputFusion.Client;
 
 /// <summary>
-/// Die Dienst-Rolle: hält den Injector am Leben und die Verbindung zum Host. Ist der Host nicht erreichbar
+/// Die Dienst-Rolle: hält Injector und Tray-Symbol am Leben und die Verbindung zum Host. Ist der Host nicht erreichbar
 /// oder bricht die Verbindung ab, wird es mit wachsendem Abstand bis <see cref="_maxRetryDelay"/> erneut
 /// versucht. Läuft im Windows-Dienst (<see cref="Worker"/>) und zum Entwickeln als Konsole (<c>--relay</c>).
 /// </summary>
@@ -22,7 +23,10 @@ internal static class ClientService
     /// <param name="protocolMismatch">Wird gerufen, wenn der Host eine andere Protokollversion spricht; der Dienst sucht dann nach einem Update.</param>
     public static async Task RunAsync(ConfigLoader loadConfig, bool asService, Action<string> log, CancellationToken ct, Action? protocolMismatch = null)
     {
-        Task supervisor = new InjectorSupervisor(asService, log).RunAsync(ct);
+        ClientStatus status = new ClientStatus();
+        Task injector = new SessionSupervisor("Injector", Injector.Argument, asUser: false, asService, log).RunAsync(ct);
+        Task tray = new SessionSupervisor("Tray", ClientTray.ArgumentsFor(Environment.ProcessId), asUser: true, asService, log).RunAsync(ct);
+        Task settings = new ClientSettingsServer(status, log).RunAsync(ct);
 
         TimeSpan delay = _minRetryDelay;
         string? lastProblem = null;
@@ -30,6 +34,7 @@ internal static class ClientService
         {
             ClientConfig? config = loadConfig(out string? error);
             string? problem = error;
+            status.Update(s => s with { Host = config?.Host, Port = config?.Port ?? s.Port });
             if (config is not null)
             {
                 (TcpClient? tcp, string? connectError) = await ConnectAsync(config, ct);
@@ -44,7 +49,18 @@ internal static class ClientService
                         if (handshake.Outcome == HandshakeOutcome.Accepted)
                         {
                             log($"Mit dem Host {tcp.Client.RemoteEndPoint} (Version {handshake.PeerVersion}) verbunden.");
-                            await new PipeRelay(conn, log).RunAsync(ct);
+                            IPAddress? ip = (tcp.Client.RemoteEndPoint as IPEndPoint)?.Address;
+                            // Der Socket ist Dual-Mode; eine IPv4-Gegenstelle erscheint sonst als ::ffff:a.b.c.d.
+                            string? address = (ip is { IsIPv4MappedToIPv6: true } ? ip.MapToIPv4() : ip)?.ToString();
+                            status.Update(s => s with { Connected = true, HostAddress = address, HostVersion = handshake.PeerVersion, Problem = null });
+                            try
+                            {
+                                await new PipeRelay(conn, log).RunAsync(ct);
+                            }
+                            finally
+                            {
+                                status.Update(s => s with { Connected = false, HostAddress = null, HostVersion = null });
+                            }
                         }
                     }
                     if (handshake.Outcome == HandshakeOutcome.ProtocolMismatch)
@@ -80,13 +96,16 @@ internal static class ClientService
             }
 
             lastProblem = problem;
+            status.Update(s => s with { Problem = problem });
 
             try { await Task.Delay(delay, ct); }
             catch (OperationCanceledException) { break; }
             delay = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, _maxRetryDelay.Ticks));
         }
 
-        await supervisor;
+        await injector;
+        await tray;
+        await settings;
     }
 
     /// <summary>Erst der Rechnername per DNS, dann die feste IP, falls eingetragen.</summary>

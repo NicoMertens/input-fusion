@@ -13,7 +13,7 @@ Layout-Editor, Kopplung, Tastenkürzel, Port (später; bis dahin von Hand in der
 
 ## Auf dem Notebook
 
-Server-Adresse und Port, Kopplungscode, Status, Vorschau der eigenen Monitore. Kein Layout-Editor, das Layout gehört dem Server. Ob der Client ein eigenes Tray-Icon bekommt, ist noch offen; bis dahin steht der Status hier.
+Server-Adresse und Port, Kopplungscode, Status, Vorschau der eigenen Monitore. Kein Layout-Editor, das Layout gehört dem Server. Den Status zeigt außerdem das [Tray-Symbol](client.md#tray). Ändern dürfen nur Administratoren: Zum Übernehmen startet die Oberfläche per UAC erhöht neu, und der Dienst prüft das Konto des Aufrufers; nur Administratoren sehen den Schlüssel. Ausgeliefert wird sie eingebettet in die Client-exe, die sie beim Installieren auspackt.
 
 ## Stand: Einstellungen des PCs
 

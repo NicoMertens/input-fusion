@@ -66,4 +66,46 @@ public class InputPipeTests
 
         InputPipe.VerifyServer(client);
     }
+
+    [Fact]
+    public async Task Verify_RejectsServerOfOtherAccount()
+    {
+        using CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        using NamedPipeServerStream server = InputPipe.CreateServer();
+        using NamedPipeClientStream client = InputPipe.CreateClient();
+
+        Task accept = server.WaitForConnectionAsync(cts.Token);
+        await client.ConnectAsync(cts.Token);
+        await accept;
+
+        // Der Test läuft nicht als SYSTEM; ein Server unter dem Testkonto ist für einen SYSTEM-Client also fremd.
+        Assert.Throws<UnauthorizedAccessException>(() => PipeServerIdentity.Verify(client, PipeServerIdentity.LocalSystem));
+    }
+
+    [Fact]
+    public async Task ClientPipe_DeliversStateFromServerOfSameUser()
+    {
+        using CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        NamedPipeServerStream server = ClientPipe.CreateServer();
+        NamedPipeClientStream client = ClientPipe.CreateClient();
+
+        Task accept = server.WaitForConnectionAsync(cts.Token);
+        await client.ConnectAsync(cts.Token);
+        await accept;
+        ClientPipe.VerifyServer(client);
+
+        using MessageConnection serverConn = new MessageConnection(server);
+        using MessageConnection clientConn = new MessageConnection(client);
+        ClientStateMessage state = new ClientStateMessage("0.5.0", "PC", 15111, false, null, null, "Host PC:15111 antwortet nicht.");
+        await serverConn.SendAsync(MessageType.Settings, state.ToPayload(), cts.Token);
+
+        await foreach ((MessageType type, byte[] payload) in clientConn.ReceiveAsync(cts.Token))
+        {
+            Assert.Equal(MessageType.Settings, type);
+            Assert.Equal(state, SettingsMessage.FromPayload(payload));
+            break;
+        }
+    }
 }

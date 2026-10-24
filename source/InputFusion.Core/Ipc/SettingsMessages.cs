@@ -5,15 +5,16 @@ using InputFusion.Core.Layout;
 namespace InputFusion.Core.Ipc;
 
 /// <summary>
-/// Nachrichten zwischen den Einstellungen und dem Agent, als JSON im Frame-Typ
-/// <see cref="Protocol.MessageType.Settings"/>. Die Einstellungen fragen und ändern, der Agent antwortet mit
-/// seinem ganzen Zustand und schickt ihn bei jeder Änderung von selbst erneut.
+/// Nachrichten zwischen den Einstellungen und dem Agent bzw. Tray und Dienst, als JSON im Frame-Typ
+/// <see cref="Protocol.MessageType.Settings"/>. Die Oberflächen fragen und ändern, Agent und Dienst antworten mit
+/// ihrem ganzen Zustand und schicken ihn bei jeder Änderung von selbst erneut.
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(GetStateRequest), "getState")]
 [JsonDerivedType(typeof(SetKeyRequest), "setKey")]
 [JsonDerivedType(typeof(SetClientOffsetRequest), "setClientOffset")]
 [JsonDerivedType(typeof(HostStateMessage), "hostState")]
+[JsonDerivedType(typeof(ClientStateMessage), "clientState")]
 [JsonDerivedType(typeof(SettingsError), "error")]
 public abstract record SettingsMessage
 {
@@ -52,6 +53,26 @@ public sealed record HostStateMessage(
 
 /// <summary>Der verbundene Client. <see cref="Monitors"/> ist leer, solange er seine Monitore nicht gemeldet hat.</summary>
 public sealed record ClientStateInfo(string Address, string Version, IReadOnlyList<MonitorRect> Monitors, int OffsetX, int OffsetY);
+
+/// <summary>
+/// Der Zustand des Dienstes auf dem Notebook. <see cref="Host"/> ist null, solange <c>client.json</c> fehlt oder
+/// nicht lesbar ist; <see cref="Problem"/> ist die letzte Störung beim Verbinden, solange keine Verbindung steht.
+/// </summary>
+public sealed record ClientStateMessage(
+    string Version,
+    string? Host,
+    int Port,
+    bool Connected,
+    string? HostAddress,
+    string? HostVersion,
+    string? Problem) : SettingsMessage
+{
+    /// <summary>Eine Zeile für Tooltip und Statuszeile.</summary>
+    public string Summary() =>
+        Connected ? $"Verbunden mit {Host} ({HostAddress}), Host-Version {HostVersion}."
+        : Host is null ? $"Nicht eingerichtet. {Problem}".TrimEnd()
+        : $"Nicht verbunden mit {Host}. {Problem}".TrimEnd();
+}
 
 /// <summary>Eine Änderung wurde abgelehnt; geht nur an die Einstellungen, die sie verlangt haben.</summary>
 public sealed record SettingsError(string Message) : SettingsMessage;

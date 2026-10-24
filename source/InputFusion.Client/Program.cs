@@ -14,6 +14,12 @@ if (args is [Injector.Argument, ..])
     return;
 }
 
+if (args is [ClientTray.Argument, .. var trayRest])
+{
+    ClientTray.Run(trayRest);
+    return;
+}
+
 if (args is ["--connect", var hostName, "--key", var spikeKey, .. var spikeRest])
 {
     await SpikeClient.RunAsync(hostName, spikeKey, PortArgument(spikeRest));

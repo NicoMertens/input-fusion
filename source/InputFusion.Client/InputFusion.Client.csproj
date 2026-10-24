@@ -6,6 +6,8 @@
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <ApplicationManifest>..\app.manifest</ApplicationManifest>
+    <!-- Das Tray-Symbol lädt das ApplicationIcon aus der exe. -->
+    <ApplicationIcon>..\InputFusion.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

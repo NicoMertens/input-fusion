@@ -22,6 +22,28 @@ public class SettingsMessagesTests
     }
 
     [Fact]
+    public void ClientState_RoundTrip()
+    {
+        SettingsMessage message = new ClientStateMessage("0.5.0", "PC", 15111, true, "192.168.1.10", "0.5.0", null);
+
+        ClientStateMessage back = Assert.IsType<ClientStateMessage>(SettingsMessage.FromPayload(message.ToPayload()));
+
+        Assert.Equal(message, back);
+    }
+
+    [Theory]
+    [InlineData(true, "PC", null, "Verbunden mit PC (192.168.1.10), Host-Version 0.5.0.")]
+    [InlineData(false, "PC", "Host PC:15111 nicht erreichbar (TimedOut).", "Nicht verbunden mit PC. Host PC:15111 nicht erreichbar (TimedOut).")]
+    [InlineData(false, null, null, "Nicht eingerichtet.")]
+    public void ClientState_Summary(bool connected, string? host, string? problem, string expected)
+    {
+        ClientStateMessage state = new ClientStateMessage("0.5.0", host, 15111, connected,
+            connected ? "192.168.1.10" : null, connected ? "0.5.0" : null, problem);
+
+        Assert.Equal(expected, state.Summary());
+    }
+
+    [Fact]
     public void Requests_CarryTypeDiscriminator()
     {
         string json = Encoding.UTF8.GetString(new SetKeyRequest("abcdefghijkmnpqr").ToPayload());

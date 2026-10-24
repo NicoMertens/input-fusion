@@ -1,11 +1,6 @@
-﻿using System.ComponentModel;
-using System.IO.Pipes;
+﻿using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
-using Windows.Win32;
-using Windows.Win32.Foundation;
-using Windows.Win32.Security;
-using Windows.Win32.System.Threading;
 
 namespace InputFusion.Core.Ipc;
 
@@ -60,53 +55,6 @@ public static class InputPipe
     /// anlegt, ihm Eingaben unterschieben, die dann auch Sperrbildschirm und UAC-Abfrage erreichen.
     /// </summary>
     /// <exception cref="UnauthorizedAccessException">Der Server läuft unter einem anderen Konto, oder sein Konto ist nicht zu ermitteln.</exception>
-    public static unsafe void VerifyServer(NamedPipeClientStream pipe)
-    {
-        uint pid;
-        if (!PInvoke.GetNamedPipeServerProcessId((HANDLE)pipe.SafePipeHandle.DangerousGetHandle(), &pid))
-        {
-            throw new UnauthorizedAccessException($"Server der Pipe nicht ermittelbar: {new Win32Exception().Message}");
-        }
-
-        SecurityIdentifier? me = WindowsIdentity.GetCurrent().User;
-        SecurityIdentifier? server = GetProcessUser(pid);
-        if (me is null || server is null || server != me)
-        {
-            throw new UnauthorizedAccessException(
-                $"Server der Pipe (PID {pid}) läuft als {server?.Value ?? "unbekannt"}, erwartet {me?.Value ?? "unbekannt"}.");
-        }
-    }
-
-    /// <summary>Konto, unter dem ein Prozess läuft; <see langword="null"/>, wenn Prozess oder Token nicht zu öffnen sind.</summary>
-    private static unsafe SecurityIdentifier? GetProcessUser(uint pid)
-    {
-        HANDLE process = PInvoke.OpenProcess(PROCESS_ACCESS_RIGHTS.PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
-        if (process.IsNull)
-        {
-            return null;
-        }
-
-        try
-        {
-            HANDLE token;
-            if (!PInvoke.OpenProcessToken(process, TOKEN_ACCESS_MASK.TOKEN_QUERY, &token))
-            {
-                return null;
-            }
-
-            try
-            {
-                using WindowsIdentity identity = new WindowsIdentity((IntPtr)token.Value);
-                return identity.User;
-            }
-            finally
-            {
-                PInvoke.CloseHandle(token);
-            }
-        }
-        finally
-        {
-            PInvoke.CloseHandle(process);
-        }
-    }
+    public static void VerifyServer(NamedPipeClientStream pipe) =>
+        PipeServerIdentity.Verify(pipe, PipeServerIdentity.CurrentUser());
 }
