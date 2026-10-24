@@ -19,4 +19,10 @@
     <ProjectReference Include="..\InputFusion.Core\InputFusion.Core.csproj" />
   </ItemGroup>
 
+  <!-- Der Release übergibt die als einzelne Datei veröffentlichten Einstellungen (-p:EmbeddedSettings=…); der
+       installierte Dienst packt sie aus (SettingsExtractor). Lokale Builds kommen ohne aus. -->
+  <ItemGroup Condition="'$(EmbeddedSettings)' != ''">
+    <EmbeddedResource Include="$(EmbeddedSettings)" LogicalName="InputFusion.Settings.exe" />
+  </ItemGroup>
+
 </Project>

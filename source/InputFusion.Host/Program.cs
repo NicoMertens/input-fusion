@@ -31,13 +31,13 @@ internal static class Program
         }
         catch (UnauthorizedAccessException)
         {
-            SettingsLauncher.Open();
+            SettingsLauncher.Open(Log.Write);
             return;
         }
         using Mutex firstInstance = instance;
         if (!first)
         {
-            SettingsLauncher.Open();
+            SettingsLauncher.Open(Log.Write);
             return;
         }
 
@@ -89,7 +89,7 @@ internal static class Program
             + $"{(diag ? ", Diagnose" : "")}{(remoteSession ? " [RDP erkannt]" : "")}.");
 
         TrayIcon tray = new TrayIcon($"Version {AppVersion.Current}",
-            [new TrayCommand("Einstellungen …", SettingsLauncher.Open), new TrayCommand("Beenden", cts.Cancel)],
+            [new TrayCommand("Einstellungen …", () => SettingsLauncher.Open(Log.Write)), new TrayCommand("Beenden", cts.Cancel)],
             Log.Write, state.RefreshHostMonitors);
         tray.Start();
         tray.SetTooltip(state.StatusText);

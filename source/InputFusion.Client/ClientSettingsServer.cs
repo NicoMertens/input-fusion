@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.IO;
 using System.IO.Pipes;
+using InputFusion.Core.Config;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
@@ -9,9 +10,11 @@ namespace InputFusion.Client;
 
 /// <summary>
 /// Hostet die Pipe für Tray und Einstellungen (<see cref="ClientPipe"/>). Jede verbundene Oberfläche bekommt sofort
-/// und nach jeder Änderung den Zustand aus <see cref="ClientStatus"/>.
+/// und nach jeder Änderung den Zustand aus <see cref="ClientStatus"/>. Ändern dürfen nur Administratoren: Wer Host und
+/// Schlüssel bestimmt, bestimmt, wer als SYSTEM auf diesem Rechner Eingaben abspielt.
 /// </summary>
-internal sealed class ClientSettingsServer(ClientStatus status, Action<string> log)
+/// <param name="save">Null, wenn die Konfiguration feststeht (<c>--relay</c>).</param>
+internal sealed class ClientSettingsServer(ClientStatus status, ClientService.ConfigSaver? save, Action<string> log)
 {
     public async Task RunAsync(CancellationToken ct)
     {
@@ -43,12 +46,15 @@ internal sealed class ClientSettingsServer(ClientStatus status, Action<string> l
 
     private async Task ServeAsync(NamedPipeServerStream pipe, CancellationToken ct)
     {
+        // Einmal je Verbindung: Ein Prozess wechselt seine Erhöhung nicht, die Einstellungen starten dafür neu.
+        bool administrator = PipeIdentity.IsClientAdministrator(pipe);
+        bool canEdit = administrator && save is not null;
         using MessageConnection connection = new MessageConnection(pipe);
-        Action push = () => _ = SendAsync(connection, status.Snapshot(), ct);
+        Action push = () => _ = SendAsync(connection, status.Snapshot(administrator, canEdit), ct);
         status.Changed += push;
         try
         {
-            await SendAsync(connection, status.Snapshot(), ct);
+            await SendAsync(connection, status.Snapshot(administrator, canEdit), ct);
             await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(ct))
             {
                 if (type != MessageType.Settings)
@@ -56,12 +62,19 @@ internal sealed class ClientSettingsServer(ClientStatus status, Action<string> l
                     continue;
                 }
 
-                if (SettingsMessage.FromPayload(payload) is not GetStateRequest)
+                string? error = SettingsMessage.FromPayload(payload) switch
                 {
-                    await SendAsync(connection, new SettingsError("Unbekannte Anfrage."), ct);
+                    GetStateRequest => null,
+                    SetClientConfigRequest request => Apply(request, administrator),
+                    _ => "Unbekannte Anfrage.",
+                };
+                // Nach jeder Anfrage den Stand schicken: Bei einer Ablehnung setzt er die Anzeige zurück.
+                if (error is not null)
+                {
+                    await SendAsync(connection, new SettingsError(error), ct);
                 }
 
-                await SendAsync(connection, status.Snapshot(), ct);
+                await SendAsync(connection, status.Snapshot(administrator, canEdit), ct);
             }
         }
         catch (Exception ex) when (ex is OperationCanceledException or IOException or ObjectDisposedException)
@@ -71,6 +84,23 @@ internal sealed class ClientSettingsServer(ClientStatus status, Action<string> l
         {
             status.Changed -= push;
         }
+    }
+
+    private string? Apply(SetClientConfigRequest request, bool administrator)
+    {
+        if (!administrator)
+        {
+            return "Nur Administratoren dürfen die Verbindung ändern.";
+        }
+
+        if (save is null)
+        {
+            return "Im Entwicklungsmodus mit --relay steht die Verbindung fest.";
+        }
+
+        string? ip = string.IsNullOrWhiteSpace(request.Ip) ? null : request.Ip.Trim();
+        return ClientConfigRules.Validate(request.Host, ip, request.Port, request.Key)
+            ?? save(new ClientConfig(request.Host, request.Key, ip, request.Port));
     }
 
     private static async Task SendAsync(MessageConnection connection, SettingsMessage message, CancellationToken ct)

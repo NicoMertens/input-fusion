@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
 using InputFusion.Core.Ipc;
@@ -11,7 +11,7 @@ namespace InputFusion.Client;
 /// <summary>
 /// Das Tray-Symbol auf dem Notebook. Läuft als angemeldeter Benutzer, weil weder der Dienst (Session 0) noch der
 /// Injector (SYSTEM, absichtlich ohne Oberfläche) ein Symbol zeigen können; der Dienst startet ihn je Sitzung.
-/// Den Zustand holt er über die <see cref="ClientPipe"/> vom Dienst und zeigt ihn im Tooltip.
+/// Den Zustand holt er über die <see cref="ClientPipe"/> vom Dienst und zeigt ihn im Tooltip; Doppelklick öffnet die Einstellungen.
 /// </summary>
 internal static class ClientTray
 {
@@ -35,7 +35,8 @@ internal static class ClientTray
             _ = WatchOwnerAsync(pid, cts);
         }
 
-        TrayIcon tray = new TrayIcon($"InputFusion Client {AppVersion.Current}", [], Console.WriteLine);
+        TrayIcon tray = new TrayIcon($"InputFusion Client {AppVersion.Current}",
+            [new TrayCommand("Einstellungen …", () => SettingsLauncher.Open(Console.WriteLine, SettingsLauncher.ClientArgument))], Console.WriteLine);
         tray.Start();
         tray.SetTooltip("InputFusion: Dienst nicht erreichbar.");
         try

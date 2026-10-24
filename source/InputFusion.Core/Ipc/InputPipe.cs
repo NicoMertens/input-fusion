@@ -56,5 +56,5 @@ public static class InputPipe
     /// </summary>
     /// <exception cref="UnauthorizedAccessException">Der Server läuft unter einem anderen Konto, oder sein Konto ist nicht zu ermitteln.</exception>
     public static void VerifyServer(NamedPipeClientStream pipe) =>
-        PipeServerIdentity.Verify(pipe, PipeServerIdentity.CurrentUser());
+        PipeIdentity.VerifyServer(pipe, PipeIdentity.CurrentUser());
 }

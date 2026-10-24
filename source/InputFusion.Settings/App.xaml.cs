@@ -1,12 +1,17 @@
-﻿using System.Diagnostics;
+﻿using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
+using InputFusion.Core.Ipc;
+using InputFusion.Core.Shell;
 
 namespace InputFusion.Settings;
 
 public partial class App : Application
 {
     private const string InstanceMutexName = @"Local\InputFusion.Settings";
+    private const string ClientExeName = "InputFusion.Client.exe";
 
     private Mutex? _instance;
 
@@ -19,13 +24,59 @@ public partial class App : Application
             Shutdown();
             return;
         }
-        new MainWindow().Show();
+
+        Window window = IsClientSide(e.Args) ? new ClientWindow() : new MainWindow();
+        window.Show();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
         _instance?.Dispose();
         base.OnExit(e);
+    }
+
+    /// <summary>
+    /// Startet die Einstellungen per UAC erhöht neu. Die Instanz-Sperre wird vorher freigegeben, sonst holte der neue
+    /// Prozess nur dieses Fenster nach vorn; lehnt der Benutzer ab, nimmt diese Instanz sie wieder.
+    /// </summary>
+    /// <returns>Ob der neue Prozess gestartet ist; dann schließt der Aufrufer sein Fenster.</returns>
+    public bool RestartElevated(string argument)
+    {
+        _instance?.ReleaseMutex();
+        _instance?.Dispose();
+        _instance = null;
+        try
+        {
+            Process.Start(new ProcessStartInfo(Environment.ProcessPath!, argument) { UseShellExecute = true, Verb = "runas" })?.Dispose();
+            return true;
+        }
+        catch (Win32Exception)
+        {
+            // UAC-Abfrage abgelehnt.
+            _instance = new Mutex(initiallyOwned: true, InstanceMutexName, out _);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Die Seite ergibt sich aus der laufenden Pipe: die des Agents auf dem PC, die des Dienstes auf dem Notebook. Läuft
+    /// keins von beiden, entscheidet der Ordner: Auf dem Notebook liegt die Oberfläche neben der Client-exe.
+    /// </summary>
+    private static bool IsClientSide(string[] args)
+    {
+        if (args.Contains(SettingsLauncher.ClientArgument))
+        {
+            return true;
+        }
+
+        HashSet<string> pipes = Directory.EnumerateFiles(@"\\.\pipe\").Select(Path.GetFileName).OfType<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (pipes.Contains(SettingsPipe.Name))
+        {
+            return false;
+        }
+
+        return pipes.Contains(ClientPipe.Name) || File.Exists(Path.Combine(AppContext.BaseDirectory, ClientExeName));
     }
 
     /// <summary>Ein zweiter Start (etwa ein weiterer Doppelklick aufs Tray-Symbol) holt das offene Fenster nach vorn.</summary>

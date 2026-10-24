@@ -36,6 +36,10 @@ internal sealed class ClientUpdater
     public static string StagingRoot { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "InputFusion", "Update");
 
+    /// <summary>Ob diese exe die installierte ist und nicht etwa ein Build unter <c>_out</c>.</summary>
+    public static bool RunsFromInstallDirectory { get; } =
+        string.Equals(Path.GetFullPath(AppContext.BaseDirectory).TrimEnd('\\'), InstallDirectory, StringComparison.OrdinalIgnoreCase);
+
     public ClientUpdater(bool asService, Action<string> log)
     {
         _log = log;
@@ -43,8 +47,7 @@ internal sealed class ClientUpdater
         string? repoUrl = typeof(ClientUpdater).Assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()
             .FirstOrDefault(a => a.Key == "RepositoryUrl")?.Value;
-        bool installed = string.Equals(Path.GetFullPath(AppContext.BaseDirectory).TrimEnd('\\'), InstallDirectory, StringComparison.OrdinalIgnoreCase);
-        if (asService && installed && !string.IsNullOrWhiteSpace(repoUrl))
+        if (asService && RunsFromInstallDirectory && !string.IsNullOrWhiteSpace(repoUrl))
         {
             _latestRelease = ReleaseCheck.LatestReleaseApi(repoUrl);
         }

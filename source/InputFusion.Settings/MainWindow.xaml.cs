@@ -29,8 +29,14 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        _connection = new SettingsConnection(Dispatcher);
-        _connection.StateReceived += OnState;
+        _connection = new SettingsConnection(Dispatcher, SettingsPipe.CreateClient);
+        _connection.StateReceived += message =>
+        {
+            if (message is HostStateMessage state)
+            {
+                OnState(state);
+            }
+        };
         _connection.ErrorReceived += OnError;
         _connection.ConnectedChanged += OnConnectedChanged;
         OnConnectedChanged(false);

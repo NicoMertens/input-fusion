@@ -16,7 +16,7 @@ Worker Service mit `AddWindowsService()`, LocalSystem, Starttyp automatisch.
   3. `CreateProcessAsUser` auf die eigene exe mit `--injector` und `lpDesktop = "winsta0\\default"`.
 
   Die exe ist eine Konsolenanwendung, damit der Dienst beim Entwickeln ins Terminal loggt. Deshalb braucht der Start `CREATE_NO_WINDOW`, sonst öffnet sich in der Benutzersitzung ein Konsolenfenster.
-- **Konfiguration** in `%ProgramData%\InputFusion\client.json` (Rechnername des PCs, gemeinsamer Schlüssel, optional feste IP und Port, Standard 15111), ACL nur für SYSTEM und Administratoren. Der Dienst ist ihr einziger Besitzer; die [Einstellungen](einstellungen.md) ändern sie später nur über IPC. Bis dahin schreibt sie das Installationsskript, siehe [Installation](installation.md).
+- **Konfiguration** in `%ProgramData%\InputFusion\client.json` (Rechnername des PCs, gemeinsamer Schlüssel, optional feste IP und Port, Standard 15111), ACL nur für SYSTEM und Administratoren. Der Dienst ist ihr einziger Besitzer; Setup oder Installationsskript legen sie an (siehe [Installation](installation.md)), danach ändert sie ein Administrator in den [Einstellungen](einstellungen.md#stand-einstellungen-des-notebooks), die über IPC den Dienst schreiben lassen.
 - **`Strg+Alt+Entf`** optional über `SendSAS` (sas.dll). Setzt die Richtlinie *SoftwareSASGeneration* voraus, die Diensten das erlauben muss.
 
 ## Injector
@@ -28,7 +28,7 @@ Worker Service mit `AddWindowsService()`, LocalSystem, Starttyp automatisch.
 
 ## Tray
 
-Das Tray-Symbol auf dem Notebook zeigt im Tooltip den Zustand des Dienstes: verbunden mit welchem Host, sonst die letzte Störung („Host … nicht erreichbar“, „stimmt der Schlüssel?“) oder „Dienst nicht erreichbar“. Das Kontextmenü zeigt die Version; Einstellungen kommen mit der [Oberfläche fürs Notebook](einstellungen.md#auf-dem-notebook).
+Das Tray-Symbol auf dem Notebook zeigt im Tooltip den Zustand des Dienstes: verbunden mit welchem Host, sonst die letzte Störung („Host … nicht erreichbar“, „stimmt der Schlüssel?“) oder „Dienst nicht erreichbar“. Doppelklick oder „Einstellungen …“ im Kontextmenü öffnet die [Einstellungen](einstellungen.md#stand-einstellungen-des-notebooks) als angemeldeter Benutzer; darüber steht ausgegraut die Version.
 
 - **Eigener Prozess als angemeldeter Benutzer** (`ClientTray`, `--tray`): Der Dienst in Session 0 kann kein Symbol zeigen, und der Injector soll als SYSTEM keine Oberfläche haben. Als Benutzer gestartet, landen später auch Dateien der Zwischenablage mit dessen Rechten in dessen Profil, siehe [Später](#später).
 - **Start durch den Dienst**, wie der Injector über einen `SessionSupervisor`, aber mit dem Token des Benutzers: `WTSQueryUserToken` für die aktive Konsolensitzung, `CreateEnvironmentBlock` für dessen Umgebung (sonst erbte der Prozess TEMP und APPDATA von SYSTEM), dann `CreateProcessAsUser` mit `CREATE_NO_WINDOW`. Solange niemand angemeldet ist, schlägt `WTSQueryUserToken` fehl; der Supervisor meldet das einmal und versucht es jede Sekunde wieder. Beendet ein Update oder das Setup alle Client-Prozesse, startet der Dienst das Symbol danach neu. Mit `--relay` läuft es als Kindprozess.
@@ -36,7 +36,7 @@ Das Tray-Symbol auf dem Notebook zeigt im Tooltip den Zustand des Dienstes: verb
 - **Endet mit dem Dienst:** Der Dienst gibt seine PID mit (`--tray <pid>`), das Symbol prüft jede Sekunde in der Prozessliste, ob es ihn noch gibt, und beendet sich sonst. Nach einem Absturz des Dienstes kennt der neu gestartete das alte Symbol nicht, es gäbe sonst zwei. Warten auf das Prozess-Handle geht nicht, ein Benutzer bekommt es für einen SYSTEM-Prozess nicht.
 - **Zustand über die [Pipe des Dienstes](ipc.md#stand-tray-und-einstellungen--dienst):** Der Dienst schickt ihn beim Verbinden und bei jeder Änderung. Bricht die Pipe ab, verbindet das Symbol jede Sekunde neu.
 - **Symbol:** `InputFusion.ico` als `ApplicationIcon` der Client-exe, dieselbe Tray-Klasse wie beim [Host](host.md#stand-tray-agent) (`TrayIcon` in Core).
-- **Geprüft** auf dem PC mit `--relay` und als installierter Dienst gegen einen Host auf demselben Rechner: Der Dienst startet das Symbol in Sitzung 1 als angemeldeter Benutzer, nicht erhöht; der Zustand zeigt nicht erreichbaren Host, abweichende Protokollversion, Verbindung mit Adresse und Version und nach dem Beenden des Hosts wieder „nicht verbunden“. Nach einer Neuinstallation gibt es nur ein Symbol; beendet man `--relay`, endet das Symbol mit. Noch nicht am Notebook (Anmelden, Benutzerwechsel).
+- **Geprüft** auf dem PC mit `--relay` und als installierter Dienst gegen einen Host auf demselben Rechner: Der Dienst startet das Symbol in Sitzung 1 als angemeldeter Benutzer, nicht erhöht; der Zustand des Dienstes zeigt nicht erreichbaren Host, abweichende Protokollversion, Verbindung mit Adresse und Version und nach dem Beenden des Hosts wieder „nicht verbunden“. Der Tooltip selbst zeigt ihn erst, seit das Symbol den Besitzer der Pipe prüft statt das Konto des Dienst-Prozesses, das ein Benutzer nicht lesen darf (siehe [IPC](ipc.md#stand-tray-und-einstellungen--dienst)). Nach einer Neuinstallation gibt es nur ein Symbol; beendet man `--relay`, endet das Symbol mit. Noch nicht am Notebook (Anmelden, Benutzerwechsel).
 
 ## Stand Phase 1 (Durchstich)
 
@@ -89,6 +89,12 @@ Umgesetzt wie unter [Injector](#injector) geplant, weil am gesperrten Notebook M
 Möglich ist das, weil der Release den Client als **einzelne Datei** veröffentlicht (`PublishSingleFile`, framework-abhängig, rund 3 MB). Die Log-Stufen für das Ereignisprotokoll stehen deshalb im Code statt in `appsettings.json`, das der einzelnen exe fehlen würde. Deinstalliert wird weiter mit `uninstall-client.ps1` aus dem Client-Paket.
 
 Geprüft: Veröffentlichen als einzelne Datei, Start, Nachfrage, Abbruch ohne Änderung. Der erhöhte Teil (Dienst anlegen) ist noch nicht am Notebook gelaufen.
+
+## Einstellungen ausliefern
+
+Der Release veröffentlicht die Einstellungen als einzelne Datei (rund 700 KB, framework-abhängig) und bettet sie in die Client-exe ein (`-p:EmbeddedSettings=…`, Ressource `InputFusion.Settings.exe`). Der installierte Dienst packt sie bei jedem Start neben sich aus (`SettingsExtractor`), wenn sie fehlt oder sich unterscheidet: erst als `.new` daneben, dann getauscht. So bringen Setup per Doppelklick, Installationsskript und Selbst-Update sie mit, ohne dass sie einzeln verteilt werden. Sind sie gerade offen, klappt das Auspacken nicht; der Dienst meldet das und versucht es beim nächsten Start. Setup und Update-Helfer beenden vorher offene Einstellungen aus dem Installationsordner, sonst sperrten sie den Tausch (`ClientProcesses`). Builds ohne die Eigenschaft bringen keine mit; beim Entwickeln findet das Tray sie unter `_out\InputFusion.Settings`.
+
+Geprüft: lokal wie im Release veröffentlicht (Client-exe rund 700 KB größer), installiert, vom Dienst ausgepackt und aus dem Tray gestartet.
 
 ## Später
 

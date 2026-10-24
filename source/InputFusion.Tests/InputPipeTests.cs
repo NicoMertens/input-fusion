@@ -1,4 +1,5 @@
 ﻿using System.IO.Pipes;
+using System.Security.Principal;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
@@ -80,7 +81,7 @@ public class InputPipeTests
         await accept;
 
         // Der Test läuft nicht als SYSTEM; ein Server unter dem Testkonto ist für einen SYSTEM-Client also fremd.
-        Assert.Throws<UnauthorizedAccessException>(() => PipeServerIdentity.Verify(client, PipeServerIdentity.LocalSystem));
+        Assert.Throws<UnauthorizedAccessException>(() => PipeIdentity.VerifyServer(client, PipeIdentity.LocalSystem));
     }
 
     [Fact]
@@ -98,7 +99,7 @@ public class InputPipeTests
 
         using MessageConnection serverConn = new MessageConnection(server);
         using MessageConnection clientConn = new MessageConnection(client);
-        ClientStateMessage state = new ClientStateMessage("0.5.0", "PC", 15111, false, null, null, "Host PC:15111 antwortet nicht.");
+        ClientStateMessage state = new ClientStateMessage("0.5.0", "PC", null, 15111, null, false, false, null, null, "Host PC:15111 antwortet nicht.");
         await serverConn.SendAsync(MessageType.Settings, state.ToPayload(), cts.Token);
 
         await foreach ((MessageType type, byte[] payload) in clientConn.ReceiveAsync(cts.Token))
@@ -107,5 +108,22 @@ public class InputPipeTests
             Assert.Equal(state, SettingsMessage.FromPayload(payload));
             break;
         }
+    }
+
+    [Fact]
+    public async Task IsClientAdministrator_MatchesElevationOfClient()
+    {
+        using CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        using NamedPipeServerStream server = ClientPipe.CreateServer();
+        using NamedPipeClientStream client = ClientPipe.CreateClient();
+
+        Task accept = server.WaitForConnectionAsync(cts.Token);
+        await client.ConnectAsync(cts.Token);
+        await accept;
+
+        // Server und Client sind hier derselbe Prozess; ob er erhöht läuft, hängt davon ab, wie die Tests gestartet wurden.
+        bool elevated = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+        Assert.Equal(elevated, PipeIdentity.IsClientAdministrator(server));
     }
 }

@@ -34,7 +34,7 @@ if (args is ["--relay", var relayHost, "--key", var relayKey, .. var relayRest])
     using CancellationTokenSource cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
     ClientService.ConfigLoader fixedHost = (out string? error) => { error = null; return new ClientConfig(relayHost, relayKey, Port: relayPort); };
-    await ClientService.RunAsync(fixedHost, asService: false, Console.WriteLine, cts.Token);
+    await ClientService.RunAsync(fixedHost, saveConfig: null, asService: false, Console.WriteLine, cts.Token);
     return;
 }
 

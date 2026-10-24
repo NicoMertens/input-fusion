@@ -80,3 +80,4 @@ OpenProcess
 WTSQueryUserToken
 CreateEnvironmentBlock
 DestroyEnvironmentBlock
+GetNamedPipeClientProcessId

@@ -21,7 +21,7 @@ Das Skript
 
 `-Source` ist der Ordner mit `InputFusion.Client.exe`. Ohne Angabe nimmt das Skript seinen eigenen Ordner, falls die exe dort liegt, sonst die Build-Ausgabe im Repo (`_out/InputFusion.Client`). Zum Übertragen aufs Notebook genügt es also, die Skripte in den Ordner mit den Client-Dateien zu legen.
 
-Die Konfiguration liest der Dienst vor jedem Verbindungsversuch neu, eine Änderung greift ohne Neustart beim nächsten Versuch.
+Danach ändert ein Administrator die Verbindung in den Einstellungen (Doppelklick aufs Tray-Symbol, dann „Als Administrator bearbeiten …“), siehe [Einstellungen](einstellungen.md#stand-einstellungen-des-notebooks). Sie brauchen die .NET 10 Desktop Runtime, die weder Setup noch Skript bisher prüfen. Die Konfiguration liest der Dienst vor jedem Verbindungsversuch neu, eine Änderung von Hand greift ohne Neustart beim nächsten Versuch.
 
 ```json
 {
