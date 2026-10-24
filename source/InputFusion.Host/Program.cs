@@ -145,9 +145,10 @@ internal static class Program
     /// </summary>
     private static async Task ListenAsync(HostState state, bool absolute, bool observe, bool diag, CancellationToken ct)
     {
-        TcpListener listener = new TcpListener(IPAddress.Any, state.Port);
         while (!ct.IsCancellationRequested)
         {
+            // Je Durchgang neu: Stop verwirft den Socket, ein neu angelegter wäre nicht mehr Dual-Mode.
+            TcpListener listener = CreateListener(state.Port);
             TcpClient tcp;
             try
             {
@@ -178,11 +179,27 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Lauscht auf IPv4 und IPv6. Löst das Notebook den Rechnernamen zuerst in IPv6-Adressen auf, gelingt die Verbindung
+    /// so schon dort; nur auf IPv4 blieben solche Versuche je nach Firewall hängen. Ohne IPv6 im System nur IPv4.
+    /// </summary>
+    private static TcpListener CreateListener(int port)
+    {
+        if (!Socket.OSSupportsIPv6)
+        {
+            return new TcpListener(IPAddress.Any, port);
+        }
+
+        TcpListener listener = new TcpListener(IPAddress.IPv6Any, port);
+        listener.Server.DualMode = true;
+        return listener;
+    }
+
     private static async Task ServeAsync(TcpClient tcp, HostState state, bool absolute, bool observe, bool diag, CancellationToken ct)
     {
         using TcpClient _ = tcp;
         using MessageConnection conn = MessageConnection.FromTcp(tcp);
-        string address = (tcp.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "?";
+        string address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
         HandshakeResult handshake;
         try
         {

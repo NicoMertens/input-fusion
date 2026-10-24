@@ -16,7 +16,9 @@ internal static class ClientService
 
     private static readonly TimeSpan _minRetryDelay = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan _maxRetryDelay = TimeSpan.FromSeconds(15);
-    private static readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(5);
+    // Je Adresse; drei Sekunden lassen Platz für eine Wiederholung des Verbindungsaufbaus im WLAN.
+    private static readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan _resolveTimeout = TimeSpan.FromSeconds(5);
 
     public delegate ClientConfig? ConfigLoader(out string? error);
 
@@ -123,10 +125,8 @@ internal static class ClientService
             handshake = await Handshake.ClientAsync(conn, config.Key, AppVersion.Current, ct);
             if (handshake.Outcome == HandshakeOutcome.Accepted)
             {
-                log($"Mit dem Host {tcp.Client.RemoteEndPoint} (Version {handshake.PeerVersion}) verbunden.");
-                IPAddress? ip = (tcp.Client.RemoteEndPoint as IPEndPoint)?.Address;
-                // Der Socket ist Dual-Mode; eine IPv4-Gegenstelle erscheint sonst als ::ffff:a.b.c.d.
-                string? address = (ip is { IsIPv4MappedToIPv6: true } ? ip.MapToIPv4() : ip)?.ToString();
+                string address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
+                log($"Mit dem Host {address} (Version {handshake.PeerVersion}) verbunden.");
                 status.Update(s => s with { Connected = true, HostAddress = address, HostVersion = handshake.PeerVersion, Problem = null });
                 try
                 {
@@ -152,27 +152,36 @@ internal static class ClientService
         return ($"Host {config.Host} hat die Anmeldung abgelehnt oder sich nicht ausgewiesen; stimmt der Schlüssel?", false);
     }
 
-    /// <summary>Erst der Rechnername per DNS, dann die feste IP, falls eingetragen.</summary>
+    /// <summary>
+    /// Löst den Rechnernamen selbst auf und versucht die Adressen einzeln in der Reihenfolge von
+    /// <see cref="HostAddresses.Order"/>, jede mit eigenem Zeitlimit. Mit dem Namen versuchte <c>ConnectAsync</c> sie
+    /// nacheinander in einem gemeinsamen Zeitlimit; blieb eine IPv6-Adresse hängen, kam die IPv4-Adresse nie dran.
+    /// </summary>
     private static async Task<(TcpClient? Client, string? Error)> ConnectAsync(ClientConfig config, CancellationToken ct)
     {
-        string? error = null;
-        foreach (string? target in config.Ip is null ? [config.Host] : new[] { config.Host, config.Ip })
+        (IPAddress[] resolved, string? error) = await ResolveAsync(config.Host, ct);
+        // Ältere Setups ließen in "ip" auch einen Namen zu.
+        IPAddress[] fixedIps = config.Ip is null ? []
+            : IPAddress.TryParse(config.Ip, out IPAddress? parsed) ? [parsed]
+            : (await ResolveAsync(config.Ip, ct)).Addresses;
+
+        foreach (IPAddress address in HostAddresses.Order(resolved, fixedIps))
         {
-            TcpClient tcp = new TcpClient();
+            TcpClient tcp = new TcpClient(address.AddressFamily);
             using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(_connectTimeout);
             try
             {
-                await tcp.ConnectAsync(target, config.Port, timeout.Token);
+                await tcp.ConnectAsync(address, config.Port, timeout.Token);
                 return (tcp, null);
             }
             catch (SocketException ex)
             {
-                error = $"Host {target}:{config.Port} nicht erreichbar ({ex.SocketErrorCode}).";
+                error = $"Host {config.Host} ({address}:{config.Port}) nicht erreichbar ({ex.SocketErrorCode}).";
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                error = $"Host {target}:{config.Port} antwortet nicht.";
+                error = $"Host {config.Host} ({address}:{config.Port}) antwortet nicht.";
             }
             catch (OperationCanceledException)
             {
@@ -182,5 +191,23 @@ internal static class ClientService
             tcp.Dispose();
         }
         return (null, error);
+    }
+
+    private static async Task<(IPAddress[] Addresses, string? Error)> ResolveAsync(string name, CancellationToken ct)
+    {
+        using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(_resolveTimeout);
+        try
+        {
+            return (await Dns.GetHostAddressesAsync(name, timeout.Token), null);
+        }
+        catch (SocketException ex)
+        {
+            return ([], $"Host {name} nicht auflösbar ({ex.SocketErrorCode}).");
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return ([], $"Host {name} nicht auflösbar (Zeitüberschreitung).");
+        }
     }
 }
