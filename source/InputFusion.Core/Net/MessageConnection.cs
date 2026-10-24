@@ -8,8 +8,9 @@ namespace InputFusion.Core.Net;
 /// <summary>
 /// Eine Verbindung, die Nachrichten über einen beliebigen Strom rahmt und entrahmt. Über TCP steht sie
 /// zwischen PC und Notebook (siehe <see cref="FromTcp"/>), über eine Named Pipe zwischen Dienst und
-/// Injector (siehe <c>InputFusion.Core.Ipc.InputPipe</c>). Phase 1 nutzt Klartext; TLS kommt in Phase 4
-/// als austauschbarer Strom darunter, ohne diese Klasse zu ändern.
+/// Injector (siehe <c>InputFusion.Core.Ipc.InputPipe</c>). Zwischen PC und Notebook schaltet die
+/// <see cref="Handshake"/> danach die Verschlüsselung ein (<see cref="EnableEncryption"/>); die Pipes bleiben
+/// im Klartext, dort spricht nur der eigene Rechner.
 /// </summary>
 public sealed class MessageConnection : IDisposable
 {
@@ -17,6 +18,8 @@ public sealed class MessageConnection : IDisposable
     private readonly IDisposable? _owner;
     private readonly FrameReader _reader = new();
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private FrameCipher? _sendCipher;
+    private FrameCipher? _receiveCipher;
     private long _lastReceived = Environment.TickCount64;
     private bool _disposed;
 
@@ -51,12 +54,26 @@ public sealed class MessageConnection : IDisposable
         return new MessageConnection(client.GetStream(), client);
     }
 
+    /// <summary>
+    /// Ab jetzt geht jeder Frame verschlüsselt hinaus und muss verschlüsselt ankommen. Frames, die schon im
+    /// Empfangspuffer liegen, werden erst beim Ausliefern entschlüsselt; deshalb darf die Gegenseite direkt nach
+    /// ihrem letzten Anmeldeschritt verschlüsselt senden. Die Schlüssel kommen aus der <see cref="Handshake"/>.
+    /// </summary>
+    public void EnableEncryption(ReadOnlySpan<byte> sendKey, ReadOnlySpan<byte> receiveKey)
+    {
+        _sendCipher = new FrameCipher(sendKey);
+        _receiveCipher = new FrameCipher(receiveKey);
+    }
+
     public async Task SendAsync(MessageType type, ReadOnlyMemory<byte> payload, CancellationToken ct = default)
     {
-        byte[] frame = FrameCodec.Write(type, payload.Span);
         await _sendLock.WaitAsync(ct);
         try
         {
+            // Unter dem Lock, weil der Zähler der Nonce in derselben Reihenfolge laufen muss wie die Frames.
+            byte[] frame = _sendCipher is null
+                ? FrameCodec.Write(type, payload.Span)
+                : FrameCodec.Write(MessageType.Encrypted, _sendCipher.Seal(type, payload.Span));
             await _stream.WriteAsync(frame, ct);
         }
         finally
@@ -71,7 +88,7 @@ public sealed class MessageConnection : IDisposable
         // Frames, die beim vorigen Lesen schon mitkamen (etwa direkt nach der Anmeldung), zuerst ausliefern.
         while (_reader.TryRead(out MessageType bufferedType, out byte[] bufferedPayload))
         {
-            yield return (bufferedType, bufferedPayload);
+            yield return Open(bufferedType, bufferedPayload);
         }
 
         byte[] buffer = new byte[4096];
@@ -88,7 +105,7 @@ public sealed class MessageConnection : IDisposable
             _reader.Append(buffer.AsSpan(0, n));
             while (_reader.TryRead(out MessageType type, out byte[] payload))
             {
-                yield return (type, payload);
+                yield return Open(type, payload);
             }
         }
     }
@@ -127,6 +144,22 @@ public sealed class MessageConnection : IDisposable
         return false;
     }
 
+    /// <summary>Ohne Verschlüsselung unverändert; mit ihr wird ein Klartext-Frame nicht angenommen.</summary>
+    private (MessageType Type, byte[] Payload) Open(MessageType type, byte[] payload)
+    {
+        if (_receiveCipher is null)
+        {
+            return (type, payload);
+        }
+
+        if (type != MessageType.Encrypted)
+        {
+            throw new IOException($"Unverschlüsselter Frame ({type}) nach der Anmeldung.");
+        }
+
+        return _receiveCipher.Open(payload);
+    }
+
     private async Task SendHeartbeatAsync(CancellationToken ct)
     {
         try
@@ -154,5 +187,7 @@ public sealed class MessageConnection : IDisposable
         }
 
         _sendLock.Dispose();
+        _sendCipher?.Dispose();
+        _receiveCipher?.Dispose();
     }
 }

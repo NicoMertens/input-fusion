@@ -13,9 +13,14 @@ public sealed class Worker(ILogger<Worker> logger) : BackgroundService
     {
         bool asService = WindowsServiceHelpers.IsWindowsService();
         Action<string> log = message => logger.LogInformation("{Message}", message);
+        if (asService && ClientUpdater.RunsFromInstallDirectory)
+        {
+            SettingsExtractor.Run(log);
+        }
+
         ClientUpdater updater = new ClientUpdater(asService, log);
         Task updates = updater.RunAsync(stoppingToken);
-        await ClientService.RunAsync(ClientConfig.Load, asService, log, stoppingToken, updater.CheckSoon);
+        await ClientService.RunAsync(ClientConfig.Load, ClientConfig.Save, asService, log, stoppingToken, updater.CheckSoon);
         await updates;
     }
 }

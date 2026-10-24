@@ -11,14 +11,14 @@ namespace InputFusion.Client;
 /// </summary>
 internal static class SpikeClient
 {
-    public static async Task RunAsync(string host, string key)
+    public static async Task RunAsync(string host, string key, int port)
     {
         using CancellationTokenSource cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
         using TcpClient tcp = new TcpClient();
-        Console.WriteLine($"Verbinde zu {host}:{Ports.Input}...");
-        await tcp.ConnectAsync(host, Ports.Input, cts.Token);
+        Console.WriteLine($"Verbinde zu {host}:{port}...");
+        await tcp.ConnectAsync(host, port, cts.Token);
         using MessageConnection conn = MessageConnection.FromTcp(tcp);
         HandshakeResult handshake = await Handshake.ClientAsync(conn, key, AppVersion.Current, cts.Token);
         if (handshake.Outcome == HandshakeOutcome.ProtocolMismatch)

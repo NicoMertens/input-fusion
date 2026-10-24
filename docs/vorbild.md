@@ -23,5 +23,5 @@ InputFusion übernimmt davon die Kopplung per Schlüssel und die Namensauflösun
 **Was InputFusion anders macht:**
 
 - Hooks und Abspielen übernimmt InputFusion im Prinzip, siehe [Host](host.md) und [Client](client.md).
-- Statt eines gemeinsamen Schlüssels gibt es TLS mit Zertifikats-Pinning nach einer Kopplung, siehe [Netzwerk](netzwerk.md).
+- Auch hier ein gemeinsamer Schlüssel, aber er geht nicht in die Verschlüsselung selbst: Er weist beide Seiten aus und deckt einen ECDH-Schlüsseltausch je Verbindung ab, verschlüsselt wird mit AES-GCM und mitgezählter Nonce. Damit ist mitgeschnittener Verkehr auch bei später bekanntem Schlüssel unlesbar, siehe [Netzwerk](netzwerk.md).
 - Statt eines Rasters ganzer Rechner gibt es ein Layout je Monitor, siehe [Layout](layout.md).

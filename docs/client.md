@@ -1,6 +1,6 @@
-# Client: Dienst und Injector auf dem Notebook
+# Client: Dienst, Injector und Tray auf dem Notebook
 
-Dienst und Injector sind **ein Programm** (`InputFusion.Client.exe`) in zwei Prozessen. Ohne Argument startet der Dienst, mit `--injector` der Injector; per Doppelklick außerhalb des Installationsordners installiert sich die exe selbst, siehe [Installation](installation.md). Das spart ein zweites Projekt und ein zweites Programm im Installer. Weil der Dienst Session 0 nicht verlassen kann, bleiben es trotzdem zwei Prozesse.
+Dienst, Injector und Tray sind **ein Programm** (`InputFusion.Client.exe`) in drei Prozessen. Ohne Argument startet der Dienst, mit `--injector` der Injector, mit `--tray` das Tray-Symbol; per Doppelklick außerhalb des Installationsordners installiert sich die exe selbst, siehe [Installation](installation.md). Das spart ein zweites Projekt und ein zweites Programm im Installer. Weil der Dienst Session 0 nicht verlassen kann und der Injector als SYSTEM keine Oberfläche zeigen soll, bleiben es trotzdem drei Prozesse.
 
 ## Dienst
 
@@ -16,7 +16,7 @@ Worker Service mit `AddWindowsService()`, LocalSystem, Starttyp automatisch.
   3. `CreateProcessAsUser` auf die eigene exe mit `--injector` und `lpDesktop = "winsta0\\default"`.
 
   Die exe ist eine Konsolenanwendung, damit der Dienst beim Entwickeln ins Terminal loggt. Deshalb braucht der Start `CREATE_NO_WINDOW`, sonst öffnet sich in der Benutzersitzung ein Konsolenfenster.
-- **Konfiguration** in `%ProgramData%\InputFusion\client.json` (Rechnername des PCs, gemeinsamer Schlüssel, optional feste IP), ACL nur für SYSTEM und Administratoren. Der Dienst ist ihr einziger Besitzer; die [Einstellungen](einstellungen.md) ändern sie später nur über IPC. Bis dahin schreibt sie das Installationsskript, siehe [Installation](installation.md).
+- **Konfiguration** in `%ProgramData%\InputFusion\client.json` (Rechnername des PCs, gemeinsamer Schlüssel, optional feste IP und Port, Standard 15111), ACL nur für SYSTEM und Administratoren. Der Dienst ist ihr einziger Besitzer; Setup oder Installationsskript legen sie an (siehe [Installation](installation.md)), danach ändert sie ein Administrator in den [Einstellungen](einstellungen.md#stand-einstellungen-des-notebooks), die über IPC den Dienst schreiben lassen.
 - **`Strg+Alt+Entf`** optional über `SendSAS` (sas.dll). Setzt die Richtlinie *SoftwareSASGeneration* voraus, die Diensten das erlauben muss.
 
 ## Injector
@@ -26,9 +26,21 @@ Worker Service mit `AddWindowsService()`, LocalSystem, Starttyp automatisch.
 - **Führt gedrückte Tasten nach** und lässt beim Wechsel oder Verbindungsabbruch alle los.
 - **Absichtlich dumm gehalten:** kein Netzwerk, keine Konfiguration. Wenig Code im SYSTEM-Kontext heißt wenig Angriffsfläche. Der Code liegt zwar in derselben exe wie der Dienst, der Injector-Pfad öffnet aber weder Sockets noch Konfiguration.
 
+## Tray
+
+Das Tray-Symbol auf dem Notebook zeigt im Tooltip den Zustand des Dienstes: verbunden mit welchem Host, sonst die letzte Störung („Host … nicht erreichbar“, „stimmt der Schlüssel?“) oder „Dienst nicht erreichbar“. Doppelklick oder „Einstellungen …“ im Kontextmenü öffnet die [Einstellungen](einstellungen.md#stand-einstellungen-des-notebooks) als angemeldeter Benutzer; darüber steht ausgegraut die Version.
+
+- **Eigener Prozess als angemeldeter Benutzer** (`ClientTray`, `--tray`): Der Dienst in Session 0 kann kein Symbol zeigen, und der Injector soll als SYSTEM keine Oberfläche haben. Als Benutzer gestartet, landen später auch Dateien der Zwischenablage mit dessen Rechten in dessen Profil, siehe [Später](#später).
+- **Start durch den Dienst**, wie der Injector über einen `SessionSupervisor`, aber mit dem Token des Benutzers: `WTSQueryUserToken` für die aktive Konsolensitzung, `CreateEnvironmentBlock` für dessen Umgebung (sonst erbte der Prozess TEMP und APPDATA von SYSTEM), dann `CreateProcessAsUser` mit `CREATE_NO_WINDOW`. Solange niemand angemeldet ist, schlägt `WTSQueryUserToken` fehl; der Supervisor meldet das einmal und versucht es jede Sekunde wieder. Beendet ein Update oder das Setup alle Client-Prozesse, startet der Dienst das Symbol danach neu. Mit `--relay` läuft es als Kindprozess.
+- **Kein „Beenden“:** Der Dienst liefe ohnehin weiter, und der Supervisor startete das Symbol binnen einer Sekunde neu.
+- **Endet mit dem Dienst:** Der Dienst gibt seine PID mit (`--tray <pid>`), das Symbol prüft jede Sekunde in der Prozessliste, ob es ihn noch gibt, und beendet sich sonst. Nach einem Absturz des Dienstes kennt der neu gestartete das alte Symbol nicht, es gäbe sonst zwei. Warten auf das Prozess-Handle geht nicht, ein Benutzer bekommt es für einen SYSTEM-Prozess nicht.
+- **Zustand über die [Pipe des Dienstes](ipc.md#stand-tray-und-einstellungen--dienst):** Der Dienst schickt ihn beim Verbinden und bei jeder Änderung. Bricht die Pipe ab, verbindet das Symbol jede Sekunde neu.
+- **Symbol:** `InputFusion.ico` als `ApplicationIcon` der Client-exe, dieselbe Tray-Klasse wie beim [Host](host.md#stand-tray-agent) (`TrayIcon` in Core).
+- **Geprüft** auf dem PC mit `--relay` und als installierter Dienst gegen einen Host auf demselben Rechner: Der Dienst startet das Symbol in Sitzung 1 als angemeldeter Benutzer, nicht erhöht; der Zustand des Dienstes zeigt nicht erreichbaren Host, abweichende Protokollversion, Verbindung mit Adresse und Version und nach dem Beenden des Hosts wieder „nicht verbunden“. Der Tooltip selbst zeigt ihn erst, seit das Symbol den Besitzer der Pipe prüft statt das Konto des Dienst-Prozesses, das ein Benutzer nicht lesen darf (siehe [IPC](ipc.md#stand-tray-und-einstellungen--dienst)). Nach einer Neuinstallation gibt es nur ein Symbol; beendet man `--relay`, endet das Symbol mit. Noch nicht am Notebook (Anmelden, Benutzerwechsel).
+
 ## Stand Phase 1 (Durchstich)
 
-Im Durchstich läuft der Client als einfaches Konsolenprogramm: `InputFusion.Client.exe --connect <host> --key <schlüssel>`. Es verbindet sich zum Host, empfängt die Eingaben und spielt sie direkt mit `SendInput` ab. Damit lässt sich das Mausgefühl früh testen, ohne Dienst, Sitzungswechsel und Desktop-Wechsel.
+Im Durchstich läuft der Client als einfaches Konsolenprogramm: `InputFusion.Client.exe --connect <host> --key <schlüssel> [--port <nummer>]`; `--relay` nimmt dieselben Argumente. Es verbindet sich zum Host, empfängt die Eingaben und spielt sie direkt mit `SendInput` ab. Damit lässt sich das Mausgefühl früh testen, ohne Dienst, Sitzungswechsel und Desktop-Wechsel.
 
 ## Stand Phase 2 (Schritt 1: IPC und Injector)
 
@@ -45,9 +57,10 @@ Die Aufteilung in Dienst und Injector ist begonnen. Umgesetzt und über Unit-Tes
 
 Der Client läuft als Windows-Dienst `InputFusionClient`, eingerichtet per Skript, siehe [Installation](installation.md).
 
-- **Ein Ablauf für Dienst und Entwicklung:** `ClientService` hält den Injector am Leben (`InjectorSupervisor`) und die Verbindung zum Host, mit Neuverbindung. Im Dienst kommt die Host-Adresse aus `client.json`, und der Injector startet per `CreateProcessAsUser` als SYSTEM in der aktiven Sitzung (`SessionLauncher`), wie oben unter [Dienst](#dienst) beschrieben. Mit `--relay <host> --key <schlüssel>` läuft derselbe Ablauf als Konsole, mit Host und Schlüssel aus den Argumenten und dem Injector als Kindprozess. Ohne Argument aus einer Konsole im Installationsordner gestartet, läuft der Dienst-Ablauf sichtbar mit (anderswo fragt die exe stattdessen, ob sie sich installieren soll), aber ebenfalls mit Kindprozess, weil nur SYSTEM die Sitzung eines Tokens umsetzen darf.
+- **Ein Ablauf für Dienst und Entwicklung:** `ClientService` hält Injector und [Tray](#tray) am Leben (je ein `SessionSupervisor`) und die Verbindung zum Host, mit Neuverbindung. Im Dienst kommt die Host-Adresse aus `client.json`, und der Injector startet per `CreateProcessAsUser` als SYSTEM in der aktiven Sitzung (`SessionLauncher`), wie oben unter [Dienst](#dienst) beschrieben. Mit `--relay <host> --key <schlüssel>` läuft derselbe Ablauf als Konsole, mit Host und Schlüssel aus den Argumenten und dem Injector als Kindprozess. Ohne Argument aus einer Konsole im Installationsordner gestartet, läuft der Dienst-Ablauf sichtbar mit (anderswo fragt die exe stattdessen, ob sie sich installieren soll), aber ebenfalls mit Kindprozess, weil nur SYSTEM die Sitzung eines Tokens umsetzen darf.
 - **Verifiziert auf dem PC** mit einem Test-Host: Dienst per Skript installiert, Injector läuft in Sitzung 1, Dienst in Sitzung 0; Verbindung nach Start des Hosts innerhalb des Wiederholungsabstands; Austritt über Dienst und Injector kommt beim Host an; nach Verbindungsabbruch neu verbunden; ein beendeter Injector wird binnen einer Sekunde neu gestartet und übernimmt die Pipe; Deinstallation ohne Reste.
-- **Noch offen:** der Test des Sitzungswechsels (Abmelden, Benutzerwechsel) am Notebook; die Prüfung, dass der SYSTEM-Injector nur mit dem eigenen Dienst spricht. Bisher könnte ein Prozess, der die Pipe vor dem Dienst anlegt, dem Injector Eingaben unterschieben.
+- **Nur der eigene Dienst:** Der Injector spielt nur ab, wenn der Server der Pipe unter demselben Konto läuft wie er, im Dienst also SYSTEM; siehe [IPC](ipc.md#absicherung).
+- **Noch offen:** der Test des Sitzungswechsels (Abmelden, Benutzerwechsel) am Notebook.
 
 ## Updates
 
@@ -69,7 +82,7 @@ Umgesetzt wie unter [Injector](#injector) geplant, weil am gesperrten Notebook M
 `ClientSetup`: Startet die exe ohne Argument, nicht als Dienst und nicht aus `%ProgramFiles%\InputFusion\Client`, gilt das als Doppelklick auf ein Setup.
 
 1. Nachfrage im Konsolenfenster „als Dienst installieren? [J/n]“. Nein beendet ohne Änderung.
-2. Neustart per UAC mit `--setup` (ist der Prozess schon erhöht, entfällt das). Im erhöhten Fenster fragt sie PC-Name, Schlüssel (mit denselben Regeln wie der Host, `HostConfig.ValidateKey`) und optional eine feste IP ab. Gibt es schon eine `client.json`, stehen deren Werte als Vorschlag in Klammern; Enter übernimmt sie.
+2. Neustart per UAC mit `--setup` (ist der Prozess schon erhöht, entfällt das). Im erhöhten Fenster fragt sie PC-Name, Schlüssel (mit denselben Regeln wie der Host, `HostConfig.ValidateKey`), optional eine feste IP und den Port (Vorschlag 15111) ab. Gibt es schon eine `client.json`, stehen deren Werte als Vorschlag in Klammern; Enter übernimmt sie.
 3. Danach dasselbe wie `install-client.ps1`: vorhandenen Dienst stoppen, übrige Client-Prozesse beenden, **nur die exe selbst** als `InputFusion.Client.exe` nach `%ProgramFiles%\InputFusion\Client` kopieren (als Setup liegt sie umbenannt im Download-Ordner, neben fremden Dateien), `client.json` schreiben, Dienst anlegen bzw. umkonfigurieren, Neustart nach Absturz einstellen, starten. Das Fenster bleibt bis zu einem Tastendruck offen.
 4. `client.json` entsteht gleich mit ihrer ACL (nur SYSTEM und Administratoren, ohne Vererbung); nachträglich gesetzt, wäre sie mit dem Schlüssel kurz für alle Benutzer lesbar, weil `%ProgramData%` Lesen vererbt.
 
@@ -77,6 +90,12 @@ Möglich ist das, weil der Release den Client als **einzelne Datei** veröffentl
 
 Geprüft: Veröffentlichen als einzelne Datei, Start, Nachfrage, Abbruch ohne Änderung. Der erhöhte Teil (Dienst anlegen) ist noch nicht am Notebook gelaufen.
 
+## Einstellungen ausliefern
+
+Der Release veröffentlicht die Einstellungen als einzelne Datei (rund 700 KB, framework-abhängig) und bettet sie in die Client-exe ein (`-p:EmbeddedSettings=…`, Ressource `InputFusion.Settings.exe`). Der installierte Dienst packt sie bei jedem Start neben sich aus (`SettingsExtractor`), wenn sie fehlt oder sich unterscheidet: erst als `.new` daneben, dann getauscht. So bringen Setup per Doppelklick, Installationsskript und Selbst-Update sie mit, ohne dass sie einzeln verteilt werden. Sind sie gerade offen, klappt das Auspacken nicht; der Dienst meldet das und versucht es beim nächsten Start. Setup und Update-Helfer beenden vorher offene Einstellungen aus dem Installationsordner, sonst sperrten sie den Tausch (`ClientProcesses`). Builds ohne die Eigenschaft bringen keine mit; beim Entwickeln findet das Tray sie unter `_out\InputFusion.Settings`.
+
+Geprüft: lokal wie im Release veröffentlicht (Client-exe rund 700 KB größer), installiert, vom Dienst ausgepackt und aus dem Tray gestartet.
+
 ## Später
 
-**Zwischenablage** braucht auf dem Client zusätzlich einen Prozess im Benutzerkontext: Dateien müssen mit den Rechten des Benutzers in dessen Profil landen, nicht als SYSTEM.
+**Zwischenablage** braucht auf dem Client einen Prozess im Benutzerkontext: Dateien müssen mit den Rechten des Benutzers in dessen Profil landen, nicht als SYSTEM. Dafür bietet sich der [Tray](#tray) an.

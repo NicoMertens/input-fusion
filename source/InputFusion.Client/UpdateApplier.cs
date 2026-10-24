@@ -26,7 +26,7 @@ internal static class UpdateApplier
             Log($"Spiele {source} nach {target} ein.");
             using ServiceController service = new ServiceController(ClientService.ServiceName);
             StopService(service);
-            StopOtherClients();
+            ClientProcesses.StopOthers();
 
             DeleteIfExists(backup);
             MoveWithRetry(target, backup);
@@ -72,30 +72,6 @@ internal static class UpdateApplier
         if (service.Status == ServiceControllerStatus.Stopped)
         {
             service.Start();
-        }
-    }
-
-    /// <summary>Der Dienst beendet seinen Injector beim Stoppen selbst; ein hängender würde aber die Dateien sperren.</summary>
-    private static void StopOtherClients()
-    {
-        foreach (Process process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(ExeName)))
-        {
-            using (process)
-            {
-                if (process.Id == Environment.ProcessId)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    process.Kill();
-                    process.WaitForExit(5000);
-                }
-                catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
-                {
-                }
-            }
         }
     }
 

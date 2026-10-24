@@ -33,6 +33,9 @@ public enum MessageType : byte
     /// <summary>Host → Client: Auf dem PC wurde Win+L gedrückt; das Notebook sperrt sich mit.</summary>
     LockWorkstation = 15,
 
+    /// <summary>Beide Richtungen nach der Anmeldung: Typ und Nutzlast verschlüsselt, siehe <c>FrameCipher</c>.</summary>
+    Encrypted = 16,
+
     /// <summary>Einstellungen ↔ Agent über die Named Pipe, Nutzlast JSON, siehe <c>SettingsMessage</c>.</summary>
     Settings = 32,
 }

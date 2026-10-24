@@ -6,25 +6,29 @@ using Windows.Win32.Foundation;
 using Windows.Win32.UI.Shell;
 using Windows.Win32.UI.WindowsAndMessaging;
 
-namespace InputFusion.Host;
+namespace InputFusion.Core.Shell;
+
+/// <summary>Ein Eintrag im Kontextmenü des Tray-Symbols. Der erste ist zugleich die Aktion beim Doppelklick.</summary>
+public sealed record TrayCommand(string Text, Action Action);
 
 /// <summary>
 /// Das Tray-Symbol, direkt über <c>Shell_NotifyIcon</c> ohne WinForms und WPF (AOT-fähig). Läuft auf einem eigenen
-/// Thread mit verstecktem Fenster, nicht auf dem Hook-Thread: Ein offenes Kontextmenü blockiert seine
+/// Thread mit verstecktem Fenster, nicht auf dem Hook-Thread des Hosts: Ein offenes Kontextmenü blockiert seine
 /// Nachrichtenschleife, und der Hook darf nie warten. Das Fenster ist ein echtes Top-Level-Fenster und kein
 /// Nachrichtenfenster, weil nur solche <c>WM_DISPLAYCHANGE</c> und <c>TaskbarCreated</c> bekommen.
+/// Das Symbol ist das <c>ApplicationIcon</c> der exe.
 /// </summary>
-internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action displayChanged, string versionLabel)
+public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayCommand> commands, Action<string> log, Action? displayChanged = null)
 {
-    private readonly Action _openSettings = openSettings;
-    private readonly Action _exit = exit;
-    private readonly Action _displayChanged = displayChanged;
     private readonly string _versionLabel = versionLabel;
+    private readonly IReadOnlyList<TrayCommand> _commands = commands;
+    private readonly Action<string> _log = log;
+    private readonly Action? _displayChanged = displayChanged;
 
     private const uint CallbackMessage = PInvoke.WM_APP + 1;
     private const uint UpdateMessage = PInvoke.WM_APP + 2;
-    private const uint MenuSettings = 1;
-    private const uint MenuExit = 2;
+    // Menü-IDs der Befehle sind ihr Index plus eins; 0 heißt im Menü „kein Befehl“.
+    private const uint FirstCommandId = 1;
     // Die .NET-SDK legt das ApplicationIcon unter dieser Ressourcen-ID ab.
     private const int ApplicationIconId = 32512;
 
@@ -115,14 +119,16 @@ internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action d
     {
         HMENU menu = PInvoke.CreatePopupMenu();
         fixed (char* version = _versionLabel)
-        fixed (char* settings = "Einstellungen …")
-        fixed (char* exit = "Beenden")
         {
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING | MENU_ITEM_FLAGS.MF_GRAYED, 0, version);
+        }
+        for (int i = 0; i < _commands.Count; i++)
+        {
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_SEPARATOR, 0, default(PCWSTR));
-            PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, MenuSettings, settings);
-            PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_SEPARATOR, 0, default(PCWSTR));
-            PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, MenuExit, exit);
+            fixed (char* text = _commands[i].Text)
+            {
+                PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, FirstCommandId + (uint)i, text);
+            }
         }
         PInvoke.GetCursorPos(out Point cursor);
         // Ohne Vordergrund schließt das Menü nicht, wenn daneben geklickt wird (bekanntes Shell-Verhalten).
@@ -145,22 +151,19 @@ internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action d
             switch (message)
             {
                 case CallbackMessage when (uint)lParam.Value == PInvoke.WM_LBUTTONDBLCLK:
-                    tray._openSettings();
+                    tray.Run(FirstCommandId);
                     return default;
                 case CallbackMessage when (uint)lParam.Value == PInvoke.WM_RBUTTONUP:
                     tray.ShowMenu();
                     return default;
-                case PInvoke.WM_COMMAND when (wParam.Value & 0xFFFF) == MenuSettings:
-                    tray._openSettings();
-                    return default;
-                case PInvoke.WM_COMMAND when (wParam.Value & 0xFFFF) == MenuExit:
-                    tray._exit();
+                case PInvoke.WM_COMMAND:
+                    tray.Run((uint)(wParam.Value & 0xFFFF));
                     return default;
                 case UpdateMessage:
                     tray.Notify(NOTIFY_ICON_MESSAGE.NIM_MODIFY);
                     return default;
                 case PInvoke.WM_DISPLAYCHANGE:
-                    tray._displayChanged();
+                    tray._displayChanged?.Invoke();
                     break;
                 case PInvoke.WM_CLOSE:
                     PInvoke.DestroyWindow(hwnd);
@@ -179,8 +182,17 @@ internal sealed unsafe class TrayIcon(Action openSettings, Action exit, Action d
         catch (Exception ex)
         {
             // Eine Ausnahme darf nicht über die Fensterprozedur hinaus, das beendete den Prozess.
-            Log.Write($"Fehler im Tray: {ex.Message}");
+            tray._log($"Fehler im Tray: {ex.Message}");
         }
         return PInvoke.DefWindowProc(hwnd, message, wParam, lParam);
+    }
+
+    private void Run(uint commandId)
+    {
+        int index = (int)(commandId - FirstCommandId);
+        if (index >= 0 && index < _commands.Count)
+        {
+            _commands[index].Action();
+        }
     }
 }

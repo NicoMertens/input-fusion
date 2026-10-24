@@ -5,6 +5,7 @@ using Windows.Win32.UI.WindowsAndMessaging;
 using InputFusion.Core.Config;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
+using InputFusion.Core.Shell;
 using Velopack;
 
 namespace InputFusion.Host;
@@ -30,13 +31,13 @@ internal static class Program
         }
         catch (UnauthorizedAccessException)
         {
-            SettingsLauncher.Open();
+            SettingsLauncher.Open(Log.Write);
             return;
         }
         using Mutex firstInstance = instance;
         if (!first)
         {
-            SettingsLauncher.Open();
+            SettingsLauncher.Open(Log.Write);
             return;
         }
 
@@ -44,7 +45,7 @@ internal static class Program
         // vorher freigeben, sonst hielte die Instanz aus der Aufgabe sich für die zweite.
         UpdateService updates = new UpdateService();
         if (updates.IsInstalled && !ElevatedStartup.IsElevated
-            && (ElevatedStartup.TaskExists() || ElevatedStartup.Install(Environment.ProcessPath!)))
+            && (ElevatedStartup.TaskExists() || ElevatedStartup.Install(Environment.ProcessPath!, HostConfig.LoadOrCreate().Port)))
         {
             instance.ReleaseMutex();
             instance.Dispose();
@@ -77,11 +78,19 @@ internal static class Program
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
         HostState state = new HostState(HostConfig.LoadOrCreate());
-        Log.Write($"InputFusion Host auf Port {Ports.Input}, Konfiguration {HostConfig.FilePath}. Modus: {(absolute ? "absolut" : "relativ")}"
+        if (updates.IsInstalled && ElevatedStartup.IsElevated)
+        {
+            // Erhöht aus der Aufgabe: Die Firewall-Regel folgt einem von Hand geänderten Port ohne UAC-Abfrage.
+            ElevatedStartup.UpdateFirewall(state.Port);
+        }
+
+        Log.Write($"InputFusion Host auf Port {state.Port}, Konfiguration {HostConfig.FilePath}. Modus: {(absolute ? "absolut" : "relativ")}"
             + $"{(observe ? ", Beobachtung (kapert die Maus nicht)" : "")}"
             + $"{(diag ? ", Diagnose" : "")}{(remoteSession ? " [RDP erkannt]" : "")}.");
 
-        TrayIcon tray = new TrayIcon(SettingsLauncher.Open, cts.Cancel, state.RefreshHostMonitors, $"Version {AppVersion.Current}");
+        TrayIcon tray = new TrayIcon($"Version {AppVersion.Current}",
+            [new TrayCommand("Einstellungen …", () => SettingsLauncher.Open(Log.Write)), new TrayCommand("Beenden", cts.Cancel)],
+            Log.Write, state.RefreshHostMonitors);
         tray.Start();
         tray.SetTooltip(state.StatusText);
         state.Changed += () => tray.SetTooltip(state.StatusText);
@@ -136,9 +145,10 @@ internal static class Program
     /// </summary>
     private static async Task ListenAsync(HostState state, bool absolute, bool observe, bool diag, CancellationToken ct)
     {
-        TcpListener listener = new TcpListener(IPAddress.Any, Ports.Input);
         while (!ct.IsCancellationRequested)
         {
+            // Je Durchgang neu: Stop verwirft den Socket, ein neu angelegter wäre nicht mehr Dual-Mode.
+            TcpListener listener = CreateListener(state.Port);
             TcpClient tcp;
             try
             {
@@ -153,7 +163,7 @@ internal static class Program
             catch (SocketException ex)
             {
                 // Port belegt, etwa von einem zweiten Agent unter einem anderen Benutzer: später erneut versuchen.
-                Log.Write($"Port {Ports.Input} nicht verfügbar ({ex.SocketErrorCode}), neuer Versuch in 10 s.");
+                Log.Write($"Port {state.Port} nicht verfügbar ({ex.SocketErrorCode}), neuer Versuch in 10 s.");
                 try { await Task.Delay(TimeSpan.FromSeconds(10), ct); }
                 catch (OperationCanceledException) { break; }
                 continue;
@@ -169,11 +179,27 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Lauscht auf IPv4 und IPv6. Löst das Notebook den Rechnernamen zuerst in IPv6-Adressen auf, gelingt die Verbindung
+    /// so schon dort; nur auf IPv4 blieben solche Versuche je nach Firewall hängen. Ohne IPv6 im System nur IPv4.
+    /// </summary>
+    private static TcpListener CreateListener(int port)
+    {
+        if (!Socket.OSSupportsIPv6)
+        {
+            return new TcpListener(IPAddress.Any, port);
+        }
+
+        TcpListener listener = new TcpListener(IPAddress.IPv6Any, port);
+        listener.Server.DualMode = true;
+        return listener;
+    }
+
     private static async Task ServeAsync(TcpClient tcp, HostState state, bool absolute, bool observe, bool diag, CancellationToken ct)
     {
         using TcpClient _ = tcp;
         using MessageConnection conn = MessageConnection.FromTcp(tcp);
-        string address = (tcp.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "?";
+        string address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
         HandshakeResult handshake;
         try
         {

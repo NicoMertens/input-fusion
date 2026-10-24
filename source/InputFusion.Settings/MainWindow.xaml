@@ -48,9 +48,8 @@
                                Foreground="{StaticResource HintBrush}" />
 
                     <TextBlock Grid.Row="5" Grid.Column="1" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{StaticResource HintBrush}">
-                        Auf dem Notebook PC-Name (oder IP) und Schlüssel eintragen: beim Installieren mit
-                        <Run FontFamily="Consolas">install-client.ps1 -HostName … -Key …</Run>, sonst in
-                        <Run FontFamily="Consolas">%ProgramData%\InputFusion\client.json</Run>.
+                        Auf dem Notebook PC-Name (oder IP) und Schlüssel eintragen: beim Installieren im Setup, danach in
+                        dessen Einstellungen (Tray-Symbol, als Administrator).
                         Ein geänderter Schlüssel gilt ab der nächsten Verbindung.
                     </TextBlock>
 

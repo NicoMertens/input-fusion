@@ -1,5 +1,6 @@
 # Jeder Push auf release veröffentlicht die Version aus source/Directory.Build.props als GitHub-Release mit Tag
-# vX.Y.Z: Velopack-Setup und Update-Pakete des Hosts (mit den Einstellungen) sowie das Client-Paket mit Prüfsumme.
+# vX.Y.Z: Velopack-Setup und Update-Pakete des Hosts (mit den Einstellungen) sowie das Client-Paket (Einstellungen
+# eingebettet) mit Prüfsumme.
 # Installierte Hosts und Clients holen sich ihre Updates von dort, siehe docs/updates.md.
 name: Release
 
@@ -19,6 +20,7 @@ env:
   RELEASES_DIR: _out/releases
   HOST_DIR: _out/publish/host
   CLIENT_DIR: _out/publish/client
+  SETTINGS_SINGLE_DIR: _out/publish/settings-single
   CLIENT_PACKAGE: InputFusion.Client-win-x64.zip
   CLIENT_SETUP: InputFusion.Client-Setup.exe
   REPO_URL: ${{ github.server_url }}/${{ github.repository }}
@@ -60,11 +62,15 @@ jobs:
           dotnet publish source/InputFusion.Settings -c Release -r win-x64 --self-contained false -p:RepositoryUrl=${{ env.REPO_URL }} -o ${{ env.HOST_DIR }}
 
       # Eine einzelne exe: Per Doppelklick installiert sie sich selbst, als Setup liegt sie deshalb auch einzeln im
-      # Release. Im Zip für das Selbst-Update liegen dazu die Installationsskripte.
+      # Release. Im Zip für das Selbst-Update liegen dazu die Installationsskripte. Die Einstellungen stecken als
+      # einzelne Datei in der exe, der installierte Dienst packt sie aus; der Pfad muss absolut sein, sonst löst
+      # MSBuild ihn relativ zum Projektordner auf.
       - name: Client veröffentlichen
         shell: pwsh
         run: |
-          dotnet publish source/InputFusion.Client -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=embedded -p:RepositoryUrl=${{ env.REPO_URL }} -o ${{ env.CLIENT_DIR }}
+          dotnet publish source/InputFusion.Settings -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=embedded -p:RepositoryUrl=${{ env.REPO_URL }} -o ${{ env.SETTINGS_SINGLE_DIR }}
+          $settings = Join-Path $PWD "${{ env.SETTINGS_SINGLE_DIR }}/InputFusion.Settings.exe"
+          dotnet publish source/InputFusion.Client -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=embedded -p:RepositoryUrl=${{ env.REPO_URL }} "-p:EmbeddedSettings=$settings" -o ${{ env.CLIENT_DIR }}
           New-Item -ItemType Directory -Force _out/client-release | Out-Null
           Copy-Item ${{ env.CLIENT_DIR }}/InputFusion.Client.exe _out/client-release/${{ env.CLIENT_SETUP }}
           Copy-Item build/install-client.ps1, build/uninstall-client.ps1 ${{ env.CLIENT_DIR }}

@@ -38,6 +38,7 @@ internal static class Injector
             {
                 using NamedPipeClientStream pipe = InputPipe.CreateClient();
                 await pipe.ConnectAsync(cts.Token);
+                InputPipe.VerifyServer(pipe);
                 using MessageConnection conn = new MessageConnection(pipe);
                 Console.WriteLine("Mit dem Dienst verbunden, spiele Eingaben ab.");
                 using CancellationTokenSource session = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
@@ -70,6 +71,12 @@ internal static class Injector
             catch (IOException)
             {
                 // Pipe weg; gleich neu verbinden.
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                // Fremder Prozess hat die Pipe angelegt. Nichts abspielen; der echte Dienst kommt erst an die
+                // Pipe, wenn der fremde Server sie freigibt.
+                Console.WriteLine($"Pipe abgelehnt: {ex.Message}");
             }
 
             playback.Post(player.ReleaseAll);

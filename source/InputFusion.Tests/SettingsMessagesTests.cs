@@ -22,11 +22,35 @@ public class SettingsMessagesTests
     }
 
     [Fact]
+    public void ClientState_RoundTrip()
+    {
+        SettingsMessage message = new ClientStateMessage("0.5.0", "PC", "192.168.1.10", 15111, "abcdefghijkmnpqr", true, true, "192.168.1.10", "0.5.0", null);
+
+        ClientStateMessage back = Assert.IsType<ClientStateMessage>(SettingsMessage.FromPayload(message.ToPayload()));
+
+        Assert.Equal(message, back);
+    }
+
+    [Theory]
+    [InlineData(true, "PC", null, "Verbunden mit PC (192.168.1.10), Host-Version 0.5.0.")]
+    [InlineData(false, "PC", "Host PC:15111 nicht erreichbar (TimedOut).", "Nicht verbunden mit PC. Host PC:15111 nicht erreichbar (TimedOut).")]
+    [InlineData(false, null, null, "Nicht eingerichtet.")]
+    public void ClientState_Summary(bool connected, string? host, string? problem, string expected)
+    {
+        ClientStateMessage state = new ClientStateMessage("0.5.0", host, null, 15111, null, false, connected,
+            connected ? "192.168.1.10" : null, connected ? "0.5.0" : null, problem);
+
+        Assert.Equal(expected, state.Summary());
+    }
+
+    [Fact]
     public void Requests_CarryTypeDiscriminator()
     {
         string json = Encoding.UTF8.GetString(new SetKeyRequest("abcdefghijkmnpqr").ToPayload());
         Assert.Contains("\"type\":\"setKey\"", json);
         Assert.IsType<SetClientOffsetRequest>(SettingsMessage.FromPayload(new SetClientOffsetRequest(1, 2).ToPayload()));
+        SetClientConfigRequest config = new SetClientConfigRequest("PC", null, 15111, "abcdefghijkmnpqr");
+        Assert.Equal(config, SettingsMessage.FromPayload(config.ToPayload()));
     }
 
     [Fact]

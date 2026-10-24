@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using InputFusion.Core.Config;
 using InputFusion.Core.Layout;
+using InputFusion.Core.Net;
 
 namespace InputFusion.Simulator;
 
@@ -9,9 +10,10 @@ namespace InputFusion.Simulator;
 /// <c>--host &lt;name&gt;</c> (Standard localhost),
 /// <c>--monitors "x,y,b,h[,dpi];…"</c> (simulierte Monitore des Clients),
 /// <c>--delay &lt;ms&gt;</c> (künstliche Latenz je Nachricht),
-/// <c>--key &lt;schlüssel&gt;</c> (Standard: der Schlüssel aus der Konfiguration des Hosts auf diesem Rechner).
+/// <c>--key &lt;schlüssel&gt;</c> und <c>--port &lt;nummer&gt;</c> (Standard: aus der Konfiguration des Hosts auf
+/// diesem Rechner).
 /// </summary>
-internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> Monitors, int DelayMs, string Key)
+internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> Monitors, int DelayMs, string Key, int Port)
 {
     private const string DefaultMonitors = "0,0,1920,1200,144;1920,-240,2560,1440,96";
 
@@ -21,6 +23,7 @@ internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> 
         string monitors = DefaultMonitors;
         int delay = 0;
         string? key = null;
+        int? port = null;
 
         for (int i = 0; i + 1 < args.Count; i += 2)
         {
@@ -30,18 +33,20 @@ internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> 
                 case "--monitors": monitors = args[i + 1]; break;
                 case "--delay": delay = int.Parse(args[i + 1], CultureInfo.InvariantCulture); break;
                 case "--key": key = args[i + 1]; break;
+                case "--port": port = Ports.Validate(args[i + 1], out int value) is { } error ? throw new ArgumentException(error) : value; break;
                 default: throw new ArgumentException($"Unbekannter Parameter {args[i]}");
             }
         }
 
         // Host und Simulator laufen beim Entwickeln meist auf demselben Rechner und unter demselben Benutzer.
-        key ??= HostConfig.TryLoad()?.Key;
+        HostConfig? hostConfig = HostConfig.TryLoad();
+        key ??= hostConfig?.Key;
         if (string.IsNullOrEmpty(key))
         {
             throw new ArgumentException($"Kein Schlüssel: --key angeben oder den Host auf diesem Rechner einmal starten ({HostConfig.FilePath}).");
         }
 
-        return new SimulatorOptions(host, ParseMonitors(monitors), delay, key);
+        return new SimulatorOptions(host, ParseMonitors(monitors), delay, key, port ?? hostConfig?.Port ?? Ports.Input);
     }
 
     private static List<MonitorRect> ParseMonitors(string spec)

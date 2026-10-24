@@ -1,4 +1,5 @@
 ﻿using System.IO.Pipes;
+using System.Security.Principal;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
@@ -50,5 +51,79 @@ public class InputPipeTests
         Assert.Equal(12345, SwitchToClient.FromPayload(received[0].Payload).Y);
         Assert.Equal(new KeyEvent(65, 30, ButtonState.Down, false), KeyEvent.FromPayload(received[1].Payload));
         Assert.Equal(new MouseMoveRelative(7, -3), MouseMoveRelative.FromPayload(received[2].Payload));
+    }
+
+    [Fact]
+    public async Task VerifyServer_AcceptsServerOfSameUser()
+    {
+        using CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        using NamedPipeServerStream server = InputPipe.CreateServer();
+        using NamedPipeClientStream client = InputPipe.CreateClient();
+
+        Task accept = server.WaitForConnectionAsync(cts.Token);
+        await client.ConnectAsync(cts.Token);
+        await accept;
+
+        InputPipe.VerifyServer(client);
+    }
+
+    [Fact]
+    public async Task Verify_RejectsServerOfOtherAccount()
+    {
+        using CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        using NamedPipeServerStream server = InputPipe.CreateServer();
+        using NamedPipeClientStream client = InputPipe.CreateClient();
+
+        Task accept = server.WaitForConnectionAsync(cts.Token);
+        await client.ConnectAsync(cts.Token);
+        await accept;
+
+        // Der Test läuft nicht als SYSTEM; ein Server unter dem Testkonto ist für einen SYSTEM-Client also fremd.
+        Assert.Throws<UnauthorizedAccessException>(() => PipeIdentity.VerifyServer(client, PipeIdentity.LocalSystem));
+    }
+
+    [Fact]
+    public async Task ClientPipe_DeliversStateFromServerOfSameUser()
+    {
+        using CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        NamedPipeServerStream server = ClientPipe.CreateServer();
+        NamedPipeClientStream client = ClientPipe.CreateClient();
+
+        Task accept = server.WaitForConnectionAsync(cts.Token);
+        await client.ConnectAsync(cts.Token);
+        await accept;
+        ClientPipe.VerifyServer(client);
+
+        using MessageConnection serverConn = new MessageConnection(server);
+        using MessageConnection clientConn = new MessageConnection(client);
+        ClientStateMessage state = new ClientStateMessage("0.5.0", "PC", null, 15111, null, false, false, null, null, "Host PC:15111 antwortet nicht.");
+        await serverConn.SendAsync(MessageType.Settings, state.ToPayload(), cts.Token);
+
+        await foreach ((MessageType type, byte[] payload) in clientConn.ReceiveAsync(cts.Token))
+        {
+            Assert.Equal(MessageType.Settings, type);
+            Assert.Equal(state, SettingsMessage.FromPayload(payload));
+            break;
+        }
+    }
+
+    [Fact]
+    public async Task IsClientAdministrator_MatchesElevationOfClient()
+    {
+        using CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        using NamedPipeServerStream server = ClientPipe.CreateServer();
+        using NamedPipeClientStream client = ClientPipe.CreateClient();
+
+        Task accept = server.WaitForConnectionAsync(cts.Token);
+        await client.ConnectAsync(cts.Token);
+        await accept;
+
+        // Server und Client sind hier derselbe Prozess; ob er erhöht läuft, hängt davon ab, wie die Tests gestartet wurden.
+        bool elevated = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+        Assert.Equal(elevated, PipeIdentity.IsClientAdministrator(server));
     }
 }

@@ -1,18 +1,18 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
-using System.Security.AccessControl;
 using System.Security.Principal;
 using System.ServiceProcess;
-using System.Text.Json;
 using InputFusion.Core.Config;
+using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
 
 namespace InputFusion.Client;
 
 /// <summary>
 /// Die exe installiert sich selbst, wenn sie per Doppelklick außerhalb des Installationsordners startet: erst eine
-/// Nachfrage, dann per UAC erhöht neu starten, PC-Name und Schlüssel abfragen und dasselbe tun wie
+/// Nachfrage, dann per UAC erhöht neu starten, PC-Name, Schlüssel, IP und Port abfragen und dasselbe tun wie
 /// <c>build/install-client.ps1</c>. Dateien nach <see cref="ClientUpdater.InstallDirectory"/> (nur Administratoren
 /// schreiben dort, wichtig, weil der Dienst die exe als SYSTEM ausführt), <c>client.json</c> mit ACL nur für SYSTEM
 /// und Administratoren, Dienst anlegen und starten.
@@ -73,9 +73,12 @@ internal static class ClientSetup
             string host = Ask("PC-Name des Hosts (in dessen Einstellungen, Reiter Verbindung)", existing?.Host, value => value.Length > 0 ? null : "Bitte einen Namen angeben.");
             string key = Ask("Schlüssel", existing?.Key, HostConfig.ValidateKey);
             string ip = Ask("Feste IP des Hosts, optional", existing?.Ip ?? "", _ => null);
+            string portText = Ask("Port (wie beim Host, Reiter Verbindung)", (existing?.Port ?? Ports.Input).ToString(CultureInfo.InvariantCulture),
+                value => Ports.Validate(value, out _));
+            Ports.Validate(portText, out int port);
             Console.WriteLine();
 
-            Install(new ClientConfig(host, key, ip.Length == 0 ? null : ip));
+            Install(new ClientConfig(host, key, ip.Length == 0 ? null : ip, port));
             Console.WriteLine();
             Console.WriteLine("Fertig. Der Dienst läuft und verbindet sich mit dem Host; Updates holt er sich selbst.");
             Console.WriteLine("Protokoll: Ereignisanzeige > Windows-Protokolle > Anwendung, Quelle InputFusion.Client.");
@@ -107,7 +110,7 @@ internal static class ClientSetup
                 service.WaitForStatus(ServiceControllerStatus.Stopped, _serviceTimeout);
             }
         }
-        StopOtherClients();
+        ClientProcesses.StopOthers();
 
         // Aus dem Installationsordner selbst gestartet, ist nichts zu kopieren; nur neu konfigurieren.
         if (!string.Equals(Path.GetFullPath(AppContext.BaseDirectory).TrimEnd('\\'), target, StringComparison.OrdinalIgnoreCase))
@@ -124,7 +127,10 @@ internal static class ClientSetup
         }
 
         Console.WriteLine($"Schreibe {ClientConfig.FilePath} …");
-        WriteConfig(config);
+        if (ClientConfig.Save(config) is { } saveError)
+        {
+            throw new IOException(saveError);
+        }
 
         string binary = $"\"{Path.Combine(target, UpdateApplier.ExeName)}\"";
         if (exists)
@@ -147,52 +153,8 @@ internal static class ClientSetup
         service.WaitForStatus(ServiceControllerStatus.Running, _serviceTimeout);
     }
 
-    /// <summary>
-    /// Die Datei entsteht gleich mit ihrer ACL (nur SYSTEM und Administratoren, ohne Vererbung); nachträglich gesetzt
-    /// wäre sie kurz für alle Benutzer lesbar, weil ProgramData Lesen erbt. Sie enthält den Schlüssel.
-    /// </summary>
-    private static void WriteConfig(ClientConfig config)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(ClientConfig.FilePath)!);
-        FileSecurity security = new FileSecurity();
-        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
-        foreach (WellKnownSidType sid in new[] { WellKnownSidType.LocalSystemSid, WellKnownSidType.BuiltinAdministratorsSid })
-        {
-            security.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(sid, null), FileSystemRights.FullControl, AccessControlType.Allow));
-        }
-
-        File.Delete(ClientConfig.FilePath);
-        using FileStream stream = new FileInfo(ClientConfig.FilePath).Create(
-            FileMode.CreateNew, FileSystemRights.Write, FileShare.None, 4096, FileOptions.None, security);
-        JsonSerializer.Serialize(stream, config, ClientConfigJson.Default.ClientConfig);
-    }
-
     private static bool ServiceExists() =>
         ServiceController.GetServices().Any(s => string.Equals(s.ServiceName, ClientService.ServiceName, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>Ein laufender Injector oder Durchstich-Client sperrte sonst die Dateien im Zielordner.</summary>
-    private static void StopOtherClients()
-    {
-        foreach (Process process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(UpdateApplier.ExeName)))
-        {
-            using (process)
-            {
-                if (process.Id == Environment.ProcessId)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    process.Kill();
-                    process.WaitForExit(5000);
-                }
-                catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
-                {
-                }
-            }
-        }
-    }
 
     private static void Sc(params string[] arguments)
     {

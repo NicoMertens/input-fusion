@@ -48,4 +48,13 @@ public static class InputPipe
     /// <summary>Verbindet sich als Client zum Server auf demselben Rechner.</summary>
     public static NamedPipeClientStream CreateClient() =>
         new(".", Name, PipeDirection.InOut, PipeOptions.Asynchronous);
+
+    /// <summary>
+    /// Prüft nach dem Verbinden, ob der Server der Pipe unter demselben Konto läuft wie der Aufrufer. Der
+    /// Injector läuft als SYSTEM; ohne die Prüfung könnte ein beliebiger Prozess, der die Pipe vor dem Dienst
+    /// anlegt, ihm Eingaben unterschieben, die dann auch Sperrbildschirm und UAC-Abfrage erreichen.
+    /// </summary>
+    /// <exception cref="UnauthorizedAccessException">Der Server läuft unter einem anderen Konto, oder sein Konto ist nicht zu ermitteln.</exception>
+    public static void VerifyServer(NamedPipeClientStream pipe) =>
+        PipeIdentity.VerifyServer(pipe, PipeIdentity.CurrentUser());
 }

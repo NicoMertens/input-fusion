@@ -5,18 +5,18 @@ using Windows.Win32;
 namespace InputFusion.Client;
 
 /// <summary>
-/// Hält den Injector am Leben. Im Dienst läuft er als SYSTEM in der aktiven Konsolensitzung (siehe
-/// <see cref="SessionLauncher"/>); beim Entwickeln als schlichter Kindprozess in derselben Sitzung.
-/// Statt auf OnSessionChange zu reagieren, prüft er jede Sekunde die aktive Sitzung und ob der Injector noch
-/// lebt. Das deckt Anmelden, Abmelden, Benutzerwechsel und Abstürze gleichermaßen ab.
+/// Hält einen Prozess der eigenen exe in der aktiven Konsolensitzung am Leben: den Injector als SYSTEM, das
+/// Tray-Symbol als angemeldeter Benutzer (siehe <see cref="SessionLauncher"/>); beim Entwickeln als schlichten
+/// Kindprozess in derselben Sitzung. Statt auf OnSessionChange zu reagieren, prüft er jede Sekunde die aktive
+/// Sitzung und ob der Prozess noch lebt. Das deckt Anmelden, Abmelden, Benutzerwechsel und Abstürze gleichermaßen ab.
 /// </summary>
-internal sealed class InjectorSupervisor(bool asService, Action<string> log)
+internal sealed class SessionSupervisor(string name, string argument, bool asUser, bool asService, Action<string> log)
 {
     private const uint NoSession = 0xFFFFFFFF;
 
     public async Task RunAsync(CancellationToken ct)
     {
-        Process? injector = null;
+        Process? process = null;
         uint session = NoSession;
         string? lastError = null;
         try
@@ -25,26 +25,26 @@ internal sealed class InjectorSupervisor(bool asService, Action<string> log)
             {
                 // Zwischen zwei Sitzungen meldet Windows kurz keine aktive; dann abwarten.
                 uint target = asService ? PInvoke.WTSGetActiveConsoleSessionId() : (uint)Environment.ProcessId;
-                bool alive = injector is { HasExited: false };
+                bool alive = process is { HasExited: false };
                 if (target != NoSession && (!alive || target != session))
                 {
-                    Stop(injector);
-                    injector = null;
+                    Stop(process);
+                    process = null;
                     try
                     {
-                        injector = Launch(target);
+                        process = Launch(target);
                         session = target;
                         lastError = null;
                         log(asService
-                            ? $"Injector in Sitzung {target} gestartet (PID {injector.Id})."
-                            : $"Injector als Kindprozess gestartet (PID {injector.Id}).");
+                            ? $"{name} in Sitzung {target} gestartet (PID {process.Id})."
+                            : $"{name} als Kindprozess gestartet (PID {process.Id}).");
                     }
                     catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or ArgumentException)
                     {
                         // Einmal melden, nicht jede Sekunde.
                         if (ex.Message != lastError)
                         {
-                            log($"Injector ließ sich nicht starten: {ex.Message}. Neuer Versuch jede Sekunde.");
+                            log($"{name} ließ sich nicht starten: {ex.Message}. Neuer Versuch jede Sekunde.");
                         }
 
                         lastError = ex.Message;
@@ -57,7 +57,7 @@ internal sealed class InjectorSupervisor(bool asService, Action<string> log)
         }
         finally
         {
-            Stop(injector);
+            Stop(process);
         }
     }
 
@@ -66,30 +66,30 @@ internal sealed class InjectorSupervisor(bool asService, Action<string> log)
         string exe = Environment.ProcessPath!;
         if (asService)
         {
-            return SessionLauncher.Start(session, exe, Injector.Argument);
+            return asUser ? SessionLauncher.StartAsUser(session, exe, argument) : SessionLauncher.StartAsSystem(session, exe, argument);
         }
 
-        ProcessStartInfo info = new ProcessStartInfo(exe, Injector.Argument) { UseShellExecute = false };
-        return Process.Start(info) ?? throw new InvalidOperationException("Injector-Prozess ließ sich nicht starten.");
+        ProcessStartInfo info = new ProcessStartInfo(exe, argument) { UseShellExecute = false };
+        return Process.Start(info) ?? throw new InvalidOperationException($"{name} ließ sich nicht starten.");
     }
 
-    private static void Stop(Process? injector)
+    private static void Stop(Process? process)
     {
-        if (injector is null)
+        if (process is null)
         {
             return;
         }
 
         try
         {
-            if (!injector.HasExited)
+            if (!process.HasExited)
             {
-                injector.Kill();
+                process.Kill();
             }
         }
         catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
         {
         }
-        injector.Dispose();
+        process.Dispose();
     }
 }

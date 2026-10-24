@@ -173,6 +173,9 @@ internal sealed class HostState(HostConfig config)
         return null;
     }
 
+    /// <summary>Aus der Konfiguration beim Start; ändert sich zur Laufzeit nicht.</summary>
+    public int Port { get; } = config.Port;
+
     public HostStateMessage Snapshot()
     {
         lock (_lock)
@@ -181,7 +184,7 @@ internal sealed class HostState(HostConfig config)
             ClientStateInfo? client = _clientAddress is null
                 ? null
                 : new ClientStateInfo(_clientAddress, _clientVersion, _clientMonitors, layout?.OffsetX ?? 0, layout?.OffsetY ?? 0);
-            return new HostStateMessage(Environment.MachineName, AppVersion.Current, Addresses(), Ports.Input, config.Key, _hostMonitors, client);
+            return new HostStateMessage(Environment.MachineName, AppVersion.Current, Addresses(), Port, config.Key, _hostMonitors, client);
         }
     }
 

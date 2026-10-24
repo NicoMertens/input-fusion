@@ -9,7 +9,8 @@ namespace InputFusion.Core.Protocol;
 /// </summary>
 public static class ProtocolVersion
 {
-    public const ushort Current = 1;
+    // 2: Anmeldung mit ECDH, danach alles verschlüsselt (siehe Handshake).
+    public const ushort Current = 2;
 }
 
 /// <summary>Die Version der laufenden App aus <c>Directory.Build.props</c>, ohne den Commit-Anhang.</summary>

@@ -8,16 +8,18 @@ using InputFusion.Core.Protocol;
 namespace InputFusion.Settings;
 
 /// <summary>
-/// Hält die Pipe zum Agent (<see cref="SettingsPipe"/>) und verbindet neu, solange das Fenster offen ist: Der
-/// Agent kann nach den Einstellungen starten oder zwischendurch neu starten. Ereignisse kommen auf dem UI-Thread an.
+/// Hält die Pipe zum Agent (<see cref="SettingsPipe"/>) bzw. zum Dienst (<see cref="ClientPipe"/>) und verbindet neu,
+/// solange das Fenster offen ist: Agent oder Dienst können nach den Einstellungen starten oder zwischendurch neu starten.
+/// Ereignisse kommen auf dem UI-Thread an.
 /// </summary>
-internal sealed class SettingsConnection(Dispatcher dispatcher)
+/// <param name="verifyServer">Prüft nach dem Verbinden die Gegenseite; wirft <see cref="UnauthorizedAccessException"/>, wenn sie fremd ist.</param>
+internal sealed class SettingsConnection(Dispatcher dispatcher, Func<NamedPipeClientStream> createClient, Action<NamedPipeClientStream>? verifyServer = null)
 {
     private static readonly TimeSpan _retryDelay = TimeSpan.FromSeconds(1);
 
     private volatile MessageConnection? _connection;
 
-    public event Action<HostStateMessage>? StateReceived;
+    public event Action<SettingsMessage>? StateReceived;
     public event Action<string>? ErrorReceived;
     public event Action<bool>? ConnectedChanged;
 
@@ -27,8 +29,9 @@ internal sealed class SettingsConnection(Dispatcher dispatcher)
         {
             try
             {
-                using NamedPipeClientStream pipe = SettingsPipe.CreateClient();
+                using NamedPipeClientStream pipe = createClient();
                 await pipe.ConnectAsync((int)_retryDelay.TotalMilliseconds, ct);
+                verifyServer?.Invoke(pipe);
                 using MessageConnection connection = new MessageConnection(pipe);
                 _connection = connection;
                 Post(() => ConnectedChanged?.Invoke(true));
@@ -42,11 +45,11 @@ internal sealed class SettingsConnection(Dispatcher dispatcher)
 
                     switch (SettingsMessage.FromPayload(payload))
                     {
-                        case HostStateMessage state:
-                            Post(() => StateReceived?.Invoke(state));
-                            break;
                         case SettingsError error:
                             Post(() => ErrorReceived?.Invoke(error.Message));
+                            break;
+                        case { } state:
+                            Post(() => StateReceived?.Invoke(state));
                             break;
                     }
                 }
@@ -57,7 +60,7 @@ internal sealed class SettingsConnection(Dispatcher dispatcher)
             }
             catch (Exception ex) when (ex is IOException or TimeoutException or UnauthorizedAccessException)
             {
-                // Agent läuft nicht oder ist gerade weg; gleich neu versuchen.
+                // Agent bzw. Dienst läuft nicht, ist gerade weg oder die Pipe gehört einem fremden Prozess; gleich neu versuchen.
             }
 
             if (_connection is not null)

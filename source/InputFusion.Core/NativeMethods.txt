@@ -75,3 +75,9 @@ SetThreadDesktop
 CloseDesktop
 GetUserObjectInformation
 LockWorkStation
+GetNamedPipeServerProcessId
+OpenProcess
+WTSQueryUserToken
+CreateEnvironmentBlock
+DestroyEnvironmentBlock
+GetNamedPipeClientProcessId

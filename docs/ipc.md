@@ -5,7 +5,7 @@ Named Pipes zwischen den Prozessen eines Rechners. Die Verbindung zwischen PC un
 | Verbindung | Weg | ACL der Pipe |
 |---|---|---|
 | [Einstellungen](einstellungen.md) → [Agent](host.md) | Named Pipe, JSON-Nachrichten | nur der angemeldete Benutzer |
-| [Einstellungen](einstellungen.md) → [Dienst](client.md#dienst) | Named Pipe, JSON-Nachrichten | interaktive Benutzer |
+| [Tray](client.md#tray), [Einstellungen](einstellungen.md) → [Dienst](client.md#dienst) | Named Pipe, JSON-Nachrichten | SYSTEM, Administratoren, interaktive Benutzer |
 | [Dienst](client.md#dienst) ↔ [Injector](client.md#injector) | Named Pipe, binär | nur SYSTEM |
 
 Der Wechsel läuft über `SwitchToClient`, `SwitchToHost`, `ReturnEdges` und `LockWorkstation` (Host → Client) sowie `Monitors` und `SwitchBackRequest` (Client → Host, wenn der Cursor eine Rückkehrkante erreicht). Bedeutung siehe [Layout](layout.md).
@@ -35,6 +35,17 @@ Umgesetzt in `InputFusion.Core.Ipc.SettingsPipe` (Pipe), `SettingsMessages` (Nac
 - **Angelegt per `CreateNamedPipe`** mit einem Security-Descriptor aus SDDL, nicht über `PipeSecurity`: Mit dem Label in dessen SACL scheitert das Anlegen an „A required privilege is not held by the client“ (SeSecurityPrivilege), gemessen mit nicht erhöhtem Agent. Mit `PIPE_REJECT_REMOTE_CLIENTS`, die Pipe ist nur lokal erreichbar.
 - **Verifiziert** mit nicht erhöhtem Agent über ein Testskript: Zustand bei Verbindung, Ablehnung eines zu kurzen Schlüssels und einer Lage ohne Client, Schlüsselwechsel samt Speichern. Der Zugriff nicht erhöhter Einstellungen auf den erhöhten Agent ist noch am echten Aufbau zu prüfen.
 
+## Stand Tray und Einstellungen ↔ Dienst
+
+Umgesetzt in `InputFusion.Core.Ipc.ClientPipe`, auf Seiten des Dienstes in `ClientSettingsServer` und `ClientStatus`. Genutzt vom [Tray](client.md#tray) und den [Einstellungen des Notebooks](einstellungen.md#stand-einstellungen-des-notebooks).
+
+- **Pipe-Name:** `\\.\pipe\InputFusion.Client`, ohne SID: Es gibt einen Dienst je Rechner, nicht einen je Benutzer. Beliebig viele Verbindungen gleichzeitig.
+- **ACL** als SDDL `O:<eigenes Konto>D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;<eigenes Konto>)(A;;0x120183;;;IU)S:(ML;;NW;;;ME)`: Besitzer ist ausdrücklich der Dienst. SYSTEM, Administratoren und das eigene Konto dürfen alles; beim Entwickeln legt der Benutzer so selbst weitere Exemplare an. Interaktive Benutzer dürfen lesen, schreiben und die Berechtigungen lesen, aber **keine Exemplare anlegen** (`FILE_CREATE_PIPE_INSTANCE`, das in `GENERIC_WRITE` steckt). Dazu die Integritätsstufe **Mittel**, damit auch nicht erhöhte Prozesse schreiben dürfen. Angelegt wie die Pipe des Agents über `CreateNamedPipe` (`SddlPipe`), nur lokal erreichbar. Die Clients öffnen sie deshalb mit genau diesen Rechten statt mit `PipeDirection.InOut`, das Exemplare anlegen will und abgewiesen würde.
+- **Server prüfen:** Neben dem laufenden Dienst kann ein Benutzer kein Exemplar anlegen. Er könnte die Pipe aber anlegen, solange der Dienst nicht läuft; dann gehört sie ihm. Tray und Einstellungen prüfen deshalb nach dem Verbinden den **Besitzer der Pipe** (`ClientPipe.VerifyServer`): SYSTEM oder, beim Entwickeln, das eigene Konto. Auf SYSTEM setzen kann den Besitzer nur SYSTEM. Der Dienst bekommt die Pipe dann selbst nicht und meldet das im Ereignisprotokoll; Tray und Einstellungen zeigen „nicht erreichbar“. Das ist Sabotage, aber keine Rechteausweitung, wie beim [Injector](#absicherung). Ohne ausdrückliche Angabe gehörte eine von SYSTEM angelegte Pipe übrigens den Administratoren (gemessen). Das Konto des Server-Prozesses, wie beim Injector, lässt sich hier nicht prüfen: Ein normaler Benutzer darf den Dienst-Prozess nicht öffnen (`OpenProcess` scheitert mit Zugriff verweigert).
+- **Nachrichten:** dieselben wie beim Agent (`SettingsMessage`). Vom Dienst `clientState`: Version; Host, IP und Port aus `client.json`; der Schlüssel nur für Administratoren; `canEdit`; ob verbunden, Adresse und Version des Hosts, letzte Störung. Zum Dienst `getState` und `setClientConfig` (Host, IP, Port, Schlüssel).
+- **Ablauf:** wie beim Agent. Der Dienst schickt jeder neuen Verbindung sofort den Zustand und danach bei jeder Änderung.
+- **Ändern nur für Administratoren:** Der Dienst ermittelt je Verbindung mit `GetNamedPipeClientProcessId` den Prozess der Gegenseite und prüft dessen Token (`PipeIdentity.IsClientAdministrator`): SYSTEM oder Mitglied der Administratoren mit aktiver Gruppe, also erhöht. Andere bekommen keinen Schlüssel, und `setClientConfig` lehnt er ab. Dann prüft er die Werte (`ClientConfigRules`), schreibt `client.json` mit derselben ACL wie das Setup (`ClientConfig.Save`), bricht den laufenden Verbindungsversuch samt Verbindung ab und verbindet sofort mit den neuen Werten. Mit `--relay` steht die Konfiguration fest; Änderungen lehnt er dann ab.
+
 ## Stand Dienst ↔ Injector (Phase 2, Schritt 1)
 
 Umgesetzt in `InputFusion.Core.Ipc.InputPipe` und über Unit-Test und einen lokalen Durchlauf verifiziert:
@@ -42,4 +53,13 @@ Umgesetzt in `InputFusion.Core.Ipc.InputPipe` und über Unit-Test und einen loka
 - **Dieselbe Rahmung wie im Netz:** Die Pipe trägt genau die Eingabe-Frames, die der Host schickt. Der Dienst (Pipe-Server) reicht sie unverändert an den Injector (Pipe-Client) weiter und in der Gegenrichtung dessen `SwitchBackRequest` an den Host; beide nutzen `MessageConnection` über dem Pipe-Strom. Für diese binäre Strecke gibt es deshalb kein eigenes JSON — das bleibt der Einstellungs-IPC vorbehalten.
 - **ACL:** Der Server erlaubt immer SYSTEM mit Vollzugriff. Im Produktivfall laufen Dienst und Injector beide als SYSTEM (der Dienst startet den Injector per `CreateProcessAsUser` mit dupliziertem SYSTEM-Token), also bleibt es bei SYSTEM. Zum Entwickeln laufen beide als der angemeldete Benutzer; dann wird dessen SID zusätzlich erlaubt, sonst käme der Injector nicht an die Pipe.
 - **Pipe-Name:** `\\.\pipe\InputFusion.Input`, ein Server-Exemplar. Ein kleiner Puffer sorgt dafür, dass das Weiterreichen der winzigen Frames nicht auf die Lese-Kadenz des Injectors wartet.
-- **Noch offen:** Der sitzungsabhängige Start des Injectors (`CreateProcessAsUser`, Desktop-Wechsel) kommt in Schritt 2 und ist nur an echter Hardware testbar, siehe [Client](client.md#stand-phase-2-schritt-1-ipc-und-injector).
+- **Start des Injectors** je Sitzung per `CreateProcessAsUser` und der Desktop-Wechsel stehen unter [Client](client.md#stand-phase-2-schritt-2-windows-dienst).
+
+### Absicherung
+
+Die ACL schützt nur die Pipe des echten Dienstes. Legt ein anderer Prozess `\\.\pipe\InputFusion.Input` vorher an, bekommt der Dienst sie nicht (ein Server-Exemplar), und der Injector verbände sich mit dem fremden Server. Weil er als SYSTEM abspielt, erreichten fremde Eingaben dann auch Sperrbildschirm und UAC-Abfrage.
+
+- **Prüfung im Injector** (`InputPipe.VerifyServer`, umgesetzt in `PipeIdentity`): Nach dem Verbinden ermittelt er mit `GetNamedPipeServerProcessId` den Server-Prozess und liest aus dessen Token das Konto. Nur wenn es sein eigenes ist, spielt er ab; sonst trennt er, schreibt den Grund auf die Konsole und versucht es nach 500 ms erneut. Ist Prozess oder Token nicht zu öffnen, gilt das als fremd.
+- **Warum das Konto genügt:** Im Dienst ist es SYSTEM; wer als SYSTEM läuft, braucht den Umweg über den Injector nicht. Beim Entwickeln laufen beide als der angemeldete Benutzer, ein fremder Server unter demselben Konto gewinnt dann keine Rechte.
+- **Nicht abgewehrt:** Ein fremder Server, der die Pipe besetzt hält, blockiert den Dienst. Das ist Sabotage, aber keine Rechteausweitung.
+- **Geprüft:** Unit-Tests mit einem Server unter dem Testkonto: angenommen, wenn das eigene Konto erlaubt ist, abgelehnt, wenn nur SYSTEM erlaubt ist.

@@ -1,11 +1,12 @@
-﻿using System.Net.Sockets;
+﻿using System.Net;
+using System.Net.Sockets;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
 
 namespace InputFusion.Client;
 
 /// <summary>
-/// Die Dienst-Rolle: hält den Injector am Leben und die Verbindung zum Host. Ist der Host nicht erreichbar
+/// Die Dienst-Rolle: hält Injector und Tray-Symbol am Leben und die Verbindung zum Host. Ist der Host nicht erreichbar
 /// oder bricht die Verbindung ab, wird es mit wachsendem Abstand bis <see cref="_maxRetryDelay"/> erneut
 /// versucht. Läuft im Windows-Dienst (<see cref="Worker"/>) und zum Entwickeln als Konsole (<c>--relay</c>).
 /// </summary>
@@ -15,101 +16,172 @@ internal static class ClientService
 
     private static readonly TimeSpan _minRetryDelay = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan _maxRetryDelay = TimeSpan.FromSeconds(15);
-    private static readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(5);
+    // Je Adresse; drei Sekunden lassen Platz für eine Wiederholung des Verbindungsaufbaus im WLAN.
+    private static readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan _resolveTimeout = TimeSpan.FromSeconds(5);
 
     public delegate ClientConfig? ConfigLoader(out string? error);
 
+    /// <summary>Speichert eine neue Konfiguration; bei Fehler die Meldung, sonst null.</summary>
+    public delegate string? ConfigSaver(ClientConfig config);
+
+    /// <param name="saveConfig">Null, wenn die Konfiguration feststeht (<c>--relay</c>); dann lehnt der Dienst Änderungen aus den Einstellungen ab.</param>
     /// <param name="protocolMismatch">Wird gerufen, wenn der Host eine andere Protokollversion spricht; der Dienst sucht dann nach einem Update.</param>
-    public static async Task RunAsync(ConfigLoader loadConfig, bool asService, Action<string> log, CancellationToken ct, Action? protocolMismatch = null)
+    public static async Task RunAsync(ConfigLoader loadConfig, ConfigSaver? saveConfig, bool asService, Action<string> log, CancellationToken ct,
+        Action? protocolMismatch = null)
     {
-        Task supervisor = new InjectorSupervisor(asService, log).RunAsync(ct);
+        ClientStatus status = new ClientStatus();
+        // Der laufende Versuch samt Verbindung. Nach dem Speichern einer neuen Konfiguration wird er abgebrochen, und
+        // die Schleife verbindet sofort mit der neuen, statt auf den nächsten Abbruch oder Versuch zu warten.
+        CancellationTokenSource? attempt = null;
+        ConfigSaver? save = saveConfig is null ? null : config =>
+        {
+            string? error = saveConfig(config);
+            if (error is null)
+            {
+                log($"Konfiguration geändert: Host {config.Host}, Port {config.Port}{(config.Ip is null ? "" : $", IP {config.Ip}")}.");
+                try { attempt?.Cancel(); }
+                catch (ObjectDisposedException) { }
+            }
+            return error;
+        };
+
+        Task injector = new SessionSupervisor("Injector", Injector.Argument, asUser: false, asService, log).RunAsync(ct);
+        Task tray = new SessionSupervisor("Tray", ClientTray.ArgumentsFor(Environment.ProcessId), asUser: true, asService, log).RunAsync(ct);
+        Task settings = new ClientSettingsServer(status, save, log).RunAsync(ct);
 
         TimeSpan delay = _minRetryDelay;
         string? lastProblem = null;
         while (!ct.IsCancellationRequested)
         {
+            using CancellationTokenSource current = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            attempt = current;
             ClientConfig? config = loadConfig(out string? error);
+            status.SetConfig(config);
             string? problem = error;
-            if (config is not null)
+            bool wasConnected = false;
+            try
             {
-                (TcpClient? tcp, string? connectError) = await ConnectAsync(config, ct);
-                problem = connectError;
-                if (tcp is not null)
+                if (config is not null)
                 {
-                    HandshakeResult handshake;
-                    using (tcp)
-                    using (MessageConnection conn = MessageConnection.FromTcp(tcp))
-                    {
-                        handshake = await Handshake.ClientAsync(conn, config.Key, AppVersion.Current, ct);
-                        if (handshake.Outcome == HandshakeOutcome.Accepted)
-                        {
-                            log($"Mit dem Host {tcp.Client.RemoteEndPoint} (Version {handshake.PeerVersion}) verbunden.");
-                            await new PipeRelay(conn, log).RunAsync(ct);
-                        }
-                    }
-                    if (handshake.Outcome == HandshakeOutcome.ProtocolMismatch)
-                    {
-                        problem = $"Host {config.Host} hat Version {handshake.PeerVersion} mit Protokoll {handshake.PeerProtocol}, "
-                            + $"dieser Client {AppVersion.Current} mit Protokoll {ProtocolVersion.Current}. Suche nach einem Update.";
-                        protocolMismatch?.Invoke();
-                    }
-                    else if (handshake.Outcome == HandshakeOutcome.Accepted)
-                    {
-                        if (!ct.IsCancellationRequested)
-                        {
-                            log("Verbindung zum Host beendet, verbinde neu.");
-                        }
-
-                        delay = _minRetryDelay;
-                        lastProblem = null;
-                        continue;
-                    }
-                    else
-                    {
-                        // Falscher Schlüssel: wie ein nicht erreichbarer Host mit wachsendem Abstand neu versuchen,
-                        // damit eine Korrektur in client.json ohne Neustart greift.
-                        problem = $"Host {config.Host} hat die Anmeldung abgelehnt oder sich nicht ausgewiesen; stimmt der Schlüssel?";
-                    }
+                    (problem, wasConnected) = await AttemptAsync(config, status, log, protocolMismatch, current.Token);
                 }
-            }
 
-            // Dieselbe Störung nur einmal melden, sonst läuft das Ereignisprotokoll über, solange der PC aus ist.
-            if (problem != lastProblem)
+                if (wasConnected)
+                {
+                    if (!ct.IsCancellationRequested)
+                    {
+                        log("Verbindung zum Host beendet, verbinde neu.");
+                    }
+
+                    delay = _minRetryDelay;
+                    lastProblem = null;
+                    continue;
+                }
+
+                // Dieselbe Störung nur einmal melden, sonst läuft das Ereignisprotokoll über, solange der PC aus ist.
+                if (problem is not null && problem != lastProblem)
+                {
+                    log($"{problem} Neuer Versuch spätestens alle {_maxRetryDelay.TotalSeconds:0} s.");
+                }
+
+                lastProblem = problem;
+                status.Update(s => s with { Problem = problem });
+                await Task.Delay(delay, current.Token);
+                delay = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, _maxRetryDelay.Ticks));
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                log($"{problem} Neuer Versuch spätestens alle {_maxRetryDelay.TotalSeconds:0} s.");
+                // Neue Konfiguration gespeichert: sofort damit verbinden.
+                delay = _minRetryDelay;
+                lastProblem = null;
             }
-
-            lastProblem = problem;
-
-            try { await Task.Delay(delay, ct); }
-            catch (OperationCanceledException) { break; }
-            delay = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, _maxRetryDelay.Ticks));
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
 
-        await supervisor;
+        await injector;
+        await tray;
+        await settings;
     }
 
-    /// <summary>Erst der Rechnername per DNS, dann die feste IP, falls eingetragen.</summary>
+    /// <summary>Ein Versuch: verbinden, anmelden und, wenn das klappt, Eingaben weiterreichen, bis die Verbindung endet.</summary>
+    /// <returns>Die Störung, wenn keine Verbindung zustande kam; ob eine Verbindung bestand.</returns>
+    private static async Task<(string? Problem, bool WasConnected)> AttemptAsync(ClientConfig config, ClientStatus status, Action<string> log,
+        Action? protocolMismatch, CancellationToken ct)
+    {
+        (TcpClient? tcp, string? connectError) = await ConnectAsync(config, ct);
+        if (tcp is null)
+        {
+            return (connectError, false);
+        }
+
+        HandshakeResult handshake;
+        using (tcp)
+        using (MessageConnection conn = MessageConnection.FromTcp(tcp))
+        {
+            handshake = await Handshake.ClientAsync(conn, config.Key, AppVersion.Current, ct);
+            if (handshake.Outcome == HandshakeOutcome.Accepted)
+            {
+                string address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
+                log($"Mit dem Host {address} (Version {handshake.PeerVersion}) verbunden.");
+                status.Update(s => s with { Connected = true, HostAddress = address, HostVersion = handshake.PeerVersion, Problem = null });
+                try
+                {
+                    await new PipeRelay(conn, log).RunAsync(ct);
+                }
+                finally
+                {
+                    status.Update(s => s with { Connected = false, HostAddress = null, HostVersion = null });
+                }
+                return (null, true);
+            }
+        }
+
+        if (handshake.Outcome == HandshakeOutcome.ProtocolMismatch)
+        {
+            protocolMismatch?.Invoke();
+            return ($"Host {config.Host} hat Version {handshake.PeerVersion} mit Protokoll {handshake.PeerProtocol}, "
+                + $"dieser Client {AppVersion.Current} mit Protokoll {ProtocolVersion.Current}. Suche nach einem Update.", false);
+        }
+
+        // Falscher Schlüssel: wie ein nicht erreichbarer Host mit wachsendem Abstand neu versuchen, damit eine Korrektur
+        // in den Einstellungen oder in client.json ohne Neustart greift.
+        return ($"Host {config.Host} hat die Anmeldung abgelehnt oder sich nicht ausgewiesen; stimmt der Schlüssel?", false);
+    }
+
+    /// <summary>
+    /// Löst den Rechnernamen selbst auf und versucht die Adressen einzeln in der Reihenfolge von
+    /// <see cref="HostAddresses.Order"/>, jede mit eigenem Zeitlimit. Mit dem Namen versuchte <c>ConnectAsync</c> sie
+    /// nacheinander in einem gemeinsamen Zeitlimit; blieb eine IPv6-Adresse hängen, kam die IPv4-Adresse nie dran.
+    /// </summary>
     private static async Task<(TcpClient? Client, string? Error)> ConnectAsync(ClientConfig config, CancellationToken ct)
     {
-        string? error = null;
-        foreach (string? target in config.Ip is null ? [config.Host] : new[] { config.Host, config.Ip })
+        (IPAddress[] resolved, string? error) = await ResolveAsync(config.Host, ct);
+        // Ältere Setups ließen in "ip" auch einen Namen zu.
+        IPAddress[] fixedIps = config.Ip is null ? []
+            : IPAddress.TryParse(config.Ip, out IPAddress? parsed) ? [parsed]
+            : (await ResolveAsync(config.Ip, ct)).Addresses;
+
+        foreach (IPAddress address in HostAddresses.Order(resolved, fixedIps))
         {
-            TcpClient tcp = new TcpClient();
+            TcpClient tcp = new TcpClient(address.AddressFamily);
             using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(_connectTimeout);
             try
             {
-                await tcp.ConnectAsync(target, Ports.Input, timeout.Token);
+                await tcp.ConnectAsync(address, config.Port, timeout.Token);
                 return (tcp, null);
             }
             catch (SocketException ex)
             {
-                error = $"Host {target}:{Ports.Input} nicht erreichbar ({ex.SocketErrorCode}).";
+                error = $"Host {config.Host} ({address}:{config.Port}) nicht erreichbar ({ex.SocketErrorCode}).";
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                error = $"Host {target}:{Ports.Input} antwortet nicht.";
+                error = $"Host {config.Host} ({address}:{config.Port}) antwortet nicht.";
             }
             catch (OperationCanceledException)
             {
@@ -119,5 +191,23 @@ internal static class ClientService
             tcp.Dispose();
         }
         return (null, error);
+    }
+
+    private static async Task<(IPAddress[] Addresses, string? Error)> ResolveAsync(string name, CancellationToken ct)
+    {
+        using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(_resolveTimeout);
+        try
+        {
+            return (await Dns.GetHostAddressesAsync(name, timeout.Token), null);
+        }
+        catch (SocketException ex)
+        {
+            return ([], $"Host {name} nicht auflösbar ({ex.SocketErrorCode}).");
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return ([], $"Host {name} nicht auflösbar (Zeitüberschreitung).");
+        }
     }
 }

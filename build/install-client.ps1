@@ -18,6 +18,9 @@
 .PARAMETER Ip
     Optionale feste IP des PCs, die zusätzlich zum DNS-Ergebnis versucht wird.
 
+.PARAMETER Port
+    TCP-Port des Hosts, wie in dessen Einstellungen (Reiter Verbindung). Standard 15111.
+
 .PARAMETER Source
     Ordner mit InputFusion.Client.exe. Standard: der Ordner dieses Skripts, falls die exe dort liegt,
     sonst die Build-Ausgabe im Repo (_out\InputFusion.Client).
@@ -29,6 +32,7 @@ param(
     [Parameter(Mandatory = $true)][string]$HostName,
     [Parameter(Mandatory = $true)][string]$Key,
     [string]$Ip,
+    [ValidateRange(1, 65535)][int]$Port = 15111,
     [string]$Source
 )
 
@@ -69,6 +73,7 @@ New-Item -ItemType Directory -Path $configDir -Force | Out-Null
 $configFile = Join-Path $configDir 'client.json'
 $config = [ordered]@{ host = $HostName; key = $Key }
 if ($Ip) { $config.ip = $Ip }
+$config.port = $Port
 $json = $config | ConvertTo-Json
 [System.IO.File]::WriteAllText($configFile, $json, (New-Object System.Text.UTF8Encoding $false))
 
