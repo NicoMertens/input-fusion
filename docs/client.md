@@ -47,7 +47,8 @@ Der Client läuft als Windows-Dienst `InputFusionClient`, eingerichtet per Skrip
 
 - **Ein Ablauf für Dienst und Entwicklung:** `ClientService` hält den Injector am Leben (`InjectorSupervisor`) und die Verbindung zum Host, mit Neuverbindung. Im Dienst kommt die Host-Adresse aus `client.json`, und der Injector startet per `CreateProcessAsUser` als SYSTEM in der aktiven Sitzung (`SessionLauncher`), wie oben unter [Dienst](#dienst) beschrieben. Mit `--relay <host> --key <schlüssel>` läuft derselbe Ablauf als Konsole, mit Host und Schlüssel aus den Argumenten und dem Injector als Kindprozess. Ohne Argument aus einer Konsole im Installationsordner gestartet, läuft der Dienst-Ablauf sichtbar mit (anderswo fragt die exe stattdessen, ob sie sich installieren soll), aber ebenfalls mit Kindprozess, weil nur SYSTEM die Sitzung eines Tokens umsetzen darf.
 - **Verifiziert auf dem PC** mit einem Test-Host: Dienst per Skript installiert, Injector läuft in Sitzung 1, Dienst in Sitzung 0; Verbindung nach Start des Hosts innerhalb des Wiederholungsabstands; Austritt über Dienst und Injector kommt beim Host an; nach Verbindungsabbruch neu verbunden; ein beendeter Injector wird binnen einer Sekunde neu gestartet und übernimmt die Pipe; Deinstallation ohne Reste.
-- **Noch offen:** der Test des Sitzungswechsels (Abmelden, Benutzerwechsel) am Notebook; die Prüfung, dass der SYSTEM-Injector nur mit dem eigenen Dienst spricht. Bisher könnte ein Prozess, der die Pipe vor dem Dienst anlegt, dem Injector Eingaben unterschieben.
+- **Nur der eigene Dienst:** Der Injector spielt nur ab, wenn der Server der Pipe unter demselben Konto läuft wie er, im Dienst also SYSTEM; siehe [IPC](ipc.md#absicherung).
+- **Noch offen:** der Test des Sitzungswechsels (Abmelden, Benutzerwechsel) am Notebook.
 
 ## Updates
 

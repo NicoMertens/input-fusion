@@ -42,4 +42,13 @@ Umgesetzt in `InputFusion.Core.Ipc.InputPipe` und über Unit-Test und einen loka
 - **Dieselbe Rahmung wie im Netz:** Die Pipe trägt genau die Eingabe-Frames, die der Host schickt. Der Dienst (Pipe-Server) reicht sie unverändert an den Injector (Pipe-Client) weiter und in der Gegenrichtung dessen `SwitchBackRequest` an den Host; beide nutzen `MessageConnection` über dem Pipe-Strom. Für diese binäre Strecke gibt es deshalb kein eigenes JSON — das bleibt der Einstellungs-IPC vorbehalten.
 - **ACL:** Der Server erlaubt immer SYSTEM mit Vollzugriff. Im Produktivfall laufen Dienst und Injector beide als SYSTEM (der Dienst startet den Injector per `CreateProcessAsUser` mit dupliziertem SYSTEM-Token), also bleibt es bei SYSTEM. Zum Entwickeln laufen beide als der angemeldete Benutzer; dann wird dessen SID zusätzlich erlaubt, sonst käme der Injector nicht an die Pipe.
 - **Pipe-Name:** `\\.\pipe\InputFusion.Input`, ein Server-Exemplar. Ein kleiner Puffer sorgt dafür, dass das Weiterreichen der winzigen Frames nicht auf die Lese-Kadenz des Injectors wartet.
-- **Noch offen:** Der sitzungsabhängige Start des Injectors (`CreateProcessAsUser`, Desktop-Wechsel) kommt in Schritt 2 und ist nur an echter Hardware testbar, siehe [Client](client.md#stand-phase-2-schritt-1-ipc-und-injector).
+- **Start des Injectors** je Sitzung per `CreateProcessAsUser` und der Desktop-Wechsel stehen unter [Client](client.md#stand-phase-2-schritt-2-windows-dienst).
+
+### Absicherung
+
+Die ACL schützt nur die Pipe des echten Dienstes. Legt ein anderer Prozess `\\.\pipe\InputFusion.Input` vorher an, bekommt der Dienst sie nicht (ein Server-Exemplar), und der Injector verbände sich mit dem fremden Server. Weil er als SYSTEM abspielt, erreichten fremde Eingaben dann auch Sperrbildschirm und UAC-Abfrage.
+
+- **Prüfung im Injector** (`InputPipe.VerifyServer`): Nach dem Verbinden ermittelt er mit `GetNamedPipeServerProcessId` den Server-Prozess und liest aus dessen Token das Konto. Nur wenn es sein eigenes ist, spielt er ab; sonst trennt er, schreibt den Grund auf die Konsole und versucht es nach 500 ms erneut. Ist Prozess oder Token nicht zu öffnen, gilt das als fremd.
+- **Warum das Konto genügt:** Im Dienst ist es SYSTEM; wer als SYSTEM läuft, braucht den Umweg über den Injector nicht. Beim Entwickeln laufen beide als der angemeldete Benutzer, ein fremder Server unter demselben Konto gewinnt dann keine Rechte.
+- **Nicht abgewehrt:** Ein fremder Server, der die Pipe besetzt hält, blockiert den Dienst. Das ist Sabotage, aber keine Rechteausweitung.
+- **Geprüft:** Unit-Test mit einem Server unter demselben Konto. Die Ablehnung eines fremden Kontos ist nicht automatisch getestet; dazu bräuchte es einen Server unter einem zweiten Konto.

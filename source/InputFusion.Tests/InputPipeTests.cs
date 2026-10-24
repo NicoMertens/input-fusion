@@ -51,4 +51,19 @@ public class InputPipeTests
         Assert.Equal(new KeyEvent(65, 30, ButtonState.Down, false), KeyEvent.FromPayload(received[1].Payload));
         Assert.Equal(new MouseMoveRelative(7, -3), MouseMoveRelative.FromPayload(received[2].Payload));
     }
+
+    [Fact]
+    public async Task VerifyServer_AcceptsServerOfSameUser()
+    {
+        using CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        using NamedPipeServerStream server = InputPipe.CreateServer();
+        using NamedPipeClientStream client = InputPipe.CreateClient();
+
+        Task accept = server.WaitForConnectionAsync(cts.Token);
+        await client.ConnectAsync(cts.Token);
+        await accept;
+
+        InputPipe.VerifyServer(client);
+    }
 }
