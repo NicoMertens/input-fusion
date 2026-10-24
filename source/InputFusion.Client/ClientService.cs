@@ -46,8 +46,8 @@ internal static class ClientService
             return error;
         };
 
-        Task injector = new SessionSupervisor("Injector", Injector.Argument, asUser: false, asService, log).RunAsync(ct);
-        Task tray = new SessionSupervisor("Tray", ClientTray.ArgumentsFor(Environment.ProcessId), asUser: true, asService, log).RunAsync(ct);
+        Task injector = new SessionSupervisor("Injector", OwnerProcess.Arguments(Injector.Argument), asUser: false, asService, log).RunAsync(ct);
+        Task tray = new SessionSupervisor("Tray", OwnerProcess.Arguments(ClientTray.Argument), asUser: true, asService, log).RunAsync(ct);
         Task settings = new ClientSettingsServer(status, save, log).RunAsync(ct);
 
         TimeSpan delay = _minRetryDelay;

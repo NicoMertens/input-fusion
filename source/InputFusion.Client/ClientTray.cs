@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.IO;
+﻿using System.IO;
 using System.IO.Pipes;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Net;
@@ -20,11 +19,7 @@ internal static class ClientTray
 
     private static readonly TimeSpan _retryDelay = TimeSpan.FromSeconds(1);
 
-    /// <summary>Argumente für den Start durch den Dienst: Das Symbol endet mit dem Prozess, der es gestartet hat.</summary>
-    public static string ArgumentsFor(int ownerPid) => $"{Argument} {ownerPid}";
-
-    public static void Run(string[] rest) =>
-        RunAsync(rest is [string pid] && int.TryParse(pid, out int ownerPid) ? ownerPid : null).GetAwaiter().GetResult();
+    public static void Run(string[] rest) => RunAsync(OwnerProcess.Parse(rest)).GetAwaiter().GetResult();
 
     private static async Task RunAsync(int? ownerPid)
     {
@@ -32,7 +27,7 @@ internal static class ClientTray
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
         if (ownerPid is int pid)
         {
-            _ = WatchOwnerAsync(pid, cts);
+            _ = OwnerProcess.WatchAsync(pid, cts);
         }
 
         TrayIcon tray = new TrayIcon($"InputFusion Client {AppVersion.Current}",
@@ -79,34 +74,5 @@ internal static class ClientTray
         {
             tray.Stop();
         }
-    }
-
-    /// <summary>
-    /// Endet, wenn der startende Dienst weg ist. Sonst hätte das Notebook nach einem Absturz des Dienstes zwei Symbole:
-    /// Der neu gestartete Dienst kennt das alte nicht. Abgefragt über die Prozessliste, weil ein Benutzer auf einen
-    /// SYSTEM-Prozess kein Handle zum Warten bekommt; der Name schützt vor einer neu vergebenen PID.
-    /// </summary>
-    private static async Task WatchOwnerAsync(int pid, CancellationTokenSource cts)
-    {
-        string name = Path.GetFileNameWithoutExtension(Environment.ProcessPath) ?? "";
-        while (!cts.IsCancellationRequested)
-        {
-            try
-            {
-                using Process owner = Process.GetProcessById(pid);
-                if (!string.Equals(owner.ProcessName, name, StringComparison.OrdinalIgnoreCase))
-                {
-                    break;
-                }
-            }
-            catch (ArgumentException)
-            {
-                break;
-            }
-
-            try { await Task.Delay(_retryDelay, cts.Token); }
-            catch (OperationCanceledException) { return; }
-        }
-        cts.Cancel();
     }
 }

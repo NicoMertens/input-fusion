@@ -10,9 +10,9 @@ powershell -ExecutionPolicy Bypass -File .\install-client.ps1 -HostName PC-NAME 
 
 Das Skript
 
-1. stoppt einen vorhandenen Dienst `InputFusionClient` und beendet laufende Client-Prozesse,
+1. stoppt einen vorhandenen Dienst `InputFusionClient` und beendet laufende Client-Prozesse und offene Einstellungen aus dem Installationsordner,
 2. kopiert die Dateien nach `%ProgramFiles%\InputFusion\Client`. Dort darf nur ein Administrator schreiben; das ist wichtig, weil der Dienst die exe als SYSTEM ausführt.
-3. schreibt `%ProgramData%\InputFusion\client.json` mit `host`, `key`, optional `ip` und `port` (Standard 15111, muss zum Host passen), ACL nur SYSTEM und Administratoren, ohne Vererbung. Den Schlüssel zeigen die [Einstellungen](einstellungen.md) des Hosts im Reiter Verbindung; er muss mindestens 16 Zeichen haben.
+3. schreibt `%ProgramData%\InputFusion\client.json` mit `host`, `key`, optional `ip` und `port` (Standard 15111, muss zum Host passen), ACL nur SYSTEM und Administratoren, ohne Vererbung. Die Datei entsteht gleich mit der ACL, sonst wäre sie kurz für alle lesbar; ausgegeben wird sie ohne Schlüssel. Den Schlüssel zeigen die [Einstellungen](einstellungen.md) des Hosts im Reiter Verbindung; er muss mindestens 16 Zeichen haben.
 4. legt den Dienst an (LocalSystem, Start automatisch, Neustart nach Absturz nach 5 s, 5 s, 30 s) und startet ihn.
 
 **Per Setup:** `InputFusion.Client-Setup.exe` aus dem [GitHub-Release](https://github.com/NicoMertens/input-fusion/releases/latest) per Doppelklick starten. Sie fragt nach, holt per UAC Adminrechte, fragt PC-Name, Schlüssel, optional eine IP und den Port ab und tut dann dasselbe wie das Skript unten, siehe [Client](client.md#selbstinstallation).
