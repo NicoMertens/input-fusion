@@ -50,6 +50,7 @@ PC (Server)                                    Notebook (Client)
 | [installation.md](installation.md) | Einrichtung für die Entwicklung: Client-Dienst per Skript, Firewall-Regel für den Host |
 | [updates.md](updates.md) | Selbst-Update von Host (Velopack, geplante Aufgabe) und Client, Releases |
 | [simulator.md](simulator.md) | Entwicklungswerkzeug, das einen Client mit mehreren Monitoren in einem Fenster simuliert |
+| [todo.md](todo.md) | Offene Aufgaben: was zu bauen, zu entscheiden und am Notebook zu prüfen ist |
 
 ## Regeln für diese Doku
 
