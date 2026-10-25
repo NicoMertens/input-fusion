@@ -9,11 +9,11 @@
 
 ## Auf dem PC
 
-Layout-Editor, Schlüssel, Port, Kopplung und Tastenkürzel (beide später). Wie der Editor funktioniert, steht unter [Layout](layout.md).
+Layout-Editor, Schlüssel, Port und Kopplung (später). Die Tastenkürzel (Strg+Alt+F11, Strg+Alt+F12) liegen fest, siehe [Host](host.md). Wie der Editor funktioniert, steht unter [Layout](layout.md).
 
 ## Auf dem Notebook
 
-PC-Name des Hosts, feste IP, Port, Schlüssel und Status; später eine Vorschau der eigenen Monitore. Kein Layout-Editor, das Layout gehört dem Server. Den Status zeigt außerdem das [Tray-Symbol](client.md#tray).
+PC-Name des Hosts, feste IP, Port, Schlüssel und Status, dazu eine Vorschau der eigenen Monitore. Kein Layout-Editor, das Layout gehört dem Server. Den Status zeigt außerdem das [Tray-Symbol](client.md#tray).
 
 ## Stand: Einstellungen des Notebooks
 
@@ -23,6 +23,7 @@ PC-Name des Hosts, feste IP, Port, Schlüssel und Status; später eine Vorschau 
 - **Felder:** PC-Name des Hosts, feste IP (optional), Port, Schlüssel. Geprüft wird schon bei der Eingabe mit denselben Regeln wie im Dienst (`ClientConfigRules`: PC-Name ohne Leerzeichen, IPv4 mit vier Teilen, Port 1–65535, Schlüssel wie beim Host). „Übernehmen“ ist nur mit gültigen, geänderten Werten aktiv; eine Ablehnung des Dienstes erscheint unter den Feldern. Nach dem Übernehmen verbindet der Dienst sofort neu.
 - **Nur Administratoren ändern:** Wer Host und Schlüssel bestimmt, bestimmt, wer als SYSTEM Eingaben auf dem Notebook abspielt, auch auf Sperrbildschirm und UAC-Abfrage. Der Dienst prüft je Verbindung, ob die Einstellungen erhöht als Administrator laufen, und schickt nur dann den Schlüssel und `canEdit`. Ohne Rechte sind die Felder schreibgeschützt, der Schlüssel bleibt leer, und „Als Administrator bearbeiten …“ startet die Einstellungen per UAC erhöht neu. Dafür gibt die laufende Instanz ihren Mutex vorher frei; lehnt der Benutzer ab, nimmt sie ihn wieder.
 - **Laufende Eingabe bleibt:** Ein neuer Zustand überschreibt die Felder nicht, solange darin geändert wird.
+- **Reiter Monitore:** die eigenen Monitore blau auf ihren Windows-Koordinaten, von links nach rechts nummeriert, der Hauptmonitor markiert, wie im Reiter Anordnung des PCs (`MonitorBox`). Die Oberfläche misst sie selbst mit `MonitorEnumerator`, nicht über den Dienst: Sie läuft in der Sitzung des Benutzers und ist wie der Injector Per-Monitor-V2-aware, sieht also dieselben physischen Pixel, auch ohne laufenden Dienst. Nach einer Änderung der Anzeige (`SystemEvents.DisplaySettingsChanged`) zeichnet sie neu. Verschieben lässt sich nichts, das Layout gehört dem PC.
 - **Geprüft** als installierter Dienst auf dem PC: Doppelklick aufs Tray öffnet das Fenster schreibgeschützt ohne Schlüssel; nach dem UAC-Neustart mit Schlüssel; eine Portänderung landet in `client.json`, und der Dienst verbindet sofort mit dem neuen Port.
 
 ## Stand: Einstellungen des PCs

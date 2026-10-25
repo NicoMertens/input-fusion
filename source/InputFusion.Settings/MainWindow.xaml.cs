@@ -228,13 +228,9 @@ public partial class MainWindow : Window
         }
         double unit = Math.Max(Arrangement.Width, Arrangement.Height) / 100.0;
 
-        // Von links nach rechts nummeriert; die Nummern von Windows kennt der Agent nicht.
-        List<MonitorRect> ordered = host.OrderBy(m => m.Left).ThenBy(m => m.Top).ToList();
-        for (int i = 0; i < ordered.Count; i++)
+        foreach ((MonitorRect m, string label) in MonitorBox.Numbered(host))
         {
-            MonitorRect m = ordered[i];
-            string primary = m.X == 0 && m.Y == 0 ? " · Hauptmonitor" : "";
-            AddMonitor(m, $"{i + 1}{primary}\n{m.Width} × {m.Height}", "HostMonitorBrush", "HostMonitorBorderBrush", unit, draggable: false);
+            AddMonitor(m, label, "HostMonitorBrush", "HostMonitorBorderBrush", unit, draggable: false);
         }
 
         if (client.Count == 0)
@@ -257,27 +253,7 @@ public partial class MainWindow : Window
 
     private void AddMonitor(MonitorRect m, string label, string fill, string border, double unit, bool draggable)
     {
-        Border box = new Border
-        {
-            Width = m.Width,
-            Height = m.Height,
-            Background = (Brush)FindResource(fill),
-            BorderBrush = (Brush)FindResource(border),
-            BorderThickness = new Thickness(unit * 0.5),
-            // Die Beschriftung passt sich dem Monitor an; eine Schriftgröße für alle wäre auf kleinen Monitoren abgeschnitten.
-            Child = new Viewbox
-            {
-                Stretch = Stretch.Uniform,
-                StretchDirection = StretchDirection.Both,
-                Margin = new Thickness(Math.Min(m.Width, m.Height) * 0.15),
-                Child = new TextBlock
-                {
-                    Text = label,
-                    Foreground = Brushes.White,
-                    TextAlignment = TextAlignment.Center,
-                },
-            },
-        };
+        Border box = MonitorBox.Create(m, label, fill, border, unit);
         if (draggable)
         {
             box.Cursor = Cursors.SizeAll;

@@ -4,8 +4,6 @@ Arbeitsliste über mehrere Sessions. Erledigtes wird gelöscht, nicht abgehakt: 
 
 ## Bauen
 
-- [ ] **Tastenkürzel in den Einstellungen des PCs:** Die Kürzel liegen fest (Strg+Alt+F11 schaltet um, Strg+Alt+F12 führt zurück) und lassen sich nicht einstellen. Siehe [Einstellungen](einstellungen.md#auf-dem-pc).
-- [ ] **Monitor-Vorschau in den Einstellungen des Notebooks:** die eigenen Monitore wie im Reiter Anordnung des PCs, gemessen von der Oberfläche selbst (`MonitorEnumerator`). Siehe [Einstellungen](einstellungen.md#auf-dem-notebook).
 - [ ] **Desktop Runtime auf dem Notebook prüfen:** Die Einstellungen brauchen die .NET 10 Desktop Runtime; Setup und `install-client.ps1` prüfen sie nicht. Fehlt sie, meldet Windows das erst beim Öffnen. Siehe [Einstellungen](einstellungen.md).
 - [ ] **`Strg+Alt+Entf` über `SendSAS`:** Nötig, wenn das Notebook zum Entsperren Strg+Alt+Entf verlangt; eingespielt wirkt die Kombination nicht. Setzt die Richtlinie *SoftwareSASGeneration* voraus. Siehe [Client](client.md#dienst).
 - [ ] **Bilder in der Zwischenablage:** bisher geht nur Text mit. Siehe [Zwischenablage](zwischenablage.md).
@@ -24,7 +22,7 @@ Umgesetzt, aber bisher nur am PC, mit Unit-Tests oder im [Simulator](simulator.m
 - [ ] **Win+L sperrt beide Rechner.** Siehe [Host](host.md).
 - [ ] **Kanten mit der echten Maus überqueren,** auch an einer anderen als der rechten Kante; Mausgefühl; mit gehaltener Maustaste kein Wechsel vom PC, beim Rückweg mit gehaltener Taste wird sie auf dem Notebook losgelassen. Siehe [Host](host.md), [Layout](layout.md).
 - [ ] **Selbstinstallation:** der erhöhte Teil, der den Dienst anlegt. Siehe [Client](client.md#selbstinstallation).
-- [ ] **Tray und Einstellungen:** Tooltip mit dem Zustand, Einstellungen per Doppelklick, Ändern nach UAC-Neustart. Siehe [Client](client.md#tray), [Einstellungen](einstellungen.md#stand-einstellungen-des-notebooks).
+- [ ] **Tray und Einstellungen:** Tooltip mit dem Zustand, Einstellungen per Doppelklick, Ändern nach UAC-Neustart; der Reiter Monitore zeigt dieselben Monitore wie der Reiter Anordnung des PCs, auch mit externem Monitor und gemischter Skalierung. Siehe [Client](client.md#tray), [Einstellungen](einstellungen.md#stand-einstellungen-des-notebooks).
 - [ ] **Verbindung über den Rechnernamen** ohne feste IP in `client.json`. Siehe [Netzwerk](netzwerk.md).
 - [ ] **Desktop Runtime:** ob sie auf dem Notebook vorhanden ist bzw. was Windows meldet, wenn sie fehlt. Siehe [Einstellungen](einstellungen.md).
 - [ ] **Zwischenablage:** Text in beiden Richtungen über Host, Dienst und Tray, auch mit Umlauten und über 32 KB; nach einem Benutzerwechsel bekommt nur der Tray der aktiven Sitzung Text. Siehe [Zwischenablage](zwischenablage.md).
