@@ -4,6 +4,7 @@ using Windows.Win32.UI.WindowsAndMessaging;
 using InputFusion.Core.Layout;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
+using InputFusion.Core.Shell;
 using System.Drawing;
 
 namespace InputFusion.Host;
@@ -40,6 +41,8 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
     // Maustasten, die der Hook gerade als gedrückt sieht. Solange eine gehalten wird, wechselt die Maus nicht auf den
     // Client: Das Loslassen käme dort an, und auf dem PC bliebe die Taste gedrückt.
     private readonly HashSet<byte> _physicalButtonsDown = new();
+
+    private readonly ClipboardSync _clipboard = new(Log.Write);
 
     private int _recenters, _held, _maxDrift;
     private readonly string _diagPath = Path.Combine(Path.GetTempPath(), "inputfusion-diag.log");
@@ -117,6 +120,24 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         }
     }
 
+    /// <summary>
+    /// Schickt dem Client den Text der Zwischenablage, wenn er sich seit dem letzten Abgleich geändert hat. Nebenher,
+    /// damit Lesen und Senden den Wechsel nicht aufhalten; die Stücke reihen sich zwischen die Eingaben.
+    /// </summary>
+    private async Task SendClipboardAsync(CancellationToken ct)
+    {
+        try
+        {
+            foreach (byte[] chunk in _clipboard.TakeChanged())
+            {
+                await connection.SendAsync(MessageType.ClipboardText, chunk, ct);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or OperationCanceledException or ObjectDisposedException)
+        {
+        }
+    }
+
     /// <summary>Heartbeat zum Client; schweigt er länger als erlaubt (Standby, Netz weg), endet die Verbindung.</summary>
     private async Task WatchClient(CancellationTokenSource linked)
     {
@@ -128,7 +149,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         }
     }
 
-    /// <summary>Liest die Gegenrichtung: die Monitore des Clients und den Austritt über eine Rückkehrkante.</summary>
+    /// <summary>Liest die Gegenrichtung: die Monitore des Clients, den Austritt über eine Rückkehrkante und den Text seiner Zwischenablage.</summary>
     private async Task PumpIncoming(CancellationTokenSource linked)
     {
         try
@@ -138,6 +159,10 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
                 if (type == MessageType.Monitors)
                 {
                     state.ClientMonitorsReported(MonitorList.FromPayload(payload));
+                }
+                else if (type == MessageType.ClipboardText)
+                {
+                    _clipboard.Receive(payload);
                 }
                 else if (type == MessageType.SwitchBackRequest && state.IsRemote)
                 {
@@ -425,6 +450,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         Log.Write($"Remote-Modus an{(observe ? " (Beobachtung)" : "")}, Eintritt beim Client bei ({entry.X}, {entry.Y})");
 
         await connection.SendAsync(MessageType.SwitchToClient, new SwitchToClient(entry.X, entry.Y).ToPayload(), ct);
+        _ = Task.Run(() => SendClipboardAsync(ct), CancellationToken.None);
 
         // Modifier, die beim Übertreten gehalten werden (z. B. Umschalt beim Ziehen über die Kante, oder das
         // Strg+Alt des F11-Hotkeys), an den Client mitschicken, damit der Zustand drüben stimmt.

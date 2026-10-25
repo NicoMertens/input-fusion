@@ -30,7 +30,7 @@ PC (Server)                                    Notebook (Client)
 | [Agent](host.md) | `InputFusion.Host.exe` | PC | Benutzer, erhöht | dauerhaft, Aufgabenplanung bei Anmeldung | Hooks, Layout-Engine, TCP-Listener, Tray, Konfiguration |
 | [Dienst](client.md#dienst) | `InputFusion.Client.exe` | Notebook | SYSTEM, Session 0 | dauerhaft, Windows-Dienst | Verbindung, Konfiguration, startet Injector und Tray |
 | [Injector](client.md#injector) | `InputFusion.Client.exe --injector` | Notebook | SYSTEM, Benutzersitzung | solange eine Konsolensitzung aktiv ist | `SendInput`, Desktop-Wechsel, Monitore messen |
-| [Tray](client.md#tray) | `InputFusion.Client.exe --tray` | Notebook | angemeldeter Benutzer | solange jemand an der Konsole angemeldet ist | Tray-Symbol mit dem Zustand des Dienstes |
+| [Tray](client.md#tray) | `InputFusion.Client.exe --tray` | Notebook | angemeldeter Benutzer | solange jemand an der Konsole angemeldet ist | Tray-Symbol mit dem Zustand des Dienstes, Zwischenablage |
 | [Einstellungen](einstellungen.md) | `InputFusion.Settings.exe` | beide | Benutzer | bei Bedarf, aus Tray oder Startmenü | WPF: auf dem PC Layout-Editor, Schlüssel, Port, Tastenkürzel; auf dem Notebook Host, Port, Schlüssel (nur Administratoren), Status |
 
 **Grundsatz:** Die Konfiguration hat je Seite genau einen Besitzer, den Agent bzw. den Dienst. Die Oberflächen lesen und schreiben nur per [IPC](ipc.md). Ob sie laufen, ist für den Betrieb egal.
@@ -45,6 +45,7 @@ PC (Server)                                    Notebook (Client)
 | [einstellungen.md](einstellungen.md) | Die WPF-App für beide Seiten |
 | [netzwerk.md](netzwerk.md) | Verbindung zwischen PC und Notebook, Anmeldung und Verschlüsselung |
 | [ipc.md](ipc.md) | Named Pipes zwischen den Prozessen eines Rechners |
+| [zwischenablage.md](zwischenablage.md) | Text der Zwischenablage beim Wechsel zwischen PC und Notebook |
 | [layout.md](layout.md) | Multimonitor-Layout und Layout-Engine |
 | [fallstricke.md](fallstricke.md) | Win32-Fallstricke, die beide Seiten betreffen |
 | [aot-und-speicher.md](aot-und-speicher.md) | AOT-Fähigkeit, Voraussetzungen für NativeAOT, gemessener Speicher |

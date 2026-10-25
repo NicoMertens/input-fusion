@@ -81,3 +81,17 @@ WTSQueryUserToken
 CreateEnvironmentBlock
 DestroyEnvironmentBlock
 GetNamedPipeClientProcessId
+OpenClipboard
+CloseClipboard
+EmptyClipboard
+GetClipboardData
+SetClipboardData
+IsClipboardFormatAvailable
+GetClipboardSequenceNumber
+CLIPBOARD_FORMAT
+GlobalAlloc
+GlobalFree
+GlobalLock
+GlobalUnlock
+GlobalSize
+GetNamedPipeClientSessionId

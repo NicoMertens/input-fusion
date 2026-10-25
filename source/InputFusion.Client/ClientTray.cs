@@ -11,6 +11,7 @@ namespace InputFusion.Client;
 /// Das Tray-Symbol auf dem Notebook. Läuft als angemeldeter Benutzer, weil weder der Dienst (Session 0) noch der
 /// Injector (SYSTEM, absichtlich ohne Oberfläche) ein Symbol zeigen können; der Dienst startet ihn je Sitzung.
 /// Den Zustand holt er über die <see cref="ClientPipe"/> vom Dienst und zeigt ihn im Tooltip; Doppelklick öffnet die Einstellungen.
+/// Außerdem liest und schreibt er die Zwischenablage für den Abgleich mit dem Host, weil sie dem Benutzer gehört.
 /// </summary>
 internal static class ClientTray
 {
@@ -30,6 +31,7 @@ internal static class ClientTray
             _ = OwnerProcess.WatchAsync(pid, cts);
         }
 
+        ClipboardSync clipboard = new ClipboardSync(Console.WriteLine);
         TrayIcon tray = new TrayIcon($"InputFusion Client {AppVersion.Current}",
             [new TrayCommand("Einstellungen …", () => SettingsLauncher.Open(Console.WriteLine, SettingsLauncher.ClientArgument))], Console.WriteLine);
         tray.Start();
@@ -44,11 +46,23 @@ internal static class ClientTray
                     await pipe.ConnectAsync((int)_retryDelay.TotalMilliseconds, cts.Token);
                     ClientPipe.VerifyServer(pipe);
                     using MessageConnection connection = new MessageConnection(pipe);
+                    await connection.SendAsync(MessageType.ClipboardReceiver, ReadOnlyMemory<byte>.Empty, cts.Token);
                     await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(cts.Token))
                     {
                         if (type == MessageType.Settings && SettingsMessage.FromPayload(payload) is ClientStateMessage state)
                         {
                             tray.SetTooltip($"InputFusion: {state.Summary()}");
+                        }
+                        else if (type == MessageType.ClipboardText)
+                        {
+                            clipboard.Receive(payload);
+                        }
+                        else if (type == MessageType.ClipboardRequest)
+                        {
+                            foreach (byte[] chunk in clipboard.TakeChanged())
+                            {
+                                await connection.SendAsync(MessageType.ClipboardText, chunk, cts.Token);
+                            }
                         }
                     }
                 }

@@ -8,7 +8,8 @@ Arbeitsliste über mehrere Sessions. Erledigtes wird gelöscht, nicht abgehakt: 
 - [ ] **Monitor-Vorschau in den Einstellungen des Notebooks:** die eigenen Monitore wie im Reiter Anordnung des PCs, gemessen von der Oberfläche selbst (`MonitorEnumerator`). Siehe [Einstellungen](einstellungen.md#auf-dem-notebook).
 - [ ] **Desktop Runtime auf dem Notebook prüfen:** Die Einstellungen brauchen die .NET 10 Desktop Runtime; Setup und `install-client.ps1` prüfen sie nicht. Fehlt sie, meldet Windows das erst beim Öffnen. Siehe [Einstellungen](einstellungen.md).
 - [ ] **`Strg+Alt+Entf` über `SendSAS`:** Nötig, wenn das Notebook zum Entsperren Strg+Alt+Entf verlangt; eingespielt wirkt die Kombination nicht. Setzt die Richtlinie *SoftwareSASGeneration* voraus. Siehe [Client](client.md#dienst).
-- [ ] **Zwischenablage:** braucht auf dem Client einen Prozess im Benutzerkontext, damit Dateien mit dessen Rechten im Profil landen; dafür bietet sich der Tray an. Siehe [Client](client.md#später).
+- [ ] **Bilder in der Zwischenablage:** bisher geht nur Text mit. Siehe [Zwischenablage](zwischenablage.md).
+- [ ] **Dateien in der Zwischenablage:** sollen mit den Rechten des Benutzers in dessen Profil landen, deshalb über den Tray. Siehe [Zwischenablage](zwischenablage.md), [Client](client.md#tray).
 
 ## Entscheiden
 
@@ -26,5 +27,6 @@ Umgesetzt, aber bisher nur am PC, mit Unit-Tests oder im [Simulator](simulator.m
 - [ ] **Tray und Einstellungen:** Tooltip mit dem Zustand, Einstellungen per Doppelklick, Ändern nach UAC-Neustart. Siehe [Client](client.md#tray), [Einstellungen](einstellungen.md#stand-einstellungen-des-notebooks).
 - [ ] **Verbindung über den Rechnernamen** ohne feste IP in `client.json`. Siehe [Netzwerk](netzwerk.md).
 - [ ] **Desktop Runtime:** ob sie auf dem Notebook vorhanden ist bzw. was Windows meldet, wenn sie fehlt. Siehe [Einstellungen](einstellungen.md).
+- [ ] **Zwischenablage:** Text in beiden Richtungen über Host, Dienst und Tray, auch mit Umlauten und über 32 KB; nach einem Benutzerwechsel bekommt nur der Tray der aktiven Sitzung Text. Siehe [Zwischenablage](zwischenablage.md).
 - [ ] **Port in den Einstellungen des PCs:** Listener zieht um, Firewall-Regel folgt, belegter Port wird abgelehnt; danach verbindet sich das Notebook mit dem neuen Port. Siehe [Einstellungen](einstellungen.md#stand-einstellungen-des-pcs).
 - [ ] **Selbst-Update des Client-Dienstes:** der Tausch der exe mit installiertem Dienst und veröffentlichtem Release. Siehe [Updates](updates.md#client).

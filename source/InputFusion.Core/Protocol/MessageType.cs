@@ -36,6 +36,15 @@ public enum MessageType : byte
     /// <summary>Beide Richtungen nach der Anmeldung: Typ und Nutzlast verschlüsselt, siehe <c>FrameCipher</c>.</summary>
     Encrypted = 16,
 
+    /// <summary>Beide Richtungen: ein Stück Text der Zwischenablage, siehe <c>ClipboardChunks</c>. Auch Dienst ↔ Tray.</summary>
+    ClipboardText = 17,
+
+    /// <summary>Dienst → Tray: Die Maus geht zurück zum Host; der Tray schickt seinen Text, wenn er sich geändert hat.</summary>
+    ClipboardRequest = 18,
+
+    /// <summary>Tray → Dienst: meldet sich als Empfänger der Zwischenablage an.</summary>
+    ClipboardReceiver = 19,
+
     /// <summary>Einstellungen ↔ Agent über die Named Pipe, Nutzlast JSON, siehe <c>SettingsMessage</c>.</summary>
     Settings = 32,
 }

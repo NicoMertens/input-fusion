@@ -52,6 +52,13 @@ public static unsafe class PipeIdentity
             && (identity.User == LocalSystem || new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator));
     }
 
+    /// <summary>Die Sitzung des verbundenen Clients, null, wenn sie nicht zu ermitteln ist.</summary>
+    public static uint? ClientSessionId(NamedPipeServerStream pipe)
+    {
+        uint session;
+        return PInvoke.GetNamedPipeClientSessionId((HANDLE)pipe.SafePipeHandle.DangerousGetHandle(), &session) ? session : null;
+    }
+
     /// <summary>Das Konto des aufrufenden Prozesses.</summary>
     public static SecurityIdentifier? CurrentUser() => WindowsIdentity.GetCurrent().User;
 }

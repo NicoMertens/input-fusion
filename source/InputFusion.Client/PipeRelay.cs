@@ -12,9 +12,10 @@ namespace InputFusion.Client;
 /// Aufgabe des Dienstes aus Session 0, der selbst nicht abspielen kann. Eingaben gehen zum Injector, dessen
 /// Meldungen (Austritt an der Kante) zurück zum Host. Der Injector darf zwischendurch wegfallen und sich neu
 /// verbinden, etwa nach einem Sitzungswechsel; was in der Lücke kommt, verfällt. Endet die Host-Verbindung,
-/// endet auch das Relay; der Injector sieht den Pipe-Abbruch und lässt alle Tasten los.
+/// endet auch das Relay; der Injector sieht den Pipe-Abbruch und lässt alle Tasten los. Die Zwischenablage geht
+/// nicht zum Injector, sondern über die <see cref="ClipboardBridge"/> zum Tray.
 /// </summary>
-internal sealed class PipeRelay(MessageConnection host, Action<string> log)
+internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboard, Action<string> log)
 {
     private volatile MessageConnection? _injector;
     // Die zuletzt vom Host geschickten Rückkehrkanten. Ein neu verbundener Injector bekommt sie sofort, weil der
@@ -26,6 +27,7 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
         using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
         Task injectors = AcceptInjectorsAsync(linked);
         Task monitor = WatchHost(linked);
+        clipboard.SetHost(host);
         try
         {
             await foreach ((MessageType type, byte[] payload) in host.ReceiveAsync(linked.Token))
@@ -36,9 +38,20 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
                     continue;
                 }
 
+                if (type == MessageType.ClipboardText)
+                {
+                    await clipboard.FromHostAsync(payload, linked.Token);
+                    continue;
+                }
+
                 if (type == MessageType.ReturnEdges)
                 {
                     _returnEdges = payload;
+                }
+
+                if (type == MessageType.SwitchToHost)
+                {
+                    _ = clipboard.RequestAsync(linked.Token);
                 }
 
                 MessageConnection? injector = _injector;
@@ -62,6 +75,7 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
         }
         finally
         {
+            clipboard.ClearHost(host);
             linked.Cancel();
             await injectors;
             await monitor;
@@ -108,6 +122,10 @@ internal sealed class PipeRelay(MessageConnection host, Action<string> log)
                 await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(ct))
                 {
                     await host.SendAsync(type, payload, ct);
+                    if (type == MessageType.SwitchBackRequest)
+                    {
+                        _ = clipboard.RequestAsync(ct);
+                    }
                 }
             }
             catch (Exception ex) when (ex is OperationCanceledException or IOException or ObjectDisposedException)
