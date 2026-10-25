@@ -48,6 +48,6 @@ Danach ändert ein Administrator die Verbindung in den Einstellungen (Doppelklic
 New-NetFirewallRule -DisplayName "InputFusion Host" -Direction Inbound -Protocol TCP -LocalPort 15111 -Action Allow -Profile Any
 ```
 
-Mit anderem Port in `config.json` diesen statt 15111 eintragen.
+Mit anderem Port in den Einstellungen des Hosts diesen statt 15111 eintragen.
 
 Ohne Regel blockiert Windows eingehend still, wenn die Richtlinie die Rückfrage beim Lauschen abschaltet (auf Firmengeräten üblich). Die installierte Fassung legt dieselbe Regel selbst an und stellt sie bei jedem Start auf den konfigurierten Port.

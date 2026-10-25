@@ -48,6 +48,7 @@ public class SettingsMessagesTests
     {
         string json = Encoding.UTF8.GetString(new SetKeyRequest("abcdefghijkmnpqr").ToPayload());
         Assert.Contains("\"type\":\"setKey\"", json);
+        Assert.Equal(new SetPortRequest(15112), SettingsMessage.FromPayload(new SetPortRequest(15112).ToPayload()));
         Assert.IsType<SetClientOffsetRequest>(SettingsMessage.FromPayload(new SetClientOffsetRequest(1, 2).ToPayload()));
         SetClientConfigRequest config = new SetClientConfigRequest("PC", null, 15111, "abcdefghijkmnpqr");
         Assert.Equal(config, SettingsMessage.FromPayload(config.ToPayload()));

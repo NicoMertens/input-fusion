@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.Globalization;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -6,6 +7,7 @@ using System.Windows.Shapes;
 using InputFusion.Core.Config;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Layout;
+using InputFusion.Core.Net;
 
 namespace InputFusion.Settings;
 
@@ -15,7 +17,11 @@ public partial class MainWindow : Window
     private readonly SettingsConnection _connection;
     private HostStateMessage? _state;
     private bool _updatingKey;
-    private bool _lastRequestWasKey;
+    private bool _updatingPort;
+    // Nur der Agent kann einen Port ablehnen (belegt); die Meldung bleibt stehen, bis im Feld geändert wird.
+    private bool _portRejected;
+    // Wohin eine Ablehnung des Agents gehört: unter das Feld der letzten Anfrage.
+    private TextBlock? _lastRequestMessage;
 
     // Verschieben der Client-Gruppe: Ausgangspunkt der Maus und Lage beim Anfassen, dazu die eingerastete Vorschau.
     private bool _dragging;
@@ -58,7 +64,15 @@ public partial class MainWindow : Window
         Status.Text = $"Verbunden mit dem InputFusion-Agent {state.Version} auf diesem PC.";
         MachineName.Text = state.MachineName;
         Addresses.Text = state.Addresses.Count == 0 ? "keine" : string.Join(Environment.NewLine, state.Addresses);
-        Port.Text = $"{state.Port} (TCP)";
+
+        string port = state.Port.ToString(CultureInfo.InvariantCulture);
+        if (Port.Text == port || !Port.IsKeyboardFocusWithin)
+        {
+            _updatingPort = true;
+            Port.Text = port;
+            _updatingPort = false;
+        }
+        UpdatePortState();
 
         if (Key.Text == state.Key || !Key.IsKeyboardFocusWithin)
         {
@@ -83,16 +97,55 @@ public partial class MainWindow : Window
 
     private void OnError(string message)
     {
-        if (_lastRequestWasKey)
+        TextBlock target = _lastRequestMessage ?? LayoutMessage;
+        _portRejected = target == PortMessage;
+        target.Text = message;
+        target.Foreground = (Brush)FindResource("ErrorBrush");
+    }
+
+    private void OnPortChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_updatingPort)
         {
-            KeyMessage.Text = message;
-            KeyMessage.Foreground = (Brush)FindResource("ErrorBrush");
+            _portRejected = false;
+            UpdatePortState();
+        }
+    }
+
+    private void UpdatePortState()
+    {
+        string? error = Ports.Validate(Port.Text, out int port);
+        bool changed = _state is not null && port != _state.Port;
+        ApplyPort.IsEnabled = error is null && changed;
+        if (_portRejected)
+        {
+            return;
+        }
+
+        if (error is not null)
+        {
+            PortMessage.Text = error;
+            PortMessage.Foreground = (Brush)FindResource("ErrorBrush");
         }
         else
         {
-            LayoutMessage.Text = message;
-            LayoutMessage.Foreground = (Brush)FindResource("ErrorBrush");
+            PortMessage.Text = changed
+                ? "Noch nicht übernommen."
+                : $"Standard {Ports.Input}. Auf dem Notebook muss derselbe Port stehen.";
+            PortMessage.Foreground = (Brush)FindResource("HintBrush");
         }
+    }
+
+    private async void OnApplyPort(object sender, RoutedEventArgs e)
+    {
+        if (Ports.Validate(Port.Text, out int port) is not null)
+        {
+            return;
+        }
+
+        _lastRequestMessage = PortMessage;
+        await _connection.SendAsync(new SetPortRequest(port));
+        Keyboard.ClearFocus();
     }
 
     private void OnKeyChanged(object sender, TextChangedEventArgs e)
@@ -132,7 +185,7 @@ public partial class MainWindow : Window
 
     private async void OnApplyKey(object sender, RoutedEventArgs e)
     {
-        _lastRequestWasKey = true;
+        _lastRequestMessage = KeyMessage;
         await _connection.SendAsync(new SetKeyRequest(Key.Text));
         // Der Agent antwortet mit dem neuen Stand; bis dahin gilt die Eingabe als übernommen.
         Keyboard.ClearFocus();
@@ -305,7 +358,7 @@ public partial class MainWindow : Window
         // Bis der Agent bestätigt, die neue Lage schon zeigen, sonst springt die Gruppe kurz zurück.
         _state = _state with { Client = client with { OffsetX = offset.X, OffsetY = offset.Y } };
         RenderArrangement(recenter: false);
-        _lastRequestWasKey = false;
+        _lastRequestMessage = LayoutMessage;
         LayoutMessage.Text = "Gespeichert für diese Kombination aus Monitoren.";
         LayoutMessage.Foreground = (Brush)FindResource("HintBrush");
         await _connection.SendAsync(new SetClientOffsetRequest(offset.X, offset.Y));

@@ -12,6 +12,7 @@ namespace InputFusion.Core.Ipc;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(GetStateRequest), "getState")]
 [JsonDerivedType(typeof(SetKeyRequest), "setKey")]
+[JsonDerivedType(typeof(SetPortRequest), "setPort")]
 [JsonDerivedType(typeof(SetClientOffsetRequest), "setClientOffset")]
 [JsonDerivedType(typeof(SetClientConfigRequest), "setClientConfig")]
 [JsonDerivedType(typeof(HostStateMessage), "hostState")]
@@ -38,6 +39,9 @@ public abstract record SettingsMessage
 public sealed record GetStateRequest : SettingsMessage;
 
 public sealed record SetKeyRequest(string Key) : SettingsMessage;
+
+/// <summary>Neuer Port, auf dem der Agent lauscht. Eine bestehende Verbindung bleibt.</summary>
+public sealed record SetPortRequest(int Port) : SettingsMessage;
 
 /// <summary>Neue Lage der Client-Gruppe auf der gemeinsamen Fläche. Der Agent rastet sie selbst noch einmal ein.</summary>
 public sealed record SetClientOffsetRequest(int OffsetX, int OffsetY) : SettingsMessage;

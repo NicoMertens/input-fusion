@@ -31,7 +31,7 @@ PC (Server)                                    Notebook (Client)
 | [Dienst](client.md#dienst) | `InputFusion.Client.exe` | Notebook | SYSTEM, Session 0 | dauerhaft, Windows-Dienst | Verbindung, Konfiguration, startet Injector und Tray |
 | [Injector](client.md#injector) | `InputFusion.Client.exe --injector` | Notebook | SYSTEM, Benutzersitzung | solange eine Konsolensitzung aktiv ist | `SendInput`, Desktop-Wechsel, Monitore messen |
 | [Tray](client.md#tray) | `InputFusion.Client.exe --tray` | Notebook | angemeldeter Benutzer | solange jemand an der Konsole angemeldet ist | Tray-Symbol mit dem Zustand des Dienstes |
-| [Einstellungen](einstellungen.md) | `InputFusion.Settings.exe` | beide | Benutzer | bei Bedarf, aus Tray oder Startmenü | WPF: auf dem PC Layout-Editor, Schlüssel, Tastenkürzel; auf dem Notebook Host, Port, Schlüssel (nur Administratoren), Status |
+| [Einstellungen](einstellungen.md) | `InputFusion.Settings.exe` | beide | Benutzer | bei Bedarf, aus Tray oder Startmenü | WPF: auf dem PC Layout-Editor, Schlüssel, Port, Tastenkürzel; auf dem Notebook Host, Port, Schlüssel (nur Administratoren), Status |
 
 **Grundsatz:** Die Konfiguration hat je Seite genau einen Besitzer, den Agent bzw. den Dienst. Die Oberflächen lesen und schreiben nur per [IPC](ipc.md). Ob sie laufen, ist für den Betrieb egal.
 

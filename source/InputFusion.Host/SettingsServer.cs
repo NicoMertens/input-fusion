@@ -60,6 +60,7 @@ internal sealed class SettingsServer(HostState state)
                 {
                     GetStateRequest => null,
                     SetKeyRequest request => state.SetKey(request.Key),
+                    SetPortRequest request => state.SetPort(request.Port),
                     SetClientOffsetRequest request => state.SetClientOffset(request.OffsetX, request.OffsetY),
                     _ => "Unbekannte Anfrage.",
                 };

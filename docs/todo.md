@@ -4,7 +4,6 @@ Arbeitsliste über mehrere Sessions. Erledigtes wird gelöscht, nicht abgehakt: 
 
 ## Bauen
 
-- [ ] **Port in den Einstellungen des PCs:** Der Port lässt sich bisher nur von Hand in `config.json` bei beendetem Host ändern. Siehe [Einstellungen](einstellungen.md#auf-dem-pc), [Netzwerk](netzwerk.md).
 - [ ] **Tastenkürzel in den Einstellungen des PCs:** Die Kürzel liegen fest (Strg+Alt+F11 schaltet um, Strg+Alt+F12 führt zurück) und lassen sich nicht einstellen. Siehe [Einstellungen](einstellungen.md#auf-dem-pc).
 - [ ] **Monitor-Vorschau in den Einstellungen des Notebooks:** die eigenen Monitore wie im Reiter Anordnung des PCs, gemessen von der Oberfläche selbst (`MonitorEnumerator`). Siehe [Einstellungen](einstellungen.md#auf-dem-notebook).
 - [ ] **Desktop Runtime auf dem Notebook prüfen:** Die Einstellungen brauchen die .NET 10 Desktop Runtime; Setup und `install-client.ps1` prüfen sie nicht. Fehlt sie, meldet Windows das erst beim Öffnen. Siehe [Einstellungen](einstellungen.md).
@@ -27,4 +26,5 @@ Umgesetzt, aber bisher nur am PC, mit Unit-Tests oder im [Simulator](simulator.m
 - [ ] **Tray und Einstellungen:** Tooltip mit dem Zustand, Einstellungen per Doppelklick, Ändern nach UAC-Neustart. Siehe [Client](client.md#tray), [Einstellungen](einstellungen.md#stand-einstellungen-des-notebooks).
 - [ ] **Verbindung über den Rechnernamen** ohne feste IP in `client.json`. Siehe [Netzwerk](netzwerk.md).
 - [ ] **Desktop Runtime:** ob sie auf dem Notebook vorhanden ist bzw. was Windows meldet, wenn sie fehlt. Siehe [Einstellungen](einstellungen.md).
+- [ ] **Port in den Einstellungen des PCs:** Listener zieht um, Firewall-Regel folgt, belegter Port wird abgelehnt; danach verbindet sich das Notebook mit dem neuen Port. Siehe [Einstellungen](einstellungen.md#stand-einstellungen-des-pcs).
 - [ ] **Selbst-Update des Client-Dienstes:** der Tausch der exe mit installiertem Dienst und veröffentlichtem Release. Siehe [Updates](updates.md#client).

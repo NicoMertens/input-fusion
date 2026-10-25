@@ -27,6 +27,7 @@ Umgesetzt in `InputFusion.Core.Ipc.SettingsPipe` (Pipe), `SettingsMessages` (Nac
   |---|---|---|
   | `getState` | Einstellungen → Agent | fordert den Zustand an |
   | `setKey` | Einstellungen → Agent | neuer Schlüssel; der Agent prüft ihn (mindestens 16 Zeichen, keine Leerzeichen am Rand, keine Steuerzeichen) und speichert ihn |
+  | `setPort` | Einstellungen → Agent | neuer Port; der Agent prüft ihn (1–65535, probeweise gebunden), speichert ihn und lauscht sofort darauf |
   | `setClientOffset` | Einstellungen → Agent | neue Lage der Client-Gruppe; der Agent rastet sie selbst noch einmal ein (`MonitorLayout.Snap`) und speichert sie für die Monitor-Kombination |
   | `hostState` | Agent → Einstellungen | Rechnername, Version des Agents, IPv4-Adressen, Port, Schlüssel, eigene Monitore, verbundener Client mit Adresse, Version, Monitoren und Lage |
   | `error` | Agent → Einstellungen | eine Änderung wurde abgelehnt, mit Grund |

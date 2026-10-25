@@ -80,8 +80,9 @@ internal static class Program
         HostState state = new HostState(HostConfig.LoadOrCreate());
         if (updates.IsInstalled && ElevatedStartup.IsElevated)
         {
-            // Erhöht aus der Aufgabe: Die Firewall-Regel folgt einem von Hand geänderten Port ohne UAC-Abfrage.
+            // Erhöht aus der Aufgabe: Die Firewall-Regel folgt dem Port ohne UAC-Abfrage, auch einem von Hand geänderten.
             ElevatedStartup.UpdateFirewall(state.Port);
+            state.PortChanged += ElevatedStartup.UpdateFirewall;
         }
 
         Log.Write($"InputFusion Host auf Port {state.Port}, Konfiguration {HostConfig.FilePath}. Modus: {(absolute ? "absolut" : "relativ")}"
@@ -141,35 +142,45 @@ internal static class Program
 
     /// <summary>
     /// Ein Client zur Zeit. Nach jedem Abbruch wieder lauschen; sonst verbraucht schon ein Verbindungstest
-    /// (Test-NetConnection) den einzigen Platz.
+    /// (Test-NetConnection) den einzigen Platz. Ein neuer Port bricht das Warten ab, damit gleich auf ihm gelauscht wird.
     /// </summary>
     private static async Task ListenAsync(HostState state, bool absolute, bool observe, bool diag, CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {
-            // Je Durchgang neu: Stop verwirft den Socket, ein neu angelegter wäre nicht mehr Dual-Mode.
-            TcpListener listener = CreateListener(state.Port);
+            using CancellationTokenSource portChanged = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            Action<int> restart = _ =>
+            {
+                try { portChanged.Cancel(); }
+                catch (ObjectDisposedException) { }
+            };
+            // Vor dem Lesen des Ports anmelden, sonst ginge eine Änderung dazwischen verloren.
+            state.PortChanged += restart;
+            int port = state.Port;
             TcpClient tcp;
+            // Je Durchgang neu: Stop verwirft den Socket, ein neu angelegter wäre nicht mehr Dual-Mode.
+            TcpListener listener = CreateListener(port);
             try
             {
                 listener.Start();
-                Log.Write("Warte auf Client …");
-                tcp = await listener.AcceptTcpClientAsync(ct);
+                Log.Write($"Warte auf Client an Port {port} …");
+                tcp = await listener.AcceptTcpClientAsync(portChanged.Token);
             }
             catch (OperationCanceledException)
             {
-                break;
+                continue;
             }
             catch (SocketException ex)
             {
                 // Port belegt, etwa von einem zweiten Agent unter einem anderen Benutzer: später erneut versuchen.
-                Log.Write($"Port {state.Port} nicht verfügbar ({ex.SocketErrorCode}), neuer Versuch in 10 s.");
-                try { await Task.Delay(TimeSpan.FromSeconds(10), ct); }
-                catch (OperationCanceledException) { break; }
+                Log.Write($"Port {port} nicht verfügbar ({ex.SocketErrorCode}), neuer Versuch in 10 s.");
+                try { await Task.Delay(TimeSpan.FromSeconds(10), portChanged.Token); }
+                catch (OperationCanceledException) { }
                 continue;
             }
             finally
             {
+                state.PortChanged -= restart;
                 // Während der Verbindung nicht lauschen: Ein zweiter Client wird abgewiesen, statt im
                 // Backlog zu warten und später mit veraltetem Zustand angenommen zu werden.
                 listener.Stop();
@@ -183,7 +194,7 @@ internal static class Program
     /// Lauscht auf IPv4 und IPv6. Löst das Notebook den Rechnernamen zuerst in IPv6-Adressen auf, gelingt die Verbindung
     /// so schon dort; nur auf IPv4 blieben solche Versuche je nach Firewall hängen. Ohne IPv6 im System nur IPv4.
     /// </summary>
-    private static TcpListener CreateListener(int port)
+    internal static TcpListener CreateListener(int port)
     {
         if (!Socket.OSSupportsIPv6)
         {
