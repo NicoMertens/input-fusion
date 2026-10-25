@@ -7,7 +7,7 @@
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <ApplicationManifest>..\app.manifest</ApplicationManifest>
     <!-- Das Tray-Symbol lädt das ApplicationIcon aus der exe. -->
-    <ApplicationIcon>..\InputFusion.ico</ApplicationIcon>
+    <ApplicationIcon>..\InputFusion.Client.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
