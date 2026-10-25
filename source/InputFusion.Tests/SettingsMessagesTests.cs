@@ -11,7 +11,8 @@ public class SettingsMessagesTests
     {
         MonitorRect monitor = new MonitorRect(-1920, 0, 1920, 1080, 96, @"\\?\DISPLAY#GSM5B7F#5&1");
         SettingsMessage message = new HostStateMessage("PC", "0.2.0", ["192.168.1.10"], 15111, "abcdefghijkmnpqr",
-            [monitor], new ClientStateInfo("192.168.1.20", "0.2.0", [monitor with { DeviceId = "N1" }], 0, -1080));
+            [monitor], new ClientStateInfo("192.168.1.20", "0.2.0", [monitor with { DeviceId = "N1" }], 0, -1080,
+                "NOTEBOOK", "Windows 11 Pro 24H2 (Build 26100.4061)", null));
 
         HostStateMessage back = Assert.IsType<HostStateMessage>(SettingsMessage.FromPayload(message.ToPayload()));
 
@@ -19,6 +20,8 @@ public class SettingsMessagesTests
         Assert.Equal(monitor, Assert.Single(back.HostMonitors));
         Assert.Equal(-1080, back.Client!.OffsetY);
         Assert.Equal("N1", Assert.Single(back.Client.Monitors).DeviceId);
+        Assert.Equal("NOTEBOOK", back.Client.MachineName);
+        Assert.Null(back.Client.UserName);
     }
 
     [Fact]

@@ -13,7 +13,8 @@ namespace InputFusion.Client;
 /// Meldungen (Austritt an der Kante) zurück zum Host. Der Injector darf zwischendurch wegfallen und sich neu
 /// verbinden, etwa nach einem Sitzungswechsel; was in der Lücke kommt, verfällt. Endet die Host-Verbindung,
 /// endet auch das Relay; der Injector sieht den Pipe-Abbruch und lässt alle Tasten los. Die Zwischenablage geht
-/// nicht zum Injector, sondern über die <see cref="ClipboardBridge"/> zum Tray.
+/// nicht zum Injector, sondern über die <see cref="ClipboardBridge"/> zum Tray. Angaben zum Notebook schickt der Dienst
+/// selbst (<see cref="ClientInfoReporter"/>), damit der Injector als SYSTEM nicht mehr tun muss als abspielen.
 /// </summary>
 internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboard, Action<string> log)
 {
@@ -27,6 +28,7 @@ internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboar
         using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
         Task injectors = AcceptInjectorsAsync(linked);
         Task monitor = WatchHost(linked);
+        Task info = ClientInfoReporter.RunAsync(host, linked.Token);
         clipboard.SetHost(host);
         try
         {
@@ -79,6 +81,7 @@ internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboar
             linked.Cancel();
             await injectors;
             await monitor;
+            await info;
         }
     }
 

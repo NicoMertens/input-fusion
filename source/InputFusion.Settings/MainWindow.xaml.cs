@@ -82,17 +82,26 @@ public partial class MainWindow : Window
         }
         UpdateKeyState();
 
-        ClientInfo.Text = state.Client switch
-        {
-            null => "Kein Notebook verbunden.",
-            { Monitors.Count: 0 } client => $"Notebook verbunden: {client.Address}, Version {client.Version}, Monitore noch nicht gemeldet.",
-            var client => $"Notebook verbunden: {client.Address}, Version {client.Version}, {client.Monitors.Count} Monitor(e).",
-        };
+        ClientInfo.Text = state.Client is { } client ? DescribeClient(client) : "Kein Notebook verbunden.";
 
         if (!_dragging)
         {
             RenderArrangement(recenter: true);
         }
+    }
+
+    private static string DescribeClient(ClientStateInfo client)
+    {
+        string name = client.MachineName is null ? "Notebook" : $"Notebook {client.MachineName}";
+        string monitors = client.Monitors.Count == 0 ? "Monitore noch nicht gemeldet" : $"{client.Monitors.Count} Monitor(e)";
+        string text = $"{name} verbunden: {client.Address}, Version {client.Version}, {monitors}.";
+        // Ohne Namen hat der Client noch nichts gemeldet oder ist zu alt dafür; „niemand angemeldet“ wäre dann falsch.
+        if (client.MachineName is null)
+        {
+            return text;
+        }
+
+        return $"{text}\n{client.OsVersion}\n{(client.UserName is null ? "Niemand angemeldet." : $"Angemeldet: {client.UserName}")}";
     }
 
     private void OnError(string message)

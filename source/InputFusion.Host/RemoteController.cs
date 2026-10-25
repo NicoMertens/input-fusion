@@ -149,7 +149,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         }
     }
 
-    /// <summary>Liest die Gegenrichtung: die Monitore des Clients, den Austritt über eine Rückkehrkante und den Text seiner Zwischenablage.</summary>
+    /// <summary>Liest die Gegenrichtung: Monitore und Angaben des Clients, den Austritt über eine Rückkehrkante und den Text seiner Zwischenablage.</summary>
     private async Task PumpIncoming(CancellationTokenSource linked)
     {
         try
@@ -163,6 +163,10 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
                 else if (type == MessageType.ClipboardText)
                 {
                     _clipboard.Receive(payload);
+                }
+                else if (type == MessageType.ClientInfo && ClientInfo.FromPayload(payload) is { } info)
+                {
+                    state.ClientInfoReported(info);
                 }
                 else if (type == MessageType.SwitchBackRequest && state.IsRemote)
                 {

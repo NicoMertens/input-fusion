@@ -45,6 +45,9 @@ public enum MessageType : byte
     /// <summary>Tray → Dienst: meldet sich als Empfänger der Zwischenablage an.</summary>
     ClipboardReceiver = 19,
 
+    /// <summary>Client → Host: Name, Windows-Version und angemeldeter Benutzer des Notebooks, siehe <c>ClientInfo</c>.</summary>
+    ClientInfo = 20,
+
     /// <summary>Einstellungen ↔ Agent über die Named Pipe, Nutzlast JSON, siehe <c>SettingsMessage</c>.</summary>
     Settings = 32,
 }

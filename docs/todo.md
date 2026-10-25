@@ -26,5 +26,6 @@ Umgesetzt, aber bisher nur am PC, mit Unit-Tests oder im [Simulator](simulator.m
 - [ ] **Verbindung über den Rechnernamen** ohne feste IP in `client.json`. Siehe [Netzwerk](netzwerk.md).
 - [ ] **Desktop Runtime:** ob sie auf dem Notebook vorhanden ist bzw. was Windows meldet, wenn sie fehlt. Siehe [Einstellungen](einstellungen.md).
 - [ ] **Zwischenablage:** Text in beiden Richtungen über Host, Dienst und Tray, auch mit Umlauten und über 32 KB; nach einem Benutzerwechsel bekommt nur der Tray der aktiven Sitzung Text. Siehe [Zwischenablage](zwischenablage.md).
+- [ ] **Angaben zum Notebook:** Name, Windows-Version und Benutzer erscheinen in den Einstellungen des PCs und im Tooltip; der Benutzer wechselt nach Anmelden, Abmelden und Benutzerwechsel binnen zwei Sekunden. Siehe [Client](client.md#dienst).
 - [ ] **Port in den Einstellungen des PCs:** Listener zieht um, Firewall-Regel folgt, belegter Port wird abgelehnt; danach verbindet sich das Notebook mit dem neuen Port. Siehe [Einstellungen](einstellungen.md#stand-einstellungen-des-pcs).
 - [ ] **Selbst-Update des Client-Dienstes:** der Tausch der exe mit installiertem Dienst und veröffentlichtem Release. Siehe [Updates](updates.md#client).

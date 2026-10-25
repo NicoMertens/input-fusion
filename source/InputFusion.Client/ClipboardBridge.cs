@@ -1,7 +1,5 @@
-using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
-using Windows.Win32;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
 
@@ -67,7 +65,7 @@ internal sealed class ClipboardBridge
         MessageConnection? host;
         lock (_lock)
         {
-            if (!_trays.TryGetValue(tray, out uint session) || session != AllowedSession())
+            if (!_trays.TryGetValue(tray, out uint session) || session != ActiveSession.Id())
             {
                 return;
             }
@@ -95,7 +93,7 @@ internal sealed class ClipboardBridge
         MessageConnection[] targets;
         lock (_lock)
         {
-            uint allowed = AllowedSession();
+            uint allowed = ActiveSession.Id();
             targets = _trays.Where(t => t.Value == allowed).Select(t => t.Key).ToArray();
         }
 
@@ -110,15 +108,5 @@ internal sealed class ClipboardBridge
                 // Tray gerade weg; der Server meldet ihn ab.
             }
         }
-    }
-
-    /// <summary>
-    /// Im Dienst die aktive Konsolensitzung. Läuft der Dienst-Ablauf beim Entwickeln als Konsole, die eigene Sitzung, die
-    /// auch eine RDP-Sitzung sein kann.
-    /// </summary>
-    private static uint AllowedSession()
-    {
-        int own = Process.GetCurrentProcess().SessionId;
-        return own == 0 ? PInvoke.WTSGetActiveConsoleSessionId() : (uint)own;
     }
 }

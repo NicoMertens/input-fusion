@@ -59,8 +59,19 @@ public sealed record HostStateMessage(
     IReadOnlyList<MonitorRect> HostMonitors,
     ClientStateInfo? Client) : SettingsMessage;
 
-/// <summary>Der verbundene Client. <see cref="Monitors"/> ist leer, solange er seine Monitore nicht gemeldet hat.</summary>
-public sealed record ClientStateInfo(string Address, string Version, IReadOnlyList<MonitorRect> Monitors, int OffsetX, int OffsetY);
+/// <summary>
+/// Der verbundene Client. <see cref="Monitors"/> ist leer, solange er seine Monitore nicht gemeldet hat; Name,
+/// Windows-Version und Benutzer sind null, solange er sie nicht gemeldet hat, siehe <see cref="Protocol.ClientInfo"/>.
+/// </summary>
+public sealed record ClientStateInfo(
+    string Address,
+    string Version,
+    IReadOnlyList<MonitorRect> Monitors,
+    int OffsetX,
+    int OffsetY,
+    string? MachineName,
+    string? OsVersion,
+    string? UserName);
 
 /// <summary>
 /// Der Zustand des Dienstes auf dem Notebook. <see cref="Host"/> ist null, solange <c>client.json</c> fehlt oder

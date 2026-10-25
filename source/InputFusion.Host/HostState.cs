@@ -22,6 +22,7 @@ internal sealed class HostState(HostConfig config)
     private string? _clientAddress;
     private string _clientVersion = "";
     private IReadOnlyList<MonitorRect> _clientMonitors = [];
+    private ClientInfo? _clientInfo;
     private MonitorLayout? _layout;
     private bool _isRemote;
 
@@ -75,7 +76,9 @@ internal sealed class HostState(HostConfig config)
         {
             lock (_lock)
             {
-                return _clientAddress is null ? "InputFusion – wartet auf das Notebook" : $"InputFusion – verbunden mit {_clientAddress}";
+                return _clientAddress is null ? "InputFusion – wartet auf das Notebook"
+                    : _clientInfo?.MachineName is { } name ? $"InputFusion – verbunden mit {name} ({_clientAddress})"
+                    : $"InputFusion – verbunden mit {_clientAddress}";
             }
         }
     }
@@ -169,8 +172,25 @@ internal sealed class HostState(HostConfig config)
             _clientAddress = address;
             _clientVersion = version;
             _clientMonitors = [];
+            _clientInfo = null;
         }
         RebuildLayout();
+    }
+
+    /// <summary>Nur zur Anzeige; ältere Clients schicken keine Angaben.</summary>
+    public void ClientInfoReported(ClientInfo info)
+    {
+        lock (_lock)
+        {
+            if (_clientAddress is null || info == _clientInfo)
+            {
+                return;
+            }
+
+            _clientInfo = info;
+        }
+        Log.Write($"Client meldet: Name {info.MachineName}, {info.OsVersion}, angemeldet {info.UserName ?? "niemand"}");
+        Changed?.Invoke();
     }
 
     public void ClientMonitorsReported(IReadOnlyList<MonitorRect> monitors)
@@ -196,6 +216,7 @@ internal sealed class HostState(HostConfig config)
         {
             _clientAddress = null;
             _clientMonitors = [];
+            _clientInfo = null;
         }
         RebuildLayout();
     }
@@ -236,7 +257,8 @@ internal sealed class HostState(HostConfig config)
             MonitorLayout? layout = Volatile.Read(ref _layout);
             ClientStateInfo? client = _clientAddress is null
                 ? null
-                : new ClientStateInfo(_clientAddress, _clientVersion, _clientMonitors, layout?.OffsetX ?? 0, layout?.OffsetY ?? 0);
+                : new ClientStateInfo(_clientAddress, _clientVersion, _clientMonitors, layout?.OffsetX ?? 0, layout?.OffsetY ?? 0,
+                    _clientInfo?.MachineName, _clientInfo?.OsVersion, _clientInfo?.UserName);
             return new HostStateMessage(Environment.MachineName, AppVersion.Current, Addresses(), config.Port, config.Key, _hostMonitors, client);
         }
     }
