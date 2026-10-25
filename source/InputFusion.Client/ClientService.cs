@@ -28,7 +28,7 @@ internal static class ClientService
     /// <param name="saveConfig">Null, wenn die Konfiguration feststeht (<c>--relay</c>); dann lehnt der Dienst Änderungen aus den Einstellungen ab.</param>
     /// <param name="protocolMismatch">Wird gerufen, wenn der Host eine andere Protokollversion spricht; der Dienst sucht dann nach einem Update.</param>
     public static async Task RunAsync(ConfigLoader loadConfig, ConfigSaver? saveConfig, bool asService, Action<string> log, CancellationToken ct,
-        Action? protocolMismatch = null)
+        Action? protocolMismatch = null, Func<CancellationToken, Task<string>>? checkForUpdates = null)
     {
         ClientStatus status = new ClientStatus();
         ClipboardBridge clipboard = new ClipboardBridge();
@@ -49,7 +49,7 @@ internal static class ClientService
 
         Task injector = new SessionSupervisor("Injector", OwnerProcess.Arguments(Injector.Argument), asUser: false, asService, log).RunAsync(ct);
         Task tray = new SessionSupervisor("Tray", OwnerProcess.Arguments(ClientTray.Argument), asUser: true, asService, log).RunAsync(ct);
-        Task settings = new ClientSettingsServer(status, save, clipboard, log).RunAsync(ct);
+        Task settings = new ClientSettingsServer(status, save, clipboard, checkForUpdates, log).RunAsync(ct);
 
         TimeSpan delay = _minRetryDelay;
         string? lastProblem = null;

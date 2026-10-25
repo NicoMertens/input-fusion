@@ -20,7 +20,7 @@ public sealed class Worker(ILogger<Worker> logger) : BackgroundService
 
         ClientUpdater updater = new ClientUpdater(asService, log);
         Task updates = updater.RunAsync(stoppingToken);
-        await ClientService.RunAsync(ClientConfig.Load, ClientConfig.Save, asService, log, stoppingToken, updater.CheckSoon);
+        await ClientService.RunAsync(ClientConfig.Load, ClientConfig.Save, asService, log, stoppingToken, updater.CheckSoon, updater.CheckNowAsync);
         await updates;
     }
 }

@@ -32,8 +32,34 @@ internal static class ClientTray
         }
 
         ClipboardSync clipboard = new ClipboardSync(Console.WriteLine);
+        // Die Verbindung zum Dienst, solange eine steht, und die Suche nach Updates, deren Antwort noch aussteht.
+        MessageConnection? current = null;
+        TaskCompletionSource<string>? pendingCheck = null;
+
+        async Task<string> CheckForUpdatesAsync()
+        {
+            MessageConnection? connection = current;
+            if (connection is null)
+            {
+                return "Der InputFusion-Dienst läuft nicht.";
+            }
+
+            TaskCompletionSource<string> result = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            pendingCheck = result;
+            try
+            {
+                await connection.SendAsync(MessageType.Settings, new CheckForUpdatesRequest().ToPayload(), cts.Token);
+            }
+            catch (Exception ex) when (ex is IOException or ObjectDisposedException)
+            {
+                return "Der InputFusion-Dienst läuft nicht.";
+            }
+            return await result.Task;
+        }
+
         TrayIcon tray = new TrayIcon($"InputFusion Client {AppVersion.Current}",
-            [new TrayCommand("Einstellungen …", () => SettingsLauncher.Open(Console.WriteLine, SettingsLauncher.ClientArgument))], Console.WriteLine);
+            [new TrayCommand("Einstellungen …", () => SettingsLauncher.Open(Console.WriteLine, SettingsLauncher.ClientArgument))], Console.WriteLine,
+            checkForUpdates: CheckForUpdatesAsync);
         tray.Start();
         tray.SetTooltip("InputFusion: Dienst nicht erreichbar.");
         try
@@ -47,11 +73,17 @@ internal static class ClientTray
                     ClientPipe.VerifyServer(pipe);
                     using MessageConnection connection = new MessageConnection(pipe);
                     await connection.SendAsync(MessageType.ClipboardReceiver, ReadOnlyMemory<byte>.Empty, cts.Token);
+                    current = connection;
                     await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(cts.Token))
                     {
-                        if (type == MessageType.Settings && SettingsMessage.FromPayload(payload) is ClientStateMessage state)
+                        SettingsMessage? message = type == MessageType.Settings ? SettingsMessage.FromPayload(payload) : null;
+                        if (message is ClientStateMessage state)
                         {
                             tray.SetTooltip($"InputFusion: {state.Summary()}");
+                        }
+                        else if (message is UpdateCheckResult check)
+                        {
+                            pendingCheck?.TrySetResult(check.Message);
                         }
                         else if (type == MessageType.ClipboardText)
                         {
@@ -79,6 +111,9 @@ internal static class ClientTray
                     Console.WriteLine($"Pipe abgelehnt: {ex.Message}");
                 }
 
+                current = null;
+                // Etwa weil der Dienst gerade für ein Update neu startet; die Antwort käme nie mehr.
+                pendingCheck?.TrySetResult("Die Verbindung zum Dienst ist abgebrochen, vielleicht startet er für ein Update neu.");
                 tray.SetTooltip("InputFusion: Dienst nicht erreichbar.");
                 try { await Task.Delay(_retryDelay, cts.Token); }
                 catch (OperationCanceledException) { break; }

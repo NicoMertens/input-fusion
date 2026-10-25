@@ -91,7 +91,7 @@ internal static class Program
 
         TrayIcon tray = new TrayIcon($"Version {AppVersion.Current}",
             [new TrayCommand("Einstellungen …", () => SettingsLauncher.Open(Log.Write)), new TrayCommand("Beenden", cts.Cancel)],
-            Log.Write, state.RefreshHostMonitors);
+            Log.Write, state.RefreshHostMonitors, updates.CheckNowAsync);
         tray.Start();
         tray.SetTooltip(state.StatusText);
         state.Changed += () => tray.SetTooltip(state.StatusText);

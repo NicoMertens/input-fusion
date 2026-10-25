@@ -55,6 +55,9 @@ public class SettingsMessagesTests
         Assert.IsType<SetClientOffsetRequest>(SettingsMessage.FromPayload(new SetClientOffsetRequest(1, 2).ToPayload()));
         SetClientConfigRequest config = new SetClientConfigRequest("PC", null, 15111, "abcdefghijkmnpqr");
         Assert.Equal(config, SettingsMessage.FromPayload(config.ToPayload()));
+        Assert.IsType<CheckForUpdatesRequest>(SettingsMessage.FromPayload(new CheckForUpdatesRequest().ToPayload()));
+        UpdateCheckResult result = new UpdateCheckResult("InputFusion Client 0.6.0 ist aktuell.");
+        Assert.Equal(result, SettingsMessage.FromPayload(result.ToPayload()));
     }
 
     [Fact]
