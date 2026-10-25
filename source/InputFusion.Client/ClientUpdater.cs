@@ -26,6 +26,8 @@ internal sealed class ClientUpdater
     private readonly Action<string> _log;
     private readonly Uri? _latestRelease;
     private readonly SemaphoreSlim _soon = new(0, 1);
+    // Die geplante und eine Suche aus dem Tray-Menü sollen nicht gleichzeitig laden und einspielen.
+    private readonly SemaphoreSlim _checking = new(1, 1);
     private long _lastCheck;
     private bool _applying;
 
@@ -94,20 +96,42 @@ internal sealed class ClientUpdater
         }
     }
 
-    private async Task CheckAsync(CancellationToken ct)
+    /// <summary>Suche aus dem Tray-Menü: sofort, ohne die Untergrenze, mit dem Ergebnis als Satz für die Benachrichtigung.</summary>
+    public async Task<string> CheckNowAsync(CancellationToken ct)
     {
-        Interlocked.Exchange(ref _lastCheck, Environment.TickCount64);
+        if (_latestRelease is null)
+        {
+            return "Nur der installierte Dienst sucht nach Updates.";
+        }
+
+        return await CheckAsync(ct);
+    }
+
+    private async Task<string> CheckAsync(CancellationToken ct)
+    {
+        await _checking.WaitAsync(ct);
         try
         {
+            if (_applying)
+            {
+                return "Ein Update wird gerade eingespielt.";
+            }
+
+            Interlocked.Exchange(ref _lastCheck, Environment.TickCount64);
             using HttpClient http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
             http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("InputFusion-Client", AppVersion.Current));
             http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
 
             GitHubRelease? release = GitHubRelease.Parse(await http.GetStringAsync(_latestRelease, ct));
-            Version? version = release is null || release.Draft || release.Prerelease ? null : ReleaseCheck.ParseTag(release.TagName);
-            if (release is null || version is null || !ReleaseCheck.IsNewer(version, AppVersion.Current))
+            if (release is null)
             {
-                return;
+                return "Die Antwort von GitHub war nicht lesbar.";
+            }
+
+            Version? version = release.Draft || release.Prerelease ? null : ReleaseCheck.ParseTag(release.TagName);
+            if (version is null || !ReleaseCheck.IsNewer(version, AppVersion.Current))
+            {
+                return $"InputFusion Client {AppVersion.Current} ist aktuell.";
             }
 
             // Der Workflow lädt das Client-Paket kurz nach dem Release hoch; fehlt es noch, beim nächsten Mal.
@@ -116,7 +140,7 @@ internal sealed class ClientUpdater
             if (package is null || checksum is null)
             {
                 _log($"Release {release.TagName} hat noch kein Client-Paket, neuer Versuch später.");
-                return;
+                return $"Release {release.TagName} hat noch kein Client-Paket; der Dienst versucht es später wieder.";
             }
 
             string? expected = ReleaseCheck.ParseChecksum(await http.GetStringAsync(checksum.DownloadUrl, ct));
@@ -124,19 +148,25 @@ internal sealed class ClientUpdater
             if (expected is null || !ReleaseCheck.MatchesChecksum(data, expected))
             {
                 _log($"Client-Paket {release.TagName} verworfen: Prüfsumme stimmt nicht.");
-                return;
+                return $"Client-Paket {release.TagName} verworfen: Prüfsumme stimmt nicht.";
             }
 
             string staging = Stage(version, data);
             _log($"Update auf {version} geladen, spiele es ein; der Dienst startet dabei neu.");
             StartApplier(staging);
             _applying = true;
+            return $"Update auf {version} geladen; der Dienst startet zum Einspielen neu.";
         }
         catch (Exception ex) when (!ct.IsCancellationRequested
             && ex is HttpRequestException or IOException or InvalidDataException or UnauthorizedAccessException or TaskCanceledException)
         {
             // Offline oder GitHub drosselt: Die nächste Prüfung versucht es einfach wieder.
             _log($"Suche nach Updates fehlgeschlagen: {ex.Message}");
+            return $"Suche nach Updates fehlgeschlagen: {ex.Message}";
+        }
+        finally
+        {
+            _checking.Release();
         }
     }
 

@@ -15,7 +15,9 @@ namespace InputFusion.Client;
 /// der Tray als Empfänger der Zwischenablage an, siehe <see cref="ClipboardBridge"/>.
 /// </summary>
 /// <param name="save">Null, wenn die Konfiguration feststeht (<c>--relay</c>).</param>
-internal sealed class ClientSettingsServer(ClientStatus status, ClientService.ConfigSaver? save, ClipboardBridge clipboard, Action<string> log)
+/// <param name="checkForUpdates">Null, wenn sich dieser Ablauf nicht aktualisiert (<c>--relay</c>).</param>
+internal sealed class ClientSettingsServer(ClientStatus status, ClientService.ConfigSaver? save, ClipboardBridge clipboard,
+    Func<CancellationToken, Task<string>>? checkForUpdates, Action<string> log)
 {
     public async Task RunAsync(CancellationToken ct)
     {
@@ -75,7 +77,15 @@ internal sealed class ClientSettingsServer(ClientStatus status, ClientService.Co
                     continue;
                 }
 
-                string? error = SettingsMessage.FromPayload(payload) switch
+                SettingsMessage? message = SettingsMessage.FromPayload(payload);
+                if (message is CheckForUpdatesRequest)
+                {
+                    // Nebenher: Laden und Entpacken dauern, und die Zwischenablage soll so lange weiterlaufen.
+                    _ = Task.Run(() => ReportUpdateCheckAsync(connection, ct), CancellationToken.None);
+                    continue;
+                }
+
+                string? error = message switch
                 {
                     GetStateRequest => null,
                     SetClientConfigRequest request => Apply(request, administrator),
@@ -98,6 +108,28 @@ internal sealed class ClientSettingsServer(ClientStatus status, ClientService.Co
             status.Changed -= push;
             clipboard.RemoveTray(connection);
         }
+    }
+
+    /// <summary>Jeder Benutzer darf suchen lassen: Eingespielt wird nur ein Release aus dem eigenen Repo mit passender Prüfsumme.</summary>
+    private async Task ReportUpdateCheckAsync(MessageConnection connection, CancellationToken ct)
+    {
+        string result;
+        try
+        {
+            result = checkForUpdates is null ? "Im Entwicklungsmodus mit --relay sucht der Dienst nicht nach Updates." : await checkForUpdates(ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            // Ohne Antwort wartete der Tray ewig.
+            log($"Suche nach Updates fehlgeschlagen: {ex.Message}");
+            result = $"Suche nach Updates fehlgeschlagen: {ex.Message}";
+        }
+
+        await SendAsync(connection, new UpdateCheckResult(result), ct);
     }
 
     private string? Apply(SetClientConfigRequest request, bool administrator)

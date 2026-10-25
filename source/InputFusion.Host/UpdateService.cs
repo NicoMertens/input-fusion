@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using InputFusion.Core.Protocol;
 using Velopack;
 using Velopack.Sources;
 
@@ -17,6 +18,8 @@ internal sealed class UpdateService
 
     private readonly UpdateManager? _manager;
     private readonly SemaphoreSlim _soon = new(0, 1);
+    // Die geplante und eine Suche aus dem Tray-Menü sollen nicht gleichzeitig laden.
+    private readonly SemaphoreSlim _checking = new(1, 1);
     private VelopackAsset? _pending;
     private long _lastCheck;
     private bool _handedOver;
@@ -83,6 +86,17 @@ internal sealed class UpdateService
         }
     }
 
+    /// <summary>Suche aus dem Tray-Menü: sofort, ohne die Untergrenze, mit dem Ergebnis als Satz für die Benachrichtigung.</summary>
+    public async Task<string> CheckNowAsync()
+    {
+        if (_manager is null)
+        {
+            return "Nur eine installierte Kopie sucht nach Updates.";
+        }
+
+        return await CheckAsync();
+    }
+
     /// <summary>
     /// Übergibt das geladene Update an den Updater von Velopack, der es einspielt, sobald dieser Prozess beendet ist,
     /// und den Host danach neu startet. Der Aufrufer beendet sich danach regulär, damit das Tray-Symbol verschwindet;
@@ -100,26 +114,38 @@ internal sealed class UpdateService
         return true;
     }
 
-    private async Task CheckAsync()
+    private async Task<string> CheckAsync()
     {
-        Interlocked.Exchange(ref _lastCheck, Environment.TickCount64);
+        await _checking.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (_pending is not null)
+            {
+                return $"Version {_pending.Version} ist geladen und wird eingespielt, sobald die Maus nicht auf dem Notebook ist.";
+            }
+
+            Interlocked.Exchange(ref _lastCheck, Environment.TickCount64);
             UpdateInfo? info = await _manager!.CheckForUpdatesAsync().ConfigureAwait(false);
             if (info is null)
             {
-                return;
+                return $"InputFusion Host {AppVersion.Current} ist aktuell.";
             }
 
             Log.Write($"Update auf {info.TargetFullRelease.Version} gefunden, lade herunter.");
             await _manager.DownloadUpdatesAsync(info).ConfigureAwait(false);
             _pending = info.TargetFullRelease;
             UpdateReady?.Invoke(_pending.Version.ToString());
+            return $"Version {_pending.Version} geladen; der Host startet zum Einspielen neu, sobald die Maus nicht auf dem Notebook ist.";
         }
         catch (Exception ex)
         {
             // Offline oder GitHub drosselt: Die nächste Prüfung versucht es einfach wieder.
             Log.Write($"Suche nach Updates fehlgeschlagen: {ex.Message}");
+            return $"Suche nach Updates fehlgeschlagen: {ex.Message}";
+        }
+        finally
+        {
+            _checking.Release();
         }
     }
 }

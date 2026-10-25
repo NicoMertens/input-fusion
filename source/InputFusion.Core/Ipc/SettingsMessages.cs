@@ -18,6 +18,8 @@ namespace InputFusion.Core.Ipc;
 [JsonDerivedType(typeof(HostStateMessage), "hostState")]
 [JsonDerivedType(typeof(ClientStateMessage), "clientState")]
 [JsonDerivedType(typeof(SettingsError), "error")]
+[JsonDerivedType(typeof(CheckForUpdatesRequest), "checkForUpdates")]
+[JsonDerivedType(typeof(UpdateCheckResult), "updateCheckResult")]
 public abstract record SettingsMessage
 {
     public byte[] ToPayload() => JsonSerializer.SerializeToUtf8Bytes(this, SettingsJson.Default.SettingsMessage);
@@ -99,6 +101,12 @@ public sealed record ClientStateMessage(
 
 /// <summary>Eine Änderung wurde abgelehnt; geht nur an die Einstellungen, die sie verlangt haben.</summary>
 public sealed record SettingsError(string Message) : SettingsMessage;
+
+/// <summary>Tray → Dienst: sofort nach Updates suchen. Der Tray darf es nicht selbst, aktualisieren kann nur der Dienst.</summary>
+public sealed record CheckForUpdatesRequest : SettingsMessage;
+
+/// <summary>Dienst → Tray: Ergebnis der Suche als Satz für die Benachrichtigung; geht nur an den, der gefragt hat.</summary>
+public sealed record UpdateCheckResult(string Message) : SettingsMessage;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(SettingsMessage))]

@@ -18,17 +18,25 @@ public sealed record TrayCommand(string Text, Action Action);
 /// Nachrichtenfenster, weil nur solche <c>WM_DISPLAYCHANGE</c> und <c>TaskbarCreated</c> bekommen.
 /// Das Symbol ist das <c>ApplicationIcon</c> der exe.
 /// </summary>
-public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayCommand> commands, Action<string> log, Action? displayChanged = null)
+/// <param name="checkForUpdates">
+/// Sucht nach Updates und liefert das Ergebnis als Satz; steht im Menü unter der Version, das Ergebnis erscheint als
+/// Benachrichtigung am Symbol.
+/// </param>
+public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayCommand> commands, Action<string> log, Action? displayChanged = null,
+    Func<Task<string>>? checkForUpdates = null)
 {
     private readonly string _versionLabel = versionLabel;
     private readonly IReadOnlyList<TrayCommand> _commands = commands;
     private readonly Action<string> _log = log;
     private readonly Action? _displayChanged = displayChanged;
+    private readonly Func<Task<string>>? _checkForUpdates = checkForUpdates;
 
     private const uint CallbackMessage = PInvoke.WM_APP + 1;
     private const uint UpdateMessage = PInvoke.WM_APP + 2;
+    private const uint BalloonMessage = PInvoke.WM_APP + 3;
     // Menü-IDs der Befehle sind ihr Index plus eins; 0 heißt im Menü „kein Befehl“.
     private const uint FirstCommandId = 1;
+    private const uint CheckForUpdatesId = 0x1000;
     // Die .NET-SDK legt das ApplicationIcon unter dieser Ressourcen-ID ab.
     private const int ApplicationIconId = 32512;
 
@@ -39,6 +47,9 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
     private HICON _icon;
     private uint _taskbarCreated;
     private volatile string _tooltip = "InputFusion";
+    private volatile string _balloon = "";
+    // Solange gesucht wird, ist der Menüeintrag gesperrt; ein zweiter Klick brächte nur eine zweite Anfrage an GitHub.
+    private volatile bool _checking;
 
     public void Start()
     {
@@ -67,6 +78,13 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
         PInvoke.PostMessage(_window, UpdateMessage, default, default);
     }
 
+    /// <summary>Eine Benachrichtigung am Symbol; darf von jedem Thread aus gerufen werden.</summary>
+    public void ShowBalloon(string text)
+    {
+        _balloon = text.Length > 255 ? text[..255] : text;
+        PInvoke.PostMessage(_window, BalloonMessage, default, default);
+    }
+
     public void Stop()
     {
         PInvoke.PostMessage(_window, PInvoke.WM_CLOSE, default, default);
@@ -90,7 +108,7 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
         }
         _taskbarCreated = PInvoke.RegisterWindowMessage("TaskbarCreated");
         _icon = LoadIcon(module.DangerousGetHandle());
-        Notify(NOTIFY_ICON_MESSAGE.NIM_ADD);
+        Notify(NOTIFY_ICON_MESSAGE.NIM_ADD, balloon: false);
     }
 
     private static HICON LoadIcon(nint module)
@@ -100,7 +118,7 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
         return handle.IsNull ? PInvoke.LoadIcon(HINSTANCE.Null, PInvoke.IDI_APPLICATION) : (HICON)handle.Value;
     }
 
-    private void Notify(NOTIFY_ICON_MESSAGE message)
+    private void Notify(NOTIFY_ICON_MESSAGE message, bool balloon)
     {
         NOTIFYICONDATAW data = new NOTIFYICONDATAW
         {
@@ -112,6 +130,13 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
             hIcon = _icon,
         };
         data.szTip = _tooltip;
+        if (balloon)
+        {
+            data.uFlags |= NOTIFY_ICON_DATA_FLAGS.NIF_INFO;
+            data.szInfoTitle = "InputFusion";
+            data.szInfo = _balloon;
+            data.dwInfoFlags = NOTIFY_ICON_INFOTIP_FLAGS.NIIF_INFO;
+        }
         PInvoke.Shell_NotifyIcon(message, in data);
     }
 
@@ -121,6 +146,13 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
         fixed (char* version = _versionLabel)
         {
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING | MENU_ITEM_FLAGS.MF_GRAYED, 0, version);
+        }
+        if (_checkForUpdates is not null)
+        {
+            fixed (char* text = _checking ? "Suche nach Updates …" : "Nach Updates suchen")
+            {
+                PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING | (_checking ? MENU_ITEM_FLAGS.MF_GRAYED : 0), CheckForUpdatesId, text);
+            }
         }
         for (int i = 0; i < _commands.Count; i++)
         {
@@ -160,7 +192,10 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
                     tray.Run((uint)(wParam.Value & 0xFFFF));
                     return default;
                 case UpdateMessage:
-                    tray.Notify(NOTIFY_ICON_MESSAGE.NIM_MODIFY);
+                    tray.Notify(NOTIFY_ICON_MESSAGE.NIM_MODIFY, balloon: false);
+                    return default;
+                case BalloonMessage:
+                    tray.Notify(NOTIFY_ICON_MESSAGE.NIM_MODIFY, balloon: true);
                     return default;
                 case PInvoke.WM_DISPLAYCHANGE:
                     tray._displayChanged?.Invoke();
@@ -169,14 +204,14 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
                     PInvoke.DestroyWindow(hwnd);
                     return default;
                 case PInvoke.WM_DESTROY:
-                    tray.Notify(NOTIFY_ICON_MESSAGE.NIM_DELETE);
+                    tray.Notify(NOTIFY_ICON_MESSAGE.NIM_DELETE, balloon: false);
                     PInvoke.PostQuitMessage(0);
                     return default;
             }
             // Nach einem Neustart des Explorers ist das Symbol weg und muss neu angelegt werden.
             if (message == tray._taskbarCreated && message != 0)
             {
-                tray.Notify(NOTIFY_ICON_MESSAGE.NIM_ADD);
+                tray.Notify(NOTIFY_ICON_MESSAGE.NIM_ADD, balloon: false);
             }
         }
         catch (Exception ex)
@@ -189,10 +224,34 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
 
     private void Run(uint commandId)
     {
+        if (commandId == CheckForUpdatesId)
+        {
+            CheckForUpdates();
+            return;
+        }
+
         int index = (int)(commandId - FirstCommandId);
         if (index >= 0 && index < _commands.Count)
         {
             _commands[index].Action();
         }
+    }
+
+    // Ohne async: In einer unsafe-Klasse ist await nicht erlaubt.
+    private void CheckForUpdates()
+    {
+        if (_checkForUpdates is null || _checking)
+        {
+            return;
+        }
+
+        _checking = true;
+        Task.Run(_checkForUpdates).ContinueWith(check =>
+        {
+            _checking = false;
+            ShowBalloon(check.IsCompletedSuccessfully
+                ? check.Result
+                : $"Suche nach Updates fehlgeschlagen: {check.Exception?.GetBaseException().Message}");
+        }, TaskScheduler.Default);
     }
 }
