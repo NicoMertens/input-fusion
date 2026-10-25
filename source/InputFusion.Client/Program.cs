@@ -8,9 +8,9 @@ if (args is [UpdateApplier.Argument, string source, string target])
     Environment.Exit(UpdateApplier.Run(source, target));
 }
 
-if (args is [Injector.Argument, ..])
+if (args is [Injector.Argument, .. var injectorRest])
 {
-    Injector.Run();
+    Injector.Run(injectorRest);
     return;
 }
 

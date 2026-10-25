@@ -31,6 +31,7 @@ internal static class ClientService
         Action? protocolMismatch = null)
     {
         ClientStatus status = new ClientStatus();
+        ClipboardBridge clipboard = new ClipboardBridge();
         // Der laufende Versuch samt Verbindung. Nach dem Speichern einer neuen Konfiguration wird er abgebrochen, und
         // die Schleife verbindet sofort mit der neuen, statt auf den nächsten Abbruch oder Versuch zu warten.
         CancellationTokenSource? attempt = null;
@@ -46,9 +47,9 @@ internal static class ClientService
             return error;
         };
 
-        Task injector = new SessionSupervisor("Injector", Injector.Argument, asUser: false, asService, log).RunAsync(ct);
-        Task tray = new SessionSupervisor("Tray", ClientTray.ArgumentsFor(Environment.ProcessId), asUser: true, asService, log).RunAsync(ct);
-        Task settings = new ClientSettingsServer(status, save, log).RunAsync(ct);
+        Task injector = new SessionSupervisor("Injector", OwnerProcess.Arguments(Injector.Argument), asUser: false, asService, log).RunAsync(ct);
+        Task tray = new SessionSupervisor("Tray", OwnerProcess.Arguments(ClientTray.Argument), asUser: true, asService, log).RunAsync(ct);
+        Task settings = new ClientSettingsServer(status, save, clipboard, log).RunAsync(ct);
 
         TimeSpan delay = _minRetryDelay;
         string? lastProblem = null;
@@ -64,7 +65,7 @@ internal static class ClientService
             {
                 if (config is not null)
                 {
-                    (problem, wasConnected) = await AttemptAsync(config, status, log, protocolMismatch, current.Token);
+                    (problem, wasConnected) = await AttemptAsync(config, status, clipboard, log, protocolMismatch, current.Token);
                 }
 
                 if (wasConnected)
@@ -109,7 +110,8 @@ internal static class ClientService
 
     /// <summary>Ein Versuch: verbinden, anmelden und, wenn das klappt, Eingaben weiterreichen, bis die Verbindung endet.</summary>
     /// <returns>Die Störung, wenn keine Verbindung zustande kam; ob eine Verbindung bestand.</returns>
-    private static async Task<(string? Problem, bool WasConnected)> AttemptAsync(ClientConfig config, ClientStatus status, Action<string> log,
+    private static async Task<(string? Problem, bool WasConnected)> AttemptAsync(ClientConfig config, ClientStatus status, ClipboardBridge clipboard,
+        Action<string> log,
         Action? protocolMismatch, CancellationToken ct)
     {
         (TcpClient? tcp, string? connectError) = await ConnectAsync(config, ct);
@@ -130,7 +132,7 @@ internal static class ClientService
                 status.Update(s => s with { Connected = true, HostAddress = address, HostVersion = handshake.PeerVersion, Problem = null });
                 try
                 {
-                    await new PipeRelay(conn, log).RunAsync(ct);
+                    await new PipeRelay(conn, clipboard, log).RunAsync(ct);
                 }
                 finally
                 {

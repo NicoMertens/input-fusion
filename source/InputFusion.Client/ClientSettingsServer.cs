@@ -11,10 +11,11 @@ namespace InputFusion.Client;
 /// <summary>
 /// Hostet die Pipe für Tray und Einstellungen (<see cref="ClientPipe"/>). Jede verbundene Oberfläche bekommt sofort
 /// und nach jeder Änderung den Zustand aus <see cref="ClientStatus"/>. Ändern dürfen nur Administratoren: Wer Host und
-/// Schlüssel bestimmt, bestimmt, wer als SYSTEM auf diesem Rechner Eingaben abspielt.
+/// Schlüssel bestimmt, bestimmt, wer als SYSTEM auf diesem Rechner Eingaben abspielt. Über dieselbe Pipe meldet sich
+/// der Tray als Empfänger der Zwischenablage an, siehe <see cref="ClipboardBridge"/>.
 /// </summary>
 /// <param name="save">Null, wenn die Konfiguration feststeht (<c>--relay</c>).</param>
-internal sealed class ClientSettingsServer(ClientStatus status, ClientService.ConfigSaver? save, Action<string> log)
+internal sealed class ClientSettingsServer(ClientStatus status, ClientService.ConfigSaver? save, ClipboardBridge clipboard, Action<string> log)
 {
     public async Task RunAsync(CancellationToken ct)
     {
@@ -57,6 +58,18 @@ internal sealed class ClientSettingsServer(ClientStatus status, ClientService.Co
             await SendAsync(connection, status.Snapshot(administrator, canEdit), ct);
             await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(ct))
             {
+                if (type == MessageType.ClipboardReceiver && PipeIdentity.ClientSessionId(pipe) is uint session)
+                {
+                    clipboard.AddTray(connection, session);
+                    continue;
+                }
+
+                if (type == MessageType.ClipboardText)
+                {
+                    await clipboard.FromTrayAsync(connection, payload, ct);
+                    continue;
+                }
+
                 if (type != MessageType.Settings)
                 {
                     continue;
@@ -83,6 +96,7 @@ internal sealed class ClientSettingsServer(ClientStatus status, ClientService.Co
         finally
         {
             status.Changed -= push;
+            clipboard.RemoveTray(connection);
         }
     }
 

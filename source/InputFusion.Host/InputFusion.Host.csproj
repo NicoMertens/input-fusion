@@ -7,7 +7,7 @@
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <ApplicationManifest>..\app.manifest</ApplicationManifest>
-    <ApplicationIcon>..\InputFusion.ico</ApplicationIcon>
+    <ApplicationIcon>..\InputFusion.Host.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

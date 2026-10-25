@@ -24,8 +24,8 @@ public sealed class HostConfig
 
     public string Key { get; set; } = "";
 
-    /// <summary>Port, auf dem der Agent lauscht. Nur von Hand in der Datei zu ändern, bei beendetem Agent: Er liest
-    /// ihn beim Start und schreibt beim nächsten Speichern seinen Stand zurück.</summary>
+    /// <summary>Port, auf dem der Agent lauscht. Zu ändern in den Einstellungen; von Hand in der Datei nur bei beendetem
+    /// Agent, weil er beim nächsten Speichern seinen Stand zurückschreibt.</summary>
     public int Port { get; set; } = Ports.Input;
 
     /// <summary>Gespeicherte Anordnungen je Monitor-Kombination, siehe <c>MonitorLayout.CombinationKey</c>.</summary>

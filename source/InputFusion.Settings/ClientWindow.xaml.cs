@@ -3,14 +3,18 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Microsoft.Win32;
 using InputFusion.Core.Config;
+using InputFusion.Core.Display;
 using InputFusion.Core.Ipc;
+using InputFusion.Core.Layout;
 using InputFusion.Core.Shell;
 
 namespace InputFusion.Settings;
 
 /// <summary>
-/// Die Einstellungen auf dem Notebook: Verbindungsdaten des Dienstes und sein Zustand. Ändern dürfen nur erhöhte
+/// Die Einstellungen auf dem Notebook: Verbindungsdaten des Dienstes, sein Zustand und eine Vorschau der eigenen
+/// Monitore. Ändern dürfen nur erhöhte
 /// Administratoren; der Dienst prüft das selbst und schickt den Schlüssel nur ihnen. Ohne Rechte startet die Oberfläche
 /// auf Wunsch per UAC erhöht neu.
 /// </summary>
@@ -35,8 +39,44 @@ public partial class ClientWindow : Window
         _connection.ErrorReceived += OnError;
         _connection.ConnectedChanged += OnConnectedChanged;
         OnConnectedChanged(false);
-        Closed += (_, _) => _cts.Cancel();
+        RenderMonitors();
+        SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        Closed += (_, _) =>
+        {
+            SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+            _cts.Cancel();
+        };
         _ = _connection.RunAsync(_cts.Token);
+    }
+
+    // Kommt auf dem Thread von SystemEvents an, nicht auf dem der Oberfläche.
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(RenderMonitors);
+
+    /// <summary>
+    /// Misst die Monitore selbst statt über den Dienst: Die Oberfläche läuft in der Sitzung des Benutzers und ist wie der
+    /// Injector Per-Monitor-V2-aware, sieht also dieselben physischen Pixel, auch ohne laufenden Dienst.
+    /// </summary>
+    private void RenderMonitors()
+    {
+        Monitors.Children.Clear();
+        IReadOnlyList<MonitorRect> monitors = MonitorEnumerator.GetMonitors();
+        if (monitors.Count == 0)
+        {
+            return;
+        }
+
+        int originX = monitors.Min(m => m.Left);
+        int originY = monitors.Min(m => m.Top);
+        Monitors.Width = monitors.Max(m => m.Right) - originX;
+        Monitors.Height = monitors.Max(m => m.Bottom) - originY;
+        double unit = Math.Max(Monitors.Width, Monitors.Height) / 100.0;
+        foreach ((MonitorRect m, string label) in MonitorBox.Numbered(monitors))
+        {
+            Border box = MonitorBox.Create(m, label, "ClientMonitorBrush", "ClientMonitorBorderBrush", unit);
+            Canvas.SetLeft(box, m.Left - originX);
+            Canvas.SetTop(box, m.Top - originY);
+            Monitors.Children.Add(box);
+        }
     }
 
     private void OnConnectedChanged(bool connected)

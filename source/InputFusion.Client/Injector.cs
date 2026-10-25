@@ -17,12 +17,16 @@ internal static class Injector
     // Der Dienst startet diesen Modus mit CREATE_NO_WINDOW, weil die exe eine Konsolenanwendung ist.
     public const string Argument = "--injector";
 
-    public static void Run() => RunAsync().GetAwaiter().GetResult();
+    public static void Run(string[] rest) => RunAsync(OwnerProcess.Parse(rest)).GetAwaiter().GetResult();
 
-    private static async Task RunAsync()
+    private static async Task RunAsync(int? ownerPid)
     {
         using CancellationTokenSource cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+        if (ownerPid is int pid)
+        {
+            _ = OwnerProcess.WatchAsync(pid, cts);
+        }
 
         InputPlayer player = new InputPlayer();
         InputDispatcher dispatcher = new InputDispatcher(player);

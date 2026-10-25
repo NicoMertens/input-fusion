@@ -117,6 +117,7 @@ public partial class MainWindow : Window
                     continue;
                 }
                 await conn.SendAsync(MessageType.Monitors, MonitorList.ToPayload(_options.Monitors), ct);
+                await conn.SendAsync(MessageType.ClientInfo, new ClientInfo($"{Environment.MachineName} (Simulator)", null, Environment.UserName).ToPayload(), ct);
                 _connection = $"Verbunden mit {_options.Host}:{_options.Port}";
                 _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  {_connection}");
 

@@ -119,6 +119,10 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
                         + $" (VK 0x{key.VirtualKey:X2}, Scan 0x{key.ScanCode:X2}{(key.Extended ? ", erweitert" : "")})";
                     break;
 
+                case MessageType.ClipboardText:
+                    // Der Simulator gleicht die Zwischenablage nicht ab; je Stück eine Zeile füllte nur das Protokoll.
+                    break;
+
                 default:
                     log = $"Unbekannte Nachricht {type} ({payload.Length} Bytes)";
                     break;

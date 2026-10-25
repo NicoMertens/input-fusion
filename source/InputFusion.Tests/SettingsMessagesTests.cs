@@ -11,7 +11,8 @@ public class SettingsMessagesTests
     {
         MonitorRect monitor = new MonitorRect(-1920, 0, 1920, 1080, 96, @"\\?\DISPLAY#GSM5B7F#5&1");
         SettingsMessage message = new HostStateMessage("PC", "0.2.0", ["192.168.1.10"], 15111, "abcdefghijkmnpqr",
-            [monitor], new ClientStateInfo("192.168.1.20", "0.2.0", [monitor with { DeviceId = "N1" }], 0, -1080));
+            [monitor], new ClientStateInfo("192.168.1.20", "0.2.0", [monitor with { DeviceId = "N1" }], 0, -1080,
+                "NOTEBOOK", "Windows 11 Pro 24H2 (Build 26100.4061)", null));
 
         HostStateMessage back = Assert.IsType<HostStateMessage>(SettingsMessage.FromPayload(message.ToPayload()));
 
@@ -19,6 +20,8 @@ public class SettingsMessagesTests
         Assert.Equal(monitor, Assert.Single(back.HostMonitors));
         Assert.Equal(-1080, back.Client!.OffsetY);
         Assert.Equal("N1", Assert.Single(back.Client.Monitors).DeviceId);
+        Assert.Equal("NOTEBOOK", back.Client.MachineName);
+        Assert.Null(back.Client.UserName);
     }
 
     [Fact]
@@ -48,6 +51,7 @@ public class SettingsMessagesTests
     {
         string json = Encoding.UTF8.GetString(new SetKeyRequest("abcdefghijkmnpqr").ToPayload());
         Assert.Contains("\"type\":\"setKey\"", json);
+        Assert.Equal(new SetPortRequest(15112), SettingsMessage.FromPayload(new SetPortRequest(15112).ToPayload()));
         Assert.IsType<SetClientOffsetRequest>(SettingsMessage.FromPayload(new SetClientOffsetRequest(1, 2).ToPayload()));
         SetClientConfigRequest config = new SetClientConfigRequest("PC", null, 15111, "abcdefghijkmnpqr");
         Assert.Equal(config, SettingsMessage.FromPayload(config.ToPayload()));

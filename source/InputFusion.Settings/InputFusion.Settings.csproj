@@ -5,11 +5,13 @@
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>
     <ApplicationManifest>..\app.manifest</ApplicationManifest>
-    <ApplicationIcon>..\InputFusion.ico</ApplicationIcon>
+    <!-- Die exe trägt das Symbol des Hosts (Startmenü des PCs), jedes Fenster setzt das seiner Seite. -->
+    <ApplicationIcon>..\InputFusion.Host.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="..\InputFusion.ico" Link="InputFusion.ico" />
+    <Resource Include="..\InputFusion.Host.ico" Link="InputFusion.Host.ico" />
+    <Resource Include="..\InputFusion.Client.ico" Link="InputFusion.Client.ico" />
   </ItemGroup>
 
   <ItemGroup>

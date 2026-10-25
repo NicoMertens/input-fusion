@@ -12,6 +12,7 @@ namespace InputFusion.Core.Ipc;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(GetStateRequest), "getState")]
 [JsonDerivedType(typeof(SetKeyRequest), "setKey")]
+[JsonDerivedType(typeof(SetPortRequest), "setPort")]
 [JsonDerivedType(typeof(SetClientOffsetRequest), "setClientOffset")]
 [JsonDerivedType(typeof(SetClientConfigRequest), "setClientConfig")]
 [JsonDerivedType(typeof(HostStateMessage), "hostState")]
@@ -39,6 +40,9 @@ public sealed record GetStateRequest : SettingsMessage;
 
 public sealed record SetKeyRequest(string Key) : SettingsMessage;
 
+/// <summary>Neuer Port, auf dem der Agent lauscht. Eine bestehende Verbindung bleibt.</summary>
+public sealed record SetPortRequest(int Port) : SettingsMessage;
+
 /// <summary>Neue Lage der Client-Gruppe auf der gemeinsamen Fläche. Der Agent rastet sie selbst noch einmal ein.</summary>
 public sealed record SetClientOffsetRequest(int OffsetX, int OffsetY) : SettingsMessage;
 
@@ -55,8 +59,19 @@ public sealed record HostStateMessage(
     IReadOnlyList<MonitorRect> HostMonitors,
     ClientStateInfo? Client) : SettingsMessage;
 
-/// <summary>Der verbundene Client. <see cref="Monitors"/> ist leer, solange er seine Monitore nicht gemeldet hat.</summary>
-public sealed record ClientStateInfo(string Address, string Version, IReadOnlyList<MonitorRect> Monitors, int OffsetX, int OffsetY);
+/// <summary>
+/// Der verbundene Client. <see cref="Monitors"/> ist leer, solange er seine Monitore nicht gemeldet hat; Name,
+/// Windows-Version und Benutzer sind null, solange er sie nicht gemeldet hat, siehe <see cref="Protocol.ClientInfo"/>.
+/// </summary>
+public sealed record ClientStateInfo(
+    string Address,
+    string Version,
+    IReadOnlyList<MonitorRect> Monitors,
+    int OffsetX,
+    int OffsetY,
+    string? MachineName,
+    string? OsVersion,
+    string? UserName);
 
 /// <summary>
 /// Der Zustand des Dienstes auf dem Notebook. <see cref="Host"/> ist null, solange <c>client.json</c> fehlt oder

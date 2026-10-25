@@ -22,6 +22,7 @@ internal sealed class HostState(HostConfig config)
     private string? _clientAddress;
     private string _clientVersion = "";
     private IReadOnlyList<MonitorRect> _clientMonitors = [];
+    private ClientInfo? _clientInfo;
     private MonitorLayout? _layout;
     private bool _isRemote;
 
@@ -30,6 +31,9 @@ internal sealed class HostState(HostConfig config)
 
     /// <summary>Das Layout wurde ausgetauscht; die Verbindung schickt dem Client die neuen Rückwege.</summary>
     public event Action<MonitorLayout?>? LayoutChanged;
+
+    /// <summary>Der Port wurde geändert; der Listener lauscht neu, die Firewall-Regel zieht nach.</summary>
+    public event Action<int>? PortChanged;
 
     /// <summary>Ein Client mit anderer Protokollversion hat sich gemeldet; vielleicht ist der Host der ältere.</summary>
     public event Action? ProtocolMismatch;
@@ -55,13 +59,26 @@ internal sealed class HostState(HostConfig config)
         }
     }
 
+    public int Port
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return config.Port;
+            }
+        }
+    }
+
     public string StatusText
     {
         get
         {
             lock (_lock)
             {
-                return _clientAddress is null ? "InputFusion – wartet auf das Notebook" : $"InputFusion – verbunden mit {_clientAddress}";
+                return _clientAddress is null ? "InputFusion – wartet auf das Notebook"
+                    : _clientInfo?.MachineName is { } name ? $"InputFusion – verbunden mit {name} ({_clientAddress})"
+                    : $"InputFusion – verbunden mit {_clientAddress}";
             }
         }
     }
@@ -90,6 +107,48 @@ internal sealed class HostState(HostConfig config)
         return null;
     }
 
+    /// <summary>
+    /// Null bei Erfolg, sonst der Grund der Ablehnung. Der Listener zieht sofort um, eine bestehende Verbindung bleibt.
+    /// Vorher kurz binden: Ein belegter Port fiele sonst erst im Protokoll auf, und das Notebook fände den Host nicht mehr.
+    /// </summary>
+    public string? SetPort(int port)
+    {
+        string? error = Ports.Validate(port);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        lock (_lock)
+        {
+            if (config.Port == port)
+            {
+                return null;
+            }
+
+            TcpListener probe = Program.CreateListener(port);
+            try
+            {
+                probe.Start();
+            }
+            catch (SocketException ex)
+            {
+                return $"Port {port} ist nicht verfügbar ({ex.SocketErrorCode}).";
+            }
+            finally
+            {
+                probe.Stop();
+            }
+
+            config.Port = port;
+            config.Save();
+        }
+        Log.Write($"Port auf {port} geändert.");
+        PortChanged?.Invoke(port);
+        Changed?.Invoke();
+        return null;
+    }
+
     public void RefreshHostMonitors()
     {
         IReadOnlyList<MonitorRect> monitors = MonitorEnumerator.GetMonitors();
@@ -113,8 +172,25 @@ internal sealed class HostState(HostConfig config)
             _clientAddress = address;
             _clientVersion = version;
             _clientMonitors = [];
+            _clientInfo = null;
         }
         RebuildLayout();
+    }
+
+    /// <summary>Nur zur Anzeige; ältere Clients schicken keine Angaben.</summary>
+    public void ClientInfoReported(ClientInfo info)
+    {
+        lock (_lock)
+        {
+            if (_clientAddress is null || info == _clientInfo)
+            {
+                return;
+            }
+
+            _clientInfo = info;
+        }
+        Log.Write($"Client meldet: Name {info.MachineName}, {info.OsVersion}, angemeldet {info.UserName ?? "niemand"}");
+        Changed?.Invoke();
     }
 
     public void ClientMonitorsReported(IReadOnlyList<MonitorRect> monitors)
@@ -140,6 +216,7 @@ internal sealed class HostState(HostConfig config)
         {
             _clientAddress = null;
             _clientMonitors = [];
+            _clientInfo = null;
         }
         RebuildLayout();
     }
@@ -173,9 +250,6 @@ internal sealed class HostState(HostConfig config)
         return null;
     }
 
-    /// <summary>Aus der Konfiguration beim Start; ändert sich zur Laufzeit nicht.</summary>
-    public int Port { get; } = config.Port;
-
     public HostStateMessage Snapshot()
     {
         lock (_lock)
@@ -183,8 +257,9 @@ internal sealed class HostState(HostConfig config)
             MonitorLayout? layout = Volatile.Read(ref _layout);
             ClientStateInfo? client = _clientAddress is null
                 ? null
-                : new ClientStateInfo(_clientAddress, _clientVersion, _clientMonitors, layout?.OffsetX ?? 0, layout?.OffsetY ?? 0);
-            return new HostStateMessage(Environment.MachineName, AppVersion.Current, Addresses(), Port, config.Key, _hostMonitors, client);
+                : new ClientStateInfo(_clientAddress, _clientVersion, _clientMonitors, layout?.OffsetX ?? 0, layout?.OffsetY ?? 0,
+                    _clientInfo?.MachineName, _clientInfo?.OsVersion, _clientInfo?.UserName);
+            return new HostStateMessage(Environment.MachineName, AppVersion.Current, Addresses(), config.Port, config.Key, _hostMonitors, client);
         }
     }
 

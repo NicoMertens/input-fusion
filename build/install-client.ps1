@@ -60,6 +60,10 @@ if ($existing) {
     $existing.WaitForStatus('Stopped', [TimeSpan]::FromSeconds(15))
 }
 Get-Process -Name 'InputFusion.Client' -ErrorAction SilentlyContinue | Stop-Process -Force
+# Offene Einstellungen aus dem Installationsordner sperrten sonst ihre exe; die des Hosts anderswo bleiben offen.
+Get-Process -Name 'InputFusion.Settings' -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -and (Split-Path $_.Path -Parent) -eq $target } |
+    Stop-Process -Force
 
 # Dateien kopieren. Programme\ ist nur für Administratoren beschreibbar; das ist wichtig, weil der Dienst
 # die exe als SYSTEM ausführt.
@@ -68,14 +72,14 @@ New-Item -ItemType Directory -Path $target -Force | Out-Null
 Get-ChildItem -Path $target -Force | Remove-Item -Recurse -Force
 Copy-Item -Path (Join-Path $Source '*') -Destination $target -Recurse -Force
 
-# Konfiguration schreiben, ACL nur SYSTEM und Administratoren (Vererbung aus).
+# Konfiguration schreiben, ACL nur SYSTEM und Administratoren (Vererbung aus). Die Datei entsteht gleich mit der
+# ACL; nachträglich gesetzt wäre sie mit dem Schlüssel kurz für alle Benutzer lesbar, weil ProgramData Lesen vererbt.
 New-Item -ItemType Directory -Path $configDir -Force | Out-Null
 $configFile = Join-Path $configDir 'client.json'
 $config = [ordered]@{ host = $HostName; key = $Key }
 if ($Ip) { $config.ip = $Ip }
 $config.port = $Port
-$json = $config | ConvertTo-Json
-[System.IO.File]::WriteAllText($configFile, $json, (New-Object System.Text.UTF8Encoding $false))
+$bytes = (New-Object System.Text.UTF8Encoding $false).GetBytes(($config | ConvertTo-Json))
 
 $acl = New-Object System.Security.AccessControl.FileSecurity
 $acl.SetAccessRuleProtection($true, $false)
@@ -84,9 +88,15 @@ foreach ($sid in 'S-1-5-18', 'S-1-5-32-544') {   # SYSTEM, Administratoren
     $rule = New-Object System.Security.AccessControl.FileSystemAccessRule $identity, 'FullControl', 'Allow'
     $acl.AddAccessRule($rule)
 }
-Set-Acl -Path $configFile -AclObject $acl
+Remove-Item -Path $configFile -Force -ErrorAction SilentlyContinue
+$stream = New-Object System.IO.FileStream($configFile, [System.IO.FileMode]::CreateNew,
+    [System.Security.AccessControl.FileSystemRights]::Write, [System.IO.FileShare]::None, 4096,
+    [System.IO.FileOptions]::None, $acl)
+try { $stream.Write($bytes, 0, $bytes.Length) } finally { $stream.Dispose() }
+
+# Ohne Schlüssel ausgeben, die Konsole landet leicht in Protokollen oder Chats.
 Write-Host "Konfiguration: $configFile"
-Write-Host $json
+Write-Host "  Host: $HostName$(if ($Ip) { ", IP $Ip" }), Port $Port, Schlüssel $($Key.Length) Zeichen (nicht angezeigt)"
 
 # Dienst anlegen oder umkonfigurieren.
 $binary = '"' + (Join-Path $target 'InputFusion.Client.exe') + '"'
