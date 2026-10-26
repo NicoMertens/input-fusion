@@ -12,9 +12,10 @@ internal static class ThemeBrushes
     public const string Hint = "TextFillColorSecondaryBrush";
     public const string Error = "SystemFillColorCriticalBrush";
     public const string Success = "SystemFillColorSuccessBrush";
-    public const string SuccessBackground = "SystemFillColorSuccessBackgroundBrush";
     public const string Idle = "TextFillColorTertiaryBrush";
-    public const string Accent = "AccentTextFillColorPrimaryBrush";
+    public const string AccentFill = "AccentFillColorDefaultBrush";
+    public const string TextOnAccent = "TextOnAccentFillColorPrimaryBrush";
+    public const string SubtleFill = "SubtleFillColorSecondaryBrush";
     public const string CardBackground = "CardBackgroundFillColorDefaultBrush";
     public const string CardStroke = "CardStrokeColorDefaultBrush";
 
