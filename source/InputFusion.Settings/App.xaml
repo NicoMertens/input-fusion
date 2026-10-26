@@ -10,5 +10,11 @@
         <SolidColorBrush x:Key="TransitionBrush" Color="#FFB86C" />
         <SolidColorBrush x:Key="ErrorBrush" Color="#C42B1C" />
         <SolidColorBrush x:Key="HintBrush" Color="#606060" />
+        <SolidColorBrush x:Key="ConnectedBrush" Color="#2E9E44" />
+        <SolidColorBrush x:Key="ConnectedCardBrush" Color="#EEF7EF" />
+        <SolidColorBrush x:Key="ConnectedCardBorderBrush" Color="#9FD3A8" />
+        <SolidColorBrush x:Key="IdleBrush" Color="#9A9AA0" />
+        <SolidColorBrush x:Key="IdleCardBrush" Color="#F6F6F6" />
+        <SolidColorBrush x:Key="IdleCardBorderBrush" Color="#C8C8C8" />
     </Application.Resources>
 </Application>

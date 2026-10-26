@@ -46,6 +46,7 @@ public partial class MainWindow : Window
         _connection.ErrorReceived += OnError;
         _connection.ConnectedChanged += OnConnectedChanged;
         OnConnectedChanged(false);
+        ShowClient(null);
         Closed += (_, _) => _cts.Cancel();
         _ = _connection.RunAsync(_cts.Token);
     }
@@ -82,7 +83,7 @@ public partial class MainWindow : Window
         }
         UpdateKeyState();
 
-        ClientInfo.Text = state.Client is { } client ? DescribeClient(client) : "Kein Notebook verbunden.";
+        ShowClient(state.Client);
 
         if (!_dragging)
         {
@@ -90,18 +91,62 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string DescribeClient(ClientStateInfo client)
+    private void ShowClient(ClientStateInfo? client)
     {
-        string name = client.MachineName is null ? "Notebook" : $"Notebook {client.MachineName}";
-        string monitors = client.Monitors.Count == 0 ? "Monitore noch nicht gemeldet" : $"{client.Monitors.Count} Monitor(e)";
-        string text = $"{name} verbunden: {client.Address}, Version {client.Version}, {monitors}.";
-        // Ohne Namen hat der Client noch nichts gemeldet oder ist zu alt dafür; „niemand angemeldet“ wäre dann falsch.
-        if (client.MachineName is null)
+        bool connected = client is not null;
+        ClientCard.Background = (Brush)FindResource(connected ? "ConnectedCardBrush" : "IdleCardBrush");
+        ClientCard.BorderBrush = (Brush)FindResource(connected ? "ConnectedCardBorderBrush" : "IdleCardBorderBrush");
+        ClientDot.Fill = (Brush)FindResource(connected ? "ConnectedBrush" : "IdleBrush");
+        ClientIcon.Foreground = (Brush)FindResource(connected ? "ClientMonitorBrush" : "IdleBrush");
+        ClientDetails.Children.Clear();
+        ClientDetails.RowDefinitions.Clear();
+
+        if (client is null)
         {
-            return text;
+            ClientTitle.Text = "Kein Notebook verbunden";
+            AddClientDetail(null, "Sobald sich das Notebook anmeldet, erscheint es hier.");
+            return;
         }
 
-        return $"{text}\n{client.OsVersion}\n{(client.UserName is null ? "Niemand angemeldet." : $"Angemeldet: {client.UserName}")}";
+        ClientTitle.Text = $"{client.MachineName ?? "Notebook"} verbunden";
+        AddClientDetail("Adresse", client.Address);
+        AddClientDetail("Version", client.Version);
+        AddClientDetail("Monitore", client.Monitors.Count == 0
+            ? "noch nicht gemeldet"
+            : client.Monitors.Count.ToString(CultureInfo.CurrentCulture));
+        // Ohne Namen hat der Client noch nichts gemeldet oder ist zu alt dafür; „niemand angemeldet“ wäre dann falsch.
+        if (client.MachineName is not null)
+        {
+            AddClientDetail("Windows", client.OsVersion ?? "");
+            AddClientDetail("Angemeldet", client.UserName ?? "niemand");
+        }
+    }
+
+    /// <summary>Eine Zeile unter dem Titel; ohne Bezeichnung als Hinweis über beide Spalten.</summary>
+    private void AddClientDetail(string? label, string value)
+    {
+        int row = ClientDetails.RowDefinitions.Count;
+        ClientDetails.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        TextBlock text = new TextBlock { Text = value, Margin = new Thickness(0, 2, 0, 2), TextWrapping = TextWrapping.Wrap };
+        Grid.SetRow(text, row);
+        if (label is null)
+        {
+            text.Foreground = (Brush)FindResource("HintBrush");
+            Grid.SetColumnSpan(text, 2);
+        }
+        else
+        {
+            TextBlock caption = new TextBlock
+            {
+                Text = label,
+                Margin = new Thickness(0, 2, 16, 2),
+                Foreground = (Brush)FindResource("HintBrush"),
+            };
+            Grid.SetRow(caption, row);
+            ClientDetails.Children.Add(caption);
+            Grid.SetColumn(text, 1);
+        }
+        ClientDetails.Children.Add(text);
     }
 
     private void OnError(string message)
@@ -186,7 +231,9 @@ public partial class MainWindow : Window
         bool focused = KeyField.IsKeyboardFocusWithin;
         Key.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         HiddenKey.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
-        ShowKey.Content = show ? "Verbergen" : "Anzeigen";
+        // Symbole aus Segoe Fluent Icons: durchgestrichenes Auge (Hide), Auge (View).
+        ShowKey.Content = show ? "" : "";
+        ShowKey.ToolTip = show ? "Schlüssel verbergen" : "Schlüssel anzeigen";
         if (focused)
         {
             FocusKey();
