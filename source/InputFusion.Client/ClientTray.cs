@@ -19,6 +19,8 @@ internal static class ClientTray
     public const string Argument = "--tray";
 
     private static readonly TimeSpan _retryDelay = TimeSpan.FromSeconds(1);
+    // So lange darf die Neuverbindung zum PC dauern, ohne dass der Abbruch gemeldet wird.
+    private static readonly TimeSpan _notifyDelay = TimeSpan.FromSeconds(5);
 
     public static void Run(string[] rest) => RunAsync(OwnerProcess.Parse(rest)).GetAwaiter().GetResult();
 
@@ -62,6 +64,7 @@ internal static class ClientTray
             checkForUpdates: CheckForUpdatesAsync);
         tray.Start();
         tray.SetTooltip("InputFusion: Dienst nicht erreichbar.");
+        ConnectionNotifier notifier = new ConnectionNotifier(tray.ShowBalloon, _notifyDelay);
         try
         {
             while (!cts.IsCancellationRequested)
@@ -74,12 +77,23 @@ internal static class ClientTray
                     using MessageConnection connection = new MessageConnection(pipe);
                     await connection.SendAsync(MessageType.ClipboardReceiver, ReadOnlyMemory<byte>.Empty, cts.Token);
                     current = connection;
+                    // Je Verbindung zum Dienst neu: Der erste Zustand ist kein Wechsel.
+                    bool? hostConnected = null;
                     await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(cts.Token))
                     {
                         SettingsMessage? message = type == MessageType.Settings ? SettingsMessage.FromPayload(payload) : null;
                         if (message is ClientStateMessage state)
                         {
                             tray.SetTooltip($"InputFusion: {state.Summary()}");
+                            if (hostConnected == true && !state.Connected)
+                            {
+                                _ = notifier.Lost($"Verbindung zu {state.Host ?? "dem PC"} beendet. {state.Problem}".TrimEnd());
+                            }
+                            else if (hostConnected == false && state.Connected)
+                            {
+                                notifier.Restored($"Wieder mit {state.Host} verbunden.");
+                            }
+                            hostConnected = state.Connected;
                         }
                         else if (message is UpdateCheckResult check)
                         {
@@ -112,6 +126,8 @@ internal static class ClientTray
                 }
 
                 current = null;
+                // Ohne Dienst ist unbekannt, wie es mit dem PC steht; das sagt schon der Tooltip.
+                notifier.Reset();
                 // Etwa weil der Dienst gerade für ein Update neu startet; die Antwort käme nie mehr.
                 pendingCheck?.TrySetResult("Die Verbindung zum Dienst ist abgebrochen, vielleicht startet er für ein Update neu.");
                 tray.SetTooltip("InputFusion: Dienst nicht erreichbar.");

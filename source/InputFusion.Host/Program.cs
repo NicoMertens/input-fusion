@@ -14,6 +14,9 @@ internal static class Program
 {
     private const string InstanceMutexName = @"Local\InputFusion.Host";
 
+    // So lange darf das Notebook für eine Neuverbindung brauchen, ohne dass der Abbruch gemeldet wird.
+    private static readonly TimeSpan _notifyDelay = TimeSpan.FromSeconds(5);
+
     private static async Task Main(string[] args)
     {
         // Vor allem anderen: Setup und Updater starten die exe mit Hook-Argumenten und erwarten ein sofortiges Ende.
@@ -94,6 +97,7 @@ internal static class Program
             Log.Write, state.RefreshHostMonitors, updates.CheckNowAsync);
         tray.Start();
         tray.SetTooltip(state.StatusText);
+        ConnectionNotifier notifier = new ConnectionNotifier(tray.ShowBalloon, _notifyDelay);
         state.Changed += () => tray.SetTooltip(state.StatusText);
         Task settings = new SettingsServer(state).RunAsync(cts.Token);
 
@@ -103,7 +107,7 @@ internal static class Program
 
         try
         {
-            await ListenAsync(state, absolute, observe, diag, cts.Token);
+            await ListenAsync(state, notifier, absolute, observe, diag, cts.Token);
         }
         finally
         {
@@ -144,7 +148,7 @@ internal static class Program
     /// Ein Client zur Zeit. Nach jedem Abbruch wieder lauschen; sonst verbraucht schon ein Verbindungstest
     /// (Test-NetConnection) den einzigen Platz. Ein neuer Port bricht das Warten ab, damit gleich auf ihm gelauscht wird.
     /// </summary>
-    private static async Task ListenAsync(HostState state, bool absolute, bool observe, bool diag, CancellationToken ct)
+    private static async Task ListenAsync(HostState state, ConnectionNotifier notifier, bool absolute, bool observe, bool diag, CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {
@@ -186,7 +190,7 @@ internal static class Program
                 listener.Stop();
             }
 
-            await ServeAsync(tcp, state, absolute, observe, diag, ct);
+            await ServeAsync(tcp, state, notifier, absolute, observe, diag, ct);
         }
     }
 
@@ -206,9 +210,10 @@ internal static class Program
         return listener;
     }
 
-    private static async Task ServeAsync(TcpClient tcp, HostState state, bool absolute, bool observe, bool diag, CancellationToken ct)
+    private static async Task ServeAsync(TcpClient tcp, HostState state, ConnectionNotifier notifier, bool absolute, bool observe, bool diag,
+        CancellationToken ct)
     {
-        using TcpClient _ = tcp;
+        using TcpClient owned = tcp;
         using MessageConnection conn = MessageConnection.FromTcp(tcp);
         string address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
         HandshakeResult handshake;
@@ -237,15 +242,17 @@ internal static class Program
 
         Log.Write($"Client {address} (Version {handshake.PeerVersion}) verbunden. Strg+Alt+F11 schaltet hier um (Test), Strg+Alt+F12 zurück.");
         state.ClientConnected(address, handshake.PeerVersion);
+        notifier.Restored($"Wieder mit dem Notebook verbunden ({address}).");
 
         // Ereignisse aus der vorigen Verbindung verwerfen, sonst löst etwa eine alte Bewegung an der Kante
         // sofort den Wechsel aus.
         LowLevelHooks.Drain();
         HookListener hooks = new HookListener();
         hooks.Start();
+        RemoteController controller = new RemoteController(conn, state, absolute, observe, diag);
         try
         {
-            await new RemoteController(conn, state, absolute, observe, diag).RunAsync(ct);
+            await controller.RunAsync(ct);
         }
         catch (Exception ex) when (ex is OperationCanceledException or IOException or SocketException)
         {
@@ -254,8 +261,16 @@ internal static class Program
         {
             LowLevelHooks.Swallow = false;
             hooks.Stop();
+            string peer = state.Snapshot().Client?.MachineName is { } name ? $"zu {name}" : "zum Notebook";
             state.ClientDisconnected();
             Log.Write("Verbindung beendet, Remote-Modus aus.");
+            // Beim Beenden des Hosts, auch für ein Update, ist der Abbruch gewollt.
+            if (!ct.IsCancellationRequested)
+            {
+                string reason = controller.EndReason ?? "Die Verbindung ist abgebrochen.";
+                _ = notifier.Lost($"Verbindung {peer} beendet. {reason}{(controller.MouseReturned ? " Die Maus ist zurück auf dem PC." : "")}",
+                    immediately: controller.MouseReturned);
+            }
         }
     }
 }

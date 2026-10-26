@@ -130,13 +130,15 @@ internal static class ClientService
                 string address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
                 log($"Mit dem Host {address} (Version {handshake.PeerVersion}) verbunden.");
                 status.Update(s => s with { Connected = true, HostAddress = address, HostVersion = handshake.PeerVersion, Problem = null });
+                PipeRelay relay = new PipeRelay(conn, clipboard, status, key => SaveKey(config, key, saveConfig, status, log), log);
                 try
                 {
-                    await new PipeRelay(conn, clipboard, status, key => SaveKey(config, key, saveConfig, status, log), log).RunAsync(ct);
+                    await relay.RunAsync(ct);
                 }
                 finally
                 {
-                    status.Update(s => s with { Connected = false, HostAddress = null, HostVersion = null, Arrangement = null });
+                    // Der Grund bleibt als Störung stehen, bis der nächste Versuch gelingt oder einen eigenen hat; der Tray meldet ihn.
+                    status.Update(s => s with { Connected = false, HostAddress = null, HostVersion = null, Arrangement = null, Problem = relay.EndReason });
                 }
                 return (null, true);
             }

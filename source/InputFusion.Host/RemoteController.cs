@@ -48,6 +48,14 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
     private int _recenters, _held, _maxDrift;
     private readonly string _diagPath = Path.Combine(Path.GetTempPath(), "inputfusion-diag.log");
 
+    private string? _endReason;
+
+    /// <summary>Warum die Verbindung endete, als Satz für die Benachrichtigung; null, wenn der Grund nicht bekannt ist.</summary>
+    public string? EndReason => Volatile.Read(ref _endReason);
+
+    /// <summary>Die Maus war beim Ende der Verbindung auf dem Notebook und ist zurück auf den PC gesprungen.</summary>
+    public bool MouseReturned { get; private set; }
+
     public async Task RunAsync(CancellationToken ct)
     {
         _desktopLeft = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_XVIRTUALSCREEN);
@@ -105,6 +113,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
             {
                 state.IsRemote = false;
                 PInvoke.SetCursorPos(_returnX, _returnY);
+                MouseReturned = true;
             }
             linked.Cancel();
             await incoming;
@@ -165,6 +174,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         if (await connection.MonitorAsync(linked.Token))
         {
             Log.Write($"Client antwortet seit {MessageConnection.HeartbeatTimeout.TotalSeconds:0} s nicht mehr, trenne.");
+            SetEndReason($"Das Notebook antwortet seit {MessageConnection.HeartbeatTimeout.TotalSeconds:0} s nicht mehr (Standby oder Netz weg).");
             LowLevelHooks.Swallow = false;
             linked.Cancel();
         }
@@ -206,8 +216,17 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
                     Log.Write($"Remote-Modus aus (Client an der Kante {request.Side}), zurück bei ({x}, {y})");
                 }
             }
+
+            if (!linked.IsCancellationRequested)
+            {
+                SetEndReason("Das Notebook hat die Verbindung getrennt.");
+            }
         }
-        catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException)
+        {
+            SetEndReason($"Verbindungsfehler: {ex.Message}");
+        }
+        catch (OperationCanceledException)
         {
         }
         finally
@@ -216,6 +235,9 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
             linked.Cancel();
         }
     }
+
+    /// <summary>Der erste Grund zählt; was danach scheitert, ist nur die Folge.</summary>
+    private void SetEndReason(string reason) => Interlocked.CompareExchange(ref _endReason, reason, null);
 
     private async Task HandleMove(MouseMoveEvent move, CancellationToken ct)
     {

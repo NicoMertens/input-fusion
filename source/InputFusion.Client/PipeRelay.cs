@@ -26,6 +26,10 @@ internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboar
     // Die zuletzt vom Host geschickten Rückkehrkanten. Ein neu verbundener Injector bekommt sie sofort, weil der
     // Host sie nur bei einer Änderung des Layouts schickt.
     private volatile byte[]? _returnEdges;
+    private string? _endReason;
+
+    /// <summary>Warum die Verbindung endete, als Satz für Tray und Einstellungen; null bei Abbruch von außen.</summary>
+    public string? EndReason => Volatile.Read(ref _endReason);
 
     public async Task RunAsync(CancellationToken ct)
     {
@@ -93,8 +97,17 @@ internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboar
                     // Injector gerade weg; die Annahme-Schleife wartet auf den nächsten.
                 }
             }
+
+            if (!linked.IsCancellationRequested)
+            {
+                SetEndReason("Der PC hat die Verbindung getrennt.");
+            }
         }
-        catch (Exception ex) when (ex is OperationCanceledException or IOException or SocketException)
+        catch (Exception ex) when (ex is IOException or SocketException)
+        {
+            SetEndReason($"Verbindungsfehler: {ex.Message}");
+        }
+        catch (OperationCanceledException)
         {
         }
         finally
@@ -114,9 +127,13 @@ internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboar
         if (await host.MonitorAsync(linked.Token))
         {
             log($"Host antwortet seit {MessageConnection.HeartbeatTimeout.TotalSeconds:0} s nicht mehr, trenne.");
+            SetEndReason($"Der PC antwortet seit {MessageConnection.HeartbeatTimeout.TotalSeconds:0} s nicht mehr (Standby oder Netz weg).");
             linked.Cancel();
         }
     }
+
+    /// <summary>Der erste Grund zählt; was danach scheitert, ist nur die Folge.</summary>
+    private void SetEndReason(string reason) => Interlocked.CompareExchange(ref _endReason, reason, null);
 
     /// <summary>Nimmt nacheinander Injector-Verbindungen an der Pipe an und reicht deren Meldungen zum Host.</summary>
     private async Task AcceptInjectorsAsync(CancellationTokenSource linked)
@@ -156,9 +173,10 @@ internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboar
             catch (Exception ex) when (ex is OperationCanceledException or IOException or ObjectDisposedException)
             {
             }
-            catch (SocketException)
+            catch (SocketException ex)
             {
                 // Host weg: das ganze Relay beenden.
+                SetEndReason($"Verbindungsfehler: {ex.Message}");
                 linked.Cancel();
             }
             finally
