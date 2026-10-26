@@ -10,7 +10,7 @@
                 <StackPanel Orientation="Horizontal">
                     <Image Source="pack://application:,,,/InputFusion.Host.ico" Width="28" Height="28" Margin="0,0,10,0" />
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="InputFusion" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock Text="InputFusion" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                         <TextBlock Text="Einstellungen des PCs" Style="{StaticResource Hint}" FontSize="12" />
                     </StackPanel>
                 </StackPanel>

@@ -12,7 +12,7 @@
             <StackPanel VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal">
                     <Ellipse x:Name="Dot" Width="10" Height="10" Margin="0,1,8,0" VerticalAlignment="Center" />
-                    <TextBlock x:Name="Title" FontSize="16" FontWeight="SemiBold" />
+                    <TextBlock x:Name="Title" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                 </StackPanel>
                 <Grid x:Name="Details" Margin="18,6,0,0" TextElement.FontSize="13">
                     <Grid.ColumnDefinitions>
