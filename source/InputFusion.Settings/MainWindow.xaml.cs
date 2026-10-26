@@ -70,7 +70,7 @@ public partial class MainWindow : Window
     private void OnState(HostStateMessage state)
     {
         _state = state;
-        Status.Text = $"Verbunden mit dem InputFusion-Agent {state.Version} auf diesem PC.";
+        Status.Text = $"Verbunden mit dem InputFusion-Agent {state.Version}.";
         MachineName.Text = state.MachineName;
         Addresses.Text = state.Addresses.Count == 0 ? "keine" : string.Join(Environment.NewLine, state.Addresses);
 
@@ -127,7 +127,7 @@ public partial class MainWindow : Window
         TextBlock target = _lastRequestMessage ?? LayoutMessage;
         _portRejected = target == PortMessage;
         target.Text = message;
-        target.Foreground = (Brush)FindResource("ErrorBrush");
+        ThemeBrushes.SetMessageColor(target, error: true);
     }
 
     private void OnPortChanged(object sender, TextChangedEventArgs e)
@@ -152,14 +152,14 @@ public partial class MainWindow : Window
         if (error is not null)
         {
             PortMessage.Text = error;
-            PortMessage.Foreground = (Brush)FindResource("ErrorBrush");
+            ThemeBrushes.SetMessageColor(PortMessage, error: true);
         }
         else
         {
             PortMessage.Text = changed
                 ? "Noch nicht übernommen."
                 : $"Standard {Ports.Input}. Auf dem Notebook muss derselbe Port stehen.";
-            PortMessage.Foreground = (Brush)FindResource("HintBrush");
+            ThemeBrushes.SetMessageColor(PortMessage, error: false);
         }
     }
 
@@ -238,14 +238,14 @@ public partial class MainWindow : Window
         if (error is not null)
         {
             KeyMessage.Text = error;
-            KeyMessage.Foreground = (Brush)FindResource("ErrorBrush");
+            ThemeBrushes.SetMessageColor(KeyMessage, error: true);
         }
         else
         {
             KeyMessage.Text = changed ? "Noch nicht übernommen."
                 : pending ? "Wird an das Notebook übertragen …"
                 : _state?.KeyStatus ?? $"Mindestens {HostConfig.MinKeyLength} Zeichen; vorbelegt mit einem Zufallswert, änderbar.";
-            KeyMessage.Foreground = (Brush)FindResource("HintBrush");
+            ThemeBrushes.SetMessageColor(KeyMessage, error: false);
         }
     }
 
@@ -388,7 +388,7 @@ public partial class MainWindow : Window
         RenderArrangement(recenter: false);
         _lastRequestMessage = LayoutMessage;
         LayoutMessage.Text = "Gespeichert für diese Kombination aus Monitoren.";
-        LayoutMessage.Foreground = (Brush)FindResource("HintBrush");
+        ThemeBrushes.SetMessageColor(LayoutMessage, error: false);
         await _connection.SendAsync(new SetClientOffsetRequest(offset.X, offset.Y));
     }
 
