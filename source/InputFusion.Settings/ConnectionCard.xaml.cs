@@ -26,11 +26,13 @@ public partial class ConnectionCard : UserControl
     /// <summary>Angaben ohne Bezeichnung erscheinen als Hinweis über beide Spalten.</summary>
     public void Show(bool connected, string title, IEnumerable<(string? Label, string Value)> details)
     {
-        Card.SetResourceReference(Border.BackgroundProperty, connected ? ThemeBrushes.SuccessBackground : ThemeBrushes.CardBackground);
+        // Die Karte bleibt neutral; den Zustand zeigen Symbol in Akzentfarbe und grüner Punkt. Ein grün getönter Hintergrund
+        // (SystemFillColorSuccessBackgroundBrush) wirkt im dunklen Modus schlammig.
+        Card.SetResourceReference(Border.BackgroundProperty, ThemeBrushes.CardBackground);
         Card.SetResourceReference(Border.BorderBrushProperty, ThemeBrushes.CardStroke);
-        IconPlate.SetResourceReference(Border.BackgroundProperty, "SubtleFillColorSecondaryBrush");
+        IconPlate.SetResourceReference(Border.BackgroundProperty, connected ? ThemeBrushes.AccentFill : ThemeBrushes.SubtleFill);
         Dot.SetResourceReference(Shape.FillProperty, connected ? ThemeBrushes.Success : ThemeBrushes.Idle);
-        Icon.SetResourceReference(TextBlock.ForegroundProperty, connected ? ThemeBrushes.Accent : ThemeBrushes.Idle);
+        Icon.SetResourceReference(TextBlock.ForegroundProperty, connected ? ThemeBrushes.TextOnAccent : ThemeBrushes.Idle);
         Title.Text = title;
         Details.Children.Clear();
         Details.RowDefinitions.Clear();
