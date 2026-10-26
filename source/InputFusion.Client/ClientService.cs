@@ -132,11 +132,11 @@ internal static class ClientService
                 status.Update(s => s with { Connected = true, HostAddress = address, HostVersion = handshake.PeerVersion, Problem = null });
                 try
                 {
-                    await new PipeRelay(conn, clipboard, log).RunAsync(ct);
+                    await new PipeRelay(conn, clipboard, status, log).RunAsync(ct);
                 }
                 finally
                 {
-                    status.Update(s => s with { Connected = false, HostAddress = null, HostVersion = null });
+                    status.Update(s => s with { Connected = false, HostAddress = null, HostVersion = null, Arrangement = null });
                 }
                 return (null, true);
             }

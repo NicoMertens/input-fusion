@@ -3,7 +3,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Shapes;
 using InputFusion.Core.Config;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Layout;
@@ -309,7 +308,7 @@ public partial class MainWindow : Window
         }
         foreach (EdgeTransition t in layout.Transitions)
         {
-            AddTransition(t, unit);
+            Arrangement.Children.Add(MonitorBox.CreateTransition(t, unit, _originX, _originY));
         }
     }
 
@@ -324,28 +323,6 @@ public partial class MainWindow : Window
         Canvas.SetLeft(box, m.Left - _originX);
         Canvas.SetTop(box, m.Top - _originY);
         Arrangement.Children.Add(box);
-    }
-
-    private void AddTransition(EdgeTransition t, double unit)
-    {
-        MonitorRect h = t.HostMonitor;
-        (int x1, int y1, int x2, int y2) = t.Side switch
-        {
-            EdgeSide.Right => (h.Right, t.From, h.Right, t.To),
-            EdgeSide.Left => (h.Left, t.From, h.Left, t.To),
-            EdgeSide.Bottom => (t.From, h.Bottom, t.To, h.Bottom),
-            _ => (t.From, h.Top, t.To, h.Top),
-        };
-        Arrangement.Children.Add(new Line
-        {
-            X1 = x1 - _originX,
-            Y1 = y1 - _originY,
-            X2 = x2 - _originX,
-            Y2 = y2 - _originY,
-            Stroke = (Brush)FindResource("TransitionBrush"),
-            StrokeThickness = unit * 1.2,
-            IsHitTestVisible = false,
-        });
     }
 
     private void OnClientMouseDown(object sender, MouseButtonEventArgs e)

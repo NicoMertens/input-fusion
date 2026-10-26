@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Layout;
+using InputFusion.Core.Protocol;
 
 namespace InputFusion.Tests;
 
@@ -32,6 +33,21 @@ public class SettingsMessagesTests
         ClientStateMessage back = Assert.IsType<ClientStateMessage>(SettingsMessage.FromPayload(message.ToPayload()));
 
         Assert.Equal(message, back);
+    }
+
+    [Fact]
+    public void ClientState_WithArrangement_RoundTrip()
+    {
+        MonitorRect host = new MonitorRect(0, 0, 2560, 1440, 96, "H1");
+        MonitorRect client = new MonitorRect(0, 0, 1920, 1200, 144, "N1");
+        SettingsMessage message = new ClientStateMessage("0.8.0", "PC", null, 15111, null, false, true, "192.168.1.10", "0.8.0", null,
+            new ClientArrangement([host], [client], 2560, 0));
+
+        ClientStateMessage back = Assert.IsType<ClientStateMessage>(SettingsMessage.FromPayload(message.ToPayload()));
+
+        Assert.Equal(host, Assert.Single(back.Arrangement!.HostMonitors));
+        Assert.Equal(client, Assert.Single(back.Arrangement.ClientMonitors));
+        Assert.Equal(2560, back.Arrangement.OffsetX);
     }
 
     [Theory]

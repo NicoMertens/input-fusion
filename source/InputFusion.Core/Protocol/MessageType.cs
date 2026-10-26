@@ -48,6 +48,9 @@ public enum MessageType : byte
     /// <summary>Client → Host: Name, Windows-Version und angemeldeter Benutzer des Notebooks, siehe <c>ClientInfo</c>.</summary>
     ClientInfo = 20,
 
+    /// <summary>Host → Client: Monitore beider Seiten und Lage des Clients, nur zur Anzeige, siehe <c>ClientArrangement</c>.</summary>
+    Arrangement = 21,
+
     /// <summary>Einstellungen ↔ Agent über die Named Pipe, Nutzlast JSON, siehe <c>SettingsMessage</c>.</summary>
     Settings = 32,
 }

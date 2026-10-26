@@ -61,10 +61,7 @@
 
             <TabItem Header="Monitore">
                 <DockPanel Margin="12">
-                    <TextBlock DockPanel.Dock="Top" Margin="0,0,0,8" TextWrapping="Wrap">
-                        Die Monitore dieses Notebooks, wie Windows sie anordnet. Wo sie neben denen des PCs liegen,
-                        wird auf dem PC eingestellt, in dessen Einstellungen im Reiter Anordnung.
-                    </TextBlock>
+                    <TextBlock x:Name="MonitorsHint" DockPanel.Dock="Top" Margin="0,0,0,8" TextWrapping="Wrap" />
                     <Border BorderBrush="#C8C8C8" BorderThickness="1" Background="#F6F6F6" ClipToBounds="True">
                         <Viewbox Stretch="Uniform" Margin="16">
                             <Canvas x:Name="Monitors" />
