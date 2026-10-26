@@ -123,6 +123,10 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
                     // Der Simulator gleicht die Zwischenablage nicht ab; je Stück eine Zeile füllte nur das Protokoll.
                     break;
 
+                case MessageType.Arrangement:
+                    // Nur für die Einstellungen des Notebooks; die Rückkehrkanten kommen getrennt.
+                    break;
+
                 default:
                     log = $"Unbekannte Nachricht {type} ({payload.Length} Bytes)";
                     break;

@@ -79,6 +79,8 @@ public sealed record ClientStateInfo(
 /// Der Zustand des Dienstes auf dem Notebook. <see cref="Host"/> ist null, solange <c>client.json</c> fehlt oder
 /// nicht lesbar ist; <see cref="Problem"/> ist die letzte Störung beim Verbinden, solange keine Verbindung steht.
 /// <see cref="Key"/> bekommen nur Administratoren, <see cref="CanEdit"/> sagt, ob diese Verbindung ändern darf.
+/// <see cref="Arrangement"/> ist die Anordnung, die der Host zuletzt geschickt hat; null ohne Verbindung oder bei einem
+/// Host, der sie noch nicht schickt.
 /// </summary>
 public sealed record ClientStateMessage(
     string Version,
@@ -90,7 +92,8 @@ public sealed record ClientStateMessage(
     bool Connected,
     string? HostAddress,
     string? HostVersion,
-    string? Problem) : SettingsMessage
+    string? Problem,
+    Protocol.ClientArrangement? Arrangement = null) : SettingsMessage
 {
     /// <summary>Eine Zeile für Tooltip und Statuszeile.</summary>
     public string Summary() =>

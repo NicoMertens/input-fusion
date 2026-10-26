@@ -62,7 +62,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         // auch ein Senden ab, das im vollen Puffer hängt. Sonst blieben die Eingaben verschluckt.
         using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
         CancellationToken token = linked.Token;
-        Action<MonitorLayout?> layoutChanged = layout => _ = SendReturnEdgesAsync(layout, token);
+        Action<MonitorLayout?> layoutChanged = layout => _ = SendLayoutAsync(layout, token);
         state.LayoutChanged += layoutChanged;
         Task incoming = Task.Run(() => PumpIncoming(linked));
         Task monitor = WatchClient(linked);
@@ -108,12 +108,16 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         }
     }
 
-    /// <summary>Schickt dem Client die Kanten, über die er zurückkehrt. Ohne Layout keine, dann bleibt nur Strg+Alt+F12.</summary>
-    private async Task SendReturnEdgesAsync(MonitorLayout? layout, CancellationToken ct)
+    /// <summary>
+    /// Schickt dem Client die Kanten, über die er zurückkehrt, und danach die Anordnung für seine Einstellungen. Ohne
+    /// Layout keine Kanten, dann bleibt nur Strg+Alt+F12. Ältere Clients übergehen die Anordnung.
+    /// </summary>
+    private async Task SendLayoutAsync(MonitorLayout? layout, CancellationToken ct)
     {
         try
         {
             await connection.SendAsync(MessageType.ReturnEdges, ReturnEdgeList.ToPayload(layout?.ReturnEdges ?? []), ct);
+            await connection.SendAsync(MessageType.Arrangement, ClientArrangement.From(layout).ToPayload(), ct);
         }
         catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or OperationCanceledException or ObjectDisposedException)
         {

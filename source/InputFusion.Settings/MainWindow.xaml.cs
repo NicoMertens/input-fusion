@@ -1,9 +1,8 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Shapes;
 using InputFusion.Core.Config;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Layout;
@@ -46,6 +45,7 @@ public partial class MainWindow : Window
         _connection.ErrorReceived += OnError;
         _connection.ConnectedChanged += OnConnectedChanged;
         OnConnectedChanged(false);
+        ShowClient(null);
         Closed += (_, _) => _cts.Cancel();
         _ = _connection.RunAsync(_cts.Token);
     }
@@ -74,7 +74,7 @@ public partial class MainWindow : Window
         }
         UpdatePortState();
 
-        if (Key.Text == state.Key || !Key.IsKeyboardFocusWithin)
+        if (Key.Text == state.Key || !KeyField.IsKeyboardFocusWithin)
         {
             _updatingKey = true;
             Key.Text = state.Key;
@@ -82,7 +82,7 @@ public partial class MainWindow : Window
         }
         UpdateKeyState();
 
-        ClientInfo.Text = state.Client is { } client ? DescribeClient(client) : "Kein Notebook verbunden.";
+        ShowClient(state.Client);
 
         if (!_dragging)
         {
@@ -90,18 +90,27 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string DescribeClient(ClientStateInfo client)
+    private void ShowClient(ClientStateInfo? client)
     {
-        string name = client.MachineName is null ? "Notebook" : $"Notebook {client.MachineName}";
-        string monitors = client.Monitors.Count == 0 ? "Monitore noch nicht gemeldet" : $"{client.Monitors.Count} Monitor(e)";
-        string text = $"{name} verbunden: {client.Address}, Version {client.Version}, {monitors}.";
-        // Ohne Namen hat der Client noch nichts gemeldet oder ist zu alt dafür; „niemand angemeldet“ wäre dann falsch.
-        if (client.MachineName is null)
+        if (client is null)
         {
-            return text;
+            ClientCard.Show(false, "Kein Notebook verbunden", [(null, "Sobald sich das Notebook anmeldet, erscheint es hier.")]);
+            return;
         }
 
-        return $"{text}\n{client.OsVersion}\n{(client.UserName is null ? "Niemand angemeldet." : $"Angemeldet: {client.UserName}")}";
+        List<(string?, string)> details =
+        [
+            ("Adresse", client.Address),
+            ("Version", client.Version),
+            ("Monitore", client.Monitors.Count == 0 ? "noch nicht gemeldet" : client.Monitors.Count.ToString(CultureInfo.CurrentCulture)),
+        ];
+        // Ohne Namen hat der Client noch nichts gemeldet oder ist zu alt dafür; „niemand angemeldet“ wäre dann falsch.
+        if (client.MachineName is not null)
+        {
+            details.Add(("Windows", client.OsVersion ?? ""));
+            details.Add(("Angemeldet", client.UserName ?? "niemand"));
+        }
+        ClientCard.Show(true, $"{client.MachineName ?? "Notebook"} verbunden", details);
     }
 
     private void OnError(string message)
@@ -157,11 +166,54 @@ public partial class MainWindow : Window
         Keyboard.ClearFocus();
     }
 
+    // Key hält den Schlüssel, HiddenKey zeigt ihn verdeckt. Beide gleichen sich in beide Richtungen ab; der Vergleich
+    // vorher beendet das Hin und Her.
     private void OnKeyChanged(object sender, TextChangedEventArgs e)
     {
+        if (HiddenKey.Password != Key.Text)
+        {
+            HiddenKey.Password = Key.Text;
+        }
+
         if (!_updatingKey)
         {
             UpdateKeyState();
+        }
+    }
+
+    private void OnHiddenKeyChanged(object sender, RoutedEventArgs e)
+    {
+        if (Key.Text != HiddenKey.Password)
+        {
+            Key.Text = HiddenKey.Password;
+        }
+    }
+
+    private void OnShowKey(object sender, RoutedEventArgs e)
+    {
+        bool show = ShowKey.IsChecked == true;
+        bool focused = KeyField.IsKeyboardFocusWithin;
+        Key.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        HiddenKey.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+        // Symbole aus Segoe Fluent Icons: durchgestrichenes Auge (Hide), Auge (View).
+        ShowKey.Content = show ? "" : "";
+        ShowKey.ToolTip = show ? "Schlüssel verbergen" : "Schlüssel anzeigen";
+        if (focused)
+        {
+            FocusKey();
+        }
+    }
+
+    private void FocusKey()
+    {
+        if (Key.IsVisible)
+        {
+            Key.Focus();
+            Key.CaretIndex = Key.Text.Length;
+        }
+        else
+        {
+            HiddenKey.Focus();
         }
     }
 
@@ -187,7 +239,7 @@ public partial class MainWindow : Window
     private void OnGenerateKey(object sender, RoutedEventArgs e)
     {
         Key.Text = HostConfig.GenerateKey();
-        Key.Focus();
+        FocusKey();
     }
 
     private void OnCopyKey(object sender, RoutedEventArgs e) => Clipboard.SetText(Key.Text);
@@ -256,7 +308,7 @@ public partial class MainWindow : Window
         }
         foreach (EdgeTransition t in layout.Transitions)
         {
-            AddTransition(t, unit);
+            Arrangement.Children.Add(MonitorBox.CreateTransition(t, unit, _originX, _originY));
         }
     }
 
@@ -271,28 +323,6 @@ public partial class MainWindow : Window
         Canvas.SetLeft(box, m.Left - _originX);
         Canvas.SetTop(box, m.Top - _originY);
         Arrangement.Children.Add(box);
-    }
-
-    private void AddTransition(EdgeTransition t, double unit)
-    {
-        MonitorRect h = t.HostMonitor;
-        (int x1, int y1, int x2, int y2) = t.Side switch
-        {
-            EdgeSide.Right => (h.Right, t.From, h.Right, t.To),
-            EdgeSide.Left => (h.Left, t.From, h.Left, t.To),
-            EdgeSide.Bottom => (t.From, h.Bottom, t.To, h.Bottom),
-            _ => (t.From, h.Top, t.To, h.Top),
-        };
-        Arrangement.Children.Add(new Line
-        {
-            X1 = x1 - _originX,
-            Y1 = y1 - _originY,
-            X2 = x2 - _originX,
-            Y2 = y2 - _originY,
-            Stroke = (Brush)FindResource("TransitionBrush"),
-            StrokeThickness = unit * 1.2,
-            IsHitTestVisible = false,
-        });
     }
 
     private void OnClientMouseDown(object sender, MouseButtonEventArgs e)
