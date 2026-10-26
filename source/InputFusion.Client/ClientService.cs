@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using InputFusion.Core.Config;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
 
@@ -31,6 +32,13 @@ internal static class ClientService
         Action? protocolMismatch = null, Func<CancellationToken, Task<string>>? checkForUpdates = null)
     {
         ClientStatus status = new ClientStatus();
+        // Alles, was der Dienst protokolliert, auch für den Reiter Diagnose der Einstellungen.
+        Action<string> write = log;
+        log = message =>
+        {
+            status.Log.Add(message);
+            write(message);
+        };
         ClipboardBridge clipboard = new ClipboardBridge();
         // Der laufende Versuch samt Verbindung. Nach dem Speichern einer neuen Konfiguration wird er abgebrochen, und
         // die Schleife verbindet sofort mit der neuen, statt auf den nächsten Abbruch oder Versuch zu warten.
@@ -65,7 +73,7 @@ internal static class ClientService
             {
                 if (config is not null)
                 {
-                    (problem, wasConnected) = await AttemptAsync(config, status, clipboard, log, protocolMismatch, current.Token);
+                    (problem, wasConnected) = await AttemptAsync(config, saveConfig, status, clipboard, log, protocolMismatch, current.Token);
                 }
 
                 if (wasConnected)
@@ -84,6 +92,7 @@ internal static class ClientService
                 if (problem is not null && problem != lastProblem)
                 {
                     log($"{problem} Neuer Versuch spätestens alle {_maxRetryDelay.TotalSeconds:0} s.");
+                    status.ReportError(problem);
                 }
 
                 lastProblem = problem;
@@ -110,9 +119,8 @@ internal static class ClientService
 
     /// <summary>Ein Versuch: verbinden, anmelden und, wenn das klappt, Eingaben weiterreichen, bis die Verbindung endet.</summary>
     /// <returns>Die Störung, wenn keine Verbindung zustande kam; ob eine Verbindung bestand.</returns>
-    private static async Task<(string? Problem, bool WasConnected)> AttemptAsync(ClientConfig config, ClientStatus status, ClipboardBridge clipboard,
-        Action<string> log,
-        Action? protocolMismatch, CancellationToken ct)
+    private static async Task<(string? Problem, bool WasConnected)> AttemptAsync(ClientConfig config, ConfigSaver? saveConfig, ClientStatus status,
+        ClipboardBridge clipboard, Action<string> log, Action? protocolMismatch, CancellationToken ct)
     {
         (TcpClient? tcp, string? connectError) = await ConnectAsync(config, ct);
         if (tcp is null)
@@ -130,13 +138,22 @@ internal static class ClientService
                 string address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
                 log($"Mit dem Host {address} (Version {handshake.PeerVersion}) verbunden.");
                 status.Update(s => s with { Connected = true, HostAddress = address, HostVersion = handshake.PeerVersion, Problem = null });
+                status.SetConnection(conn);
+                PipeRelay relay = new PipeRelay(conn, clipboard, status, key => SaveKey(config, key, saveConfig, status, log), log);
                 try
                 {
-                    await new PipeRelay(conn, clipboard, status, log).RunAsync(ct);
+                    await relay.RunAsync(ct);
                 }
                 finally
                 {
-                    status.Update(s => s with { Connected = false, HostAddress = null, HostVersion = null, Arrangement = null });
+                    status.SetConnection(null);
+                    if (relay.EndReason is { } reason)
+                    {
+                        status.ReportError(reason);
+                    }
+
+                    // Der Grund bleibt als Störung stehen, bis der nächste Versuch gelingt oder einen eigenen hat; der Tray meldet ihn.
+                    status.Update(s => s with { Connected = false, HostAddress = null, HostVersion = null, Arrangement = null, Problem = relay.EndReason });
                 }
                 return (null, true);
             }
@@ -152,6 +169,29 @@ internal static class ClientService
         // Falscher Schlüssel: wie ein nicht erreichbarer Host mit wachsendem Abstand neu versuchen, damit eine Korrektur
         // in den Einstellungen oder in client.json ohne Neustart greift.
         return ($"Host {config.Host} hat die Anmeldung abgelehnt oder sich nicht ausgewiesen; stimmt der Schlüssel?", false);
+    }
+
+    /// <summary>
+    /// Speichert einen neuen Schlüssel, den der Host über die angemeldete Verbindung schickt. Direkt mit
+    /// <paramref name="saveConfig"/>, nicht über den Weg der Einstellungen: Der bräche die Verbindung ab, und die neue
+    /// Anmeldung käme beim Host an, bevor er den Schlüssel selbst gespeichert hat.
+    /// </summary>
+    private static string? SaveKey(ClientConfig config, string key, ConfigSaver? saveConfig, ClientStatus status, Action<string> log)
+    {
+        ClientConfig updated = config with { Key = key };
+        string? error = saveConfig is null
+            ? "Im Entwicklungsmodus mit --relay steht die Konfiguration fest."
+            : ClientConfigRules.Validate(updated.Host, updated.Ip, updated.Port, updated.Key) ?? saveConfig(updated);
+        if (error is null)
+        {
+            status.SetConfig(updated);
+            log("Neuen Schlüssel vom Host übernommen.");
+        }
+        else
+        {
+            log($"Neuen Schlüssel vom Host nicht übernommen: {error}");
+        }
+        return error;
     }
 
     /// <summary>

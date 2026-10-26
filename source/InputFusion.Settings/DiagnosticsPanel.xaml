@@ -1,0 +1,49 @@
+<UserControl x:Class="InputFusion.Settings.DiagnosticsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <DockPanel Margin="32,24,32,24">
+        <TextBlock DockPanel.Dock="Top" Text="Diagnose" Style="{StaticResource PageTitle}" />
+
+        <Border DockPanel.Dock="Top" Style="{StaticResource Card}">
+            <Grid TextElement.FontSize="13">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Verbindung" Margin="0,3,24,3" Style="{StaticResource Hint}" />
+                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="Connection" Margin="0,3" TextWrapping="Wrap" />
+
+                <TextBlock Grid.Row="1" Text="Laufzeit" Margin="0,3,24,3" Style="{StaticResource Hint}" />
+                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="RoundTrip" Margin="0,3" TextWrapping="Wrap"
+                           ToolTip="Ein Heartbeat hin und zurück, gemessen jede Sekunde" />
+
+                <TextBlock Grid.Row="2" Text="Nachrichten" Margin="0,3,24,3" Style="{StaticResource Hint}" />
+                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="Rates" Margin="0,3" TextWrapping="Wrap"
+                           ToolTip="Pro Sekunde, Heartbeats eingeschlossen; in Klammern seit dem Verbinden" />
+
+                <TextBlock Grid.Row="3" Text="Letzte Störung" Margin="0,3,24,3" Style="{StaticResource Hint}" />
+                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="LastError" Margin="0,3" TextWrapping="Wrap" />
+            </Grid>
+        </Border>
+
+        <Border Style="{StaticResource Card}" Margin="0">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                    <Button x:Name="OpenLog" DockPanel.Dock="Right" Click="OnOpenLog" />
+                    <TextBlock Text="Letzte Meldungen" Style="{StaticResource CardTitle}" Margin="0" VerticalAlignment="Center" />
+                </DockPanel>
+                <TextBlock x:Name="LogHint" DockPanel.Dock="Bottom" Margin="0,8,0,0" Style="{StaticResource Hint}" />
+                <TextBox x:Name="LogLines" IsReadOnly="True" FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"
+                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" />
+            </DockPanel>
+        </Border>
+    </DockPanel>
+</UserControl>

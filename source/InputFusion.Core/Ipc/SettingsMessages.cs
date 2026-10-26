@@ -20,6 +20,8 @@ namespace InputFusion.Core.Ipc;
 [JsonDerivedType(typeof(SettingsError), "error")]
 [JsonDerivedType(typeof(CheckForUpdatesRequest), "checkForUpdates")]
 [JsonDerivedType(typeof(UpdateCheckResult), "updateCheckResult")]
+[JsonDerivedType(typeof(GetDiagnosticsRequest), "getDiagnostics")]
+[JsonDerivedType(typeof(DiagnosticsMessage), "diagnostics")]
 public abstract record SettingsMessage
 {
     public byte[] ToPayload() => JsonSerializer.SerializeToUtf8Bytes(this, SettingsJson.Default.SettingsMessage);
@@ -51,7 +53,11 @@ public sealed record SetClientOffsetRequest(int OffsetX, int OffsetY) : Settings
 /// <summary>Neue Verbindungsdaten für den Dienst auf dem Notebook. Nur Administratoren dürfen sie schicken.</summary>
 public sealed record SetClientConfigRequest(string Host, string? Ip, int Port, string Key) : SettingsMessage;
 
-/// <summary>Der ganze Zustand des Agents, wie die Einstellungen ihn anzeigen.</summary>
+/// <summary>
+/// Der ganze Zustand des Agents, wie die Einstellungen ihn anzeigen. <see cref="PendingKey"/> ist ein neuer Schlüssel,
+/// der gerade an den Client geht; bis der ihn übernommen hat, gilt noch <see cref="Key"/>. <see cref="KeyStatus"/> sagt,
+/// wie die letzte Übertragung ausging.
+/// </summary>
 public sealed record HostStateMessage(
     string MachineName,
     string Version,
@@ -59,7 +65,9 @@ public sealed record HostStateMessage(
     int Port,
     string Key,
     IReadOnlyList<MonitorRect> HostMonitors,
-    ClientStateInfo? Client) : SettingsMessage;
+    ClientStateInfo? Client,
+    string? PendingKey = null,
+    string? KeyStatus = null) : SettingsMessage;
 
 /// <summary>
 /// Der verbundene Client. <see cref="Monitors"/> ist leer, solange er seine Monitore nicht gemeldet hat; Name,
@@ -110,6 +118,31 @@ public sealed record CheckForUpdatesRequest : SettingsMessage;
 
 /// <summary>Dienst → Tray: Ergebnis der Suche als Satz für die Benachrichtigung; geht nur an den, der gefragt hat.</summary>
 public sealed record UpdateCheckResult(string Message) : SettingsMessage;
+
+/// <summary>
+/// Einstellungen → Agent oder Dienst: den Stand für den Reiter Diagnose. Gefragt wird jede Sekunde, solange er offen ist;
+/// im Zustand stünde er sonst bei jeder Änderung des Zählers und ginge auch an alle anderen Oberflächen.
+/// </summary>
+public sealed record GetDiagnosticsRequest : SettingsMessage;
+
+/// <summary>
+/// Antwort auf <see cref="GetDiagnosticsRequest"/>, nur an den, der gefragt hat. Die Zähler gelten seit
+/// <see cref="ConnectedSince"/>; Nachrichten pro Sekunde rechnen die Einstellungen aus zwei Antworten aus.
+/// </summary>
+/// <param name="RoundTripMs">Laufzeit eines Heartbeats hin und zurück; null ohne Verbindung oder bei einer älteren Gegenseite.</param>
+/// <param name="LastError">Die letzte Störung, auch wenn die Verbindung inzwischen wieder steht.</param>
+/// <param name="Log">Die letzten Zeilen des Protokolls, älteste zuerst.</param>
+/// <param name="LogPath">Die Protokolldatei; null, wenn es keine gibt (Dienst: nur Ereignisprotokoll).</param>
+public sealed record DiagnosticsMessage(
+    bool Connected,
+    DateTimeOffset? ConnectedSince,
+    double? RoundTripMs,
+    long SentFrames,
+    long ReceivedFrames,
+    string? LastError,
+    DateTimeOffset? LastErrorAt,
+    IReadOnlyList<string> Log,
+    string? LogPath) : SettingsMessage;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(SettingsMessage))]

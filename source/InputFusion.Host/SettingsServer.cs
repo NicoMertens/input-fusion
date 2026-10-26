@@ -56,7 +56,15 @@ internal sealed class SettingsServer(HostState state)
                     continue;
                 }
 
-                string? error = SettingsMessage.FromPayload(payload) switch
+                SettingsMessage? message = SettingsMessage.FromPayload(payload);
+                // Ohne den Zustand danach: Gefragt wird jede Sekunde, und am Zustand ändert die Frage nichts.
+                if (message is GetDiagnosticsRequest)
+                {
+                    await SendAsync(connection, state.Diagnostics(), ct);
+                    continue;
+                }
+
+                string? error = message switch
                 {
                     GetStateRequest => null,
                     SetKeyRequest request => state.SetKey(request.Key),

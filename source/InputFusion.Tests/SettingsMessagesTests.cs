@@ -23,6 +23,19 @@ public class SettingsMessagesTests
         Assert.Equal("N1", Assert.Single(back.Client.Monitors).DeviceId);
         Assert.Equal("NOTEBOOK", back.Client.MachineName);
         Assert.Null(back.Client.UserName);
+        Assert.Null(back.PendingKey);
+    }
+
+    [Fact]
+    public void HostState_WithKeyTransfer_RoundTrip()
+    {
+        SettingsMessage message = new HostStateMessage("PC", "0.8.0", [], 15111, "abcdefghijkmnpqr", [], null,
+            PendingKey: "zyxwvutsrqpnmkjh", KeyStatus: "Das Notebook hat den neuen Schlüssel übernommen.");
+
+        HostStateMessage back = Assert.IsType<HostStateMessage>(SettingsMessage.FromPayload(message.ToPayload()));
+
+        Assert.Equal("zyxwvutsrqpnmkjh", back.PendingKey);
+        Assert.Equal("Das Notebook hat den neuen Schlüssel übernommen.", back.KeyStatus);
     }
 
     [Fact]
@@ -48,6 +61,23 @@ public class SettingsMessagesTests
         Assert.Equal(host, Assert.Single(back.Arrangement!.HostMonitors));
         Assert.Equal(client, Assert.Single(back.Arrangement.ClientMonitors));
         Assert.Equal(2560, back.Arrangement.OffsetX);
+    }
+
+    [Fact]
+    public void Diagnostics_RoundTrip()
+    {
+        DateTimeOffset since = new DateTimeOffset(2026, 10, 26, 9, 30, 0, TimeSpan.FromHours(1));
+        SettingsMessage message = new DiagnosticsMessage(true, since, 2.5, 120, 40, "Der PC hat die Verbindung getrennt.", since,
+            ["09:30:00  verbunden"], null);
+
+        DiagnosticsMessage back = Assert.IsType<DiagnosticsMessage>(SettingsMessage.FromPayload(message.ToPayload()));
+
+        Assert.Equal(since, back.ConnectedSince);
+        Assert.Equal(2.5, back.RoundTripMs);
+        Assert.Equal(120, back.SentFrames);
+        Assert.Equal("09:30:00  verbunden", Assert.Single(back.Log));
+        Assert.Null(back.LogPath);
+        Assert.IsType<GetDiagnosticsRequest>(SettingsMessage.FromPayload(new GetDiagnosticsRequest().ToPayload()));
     }
 
     [Theory]

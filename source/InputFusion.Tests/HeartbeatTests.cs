@@ -34,6 +34,8 @@ public class HeartbeatTests
 
         Assert.True(lost);
         Assert.InRange(elapsed, MessageConnection.HeartbeatTimeout, MessageConnection.HeartbeatTimeout + TimeSpan.FromSeconds(2));
+        // Wer nur liest, schickt die Heartbeats nicht zurück; sonst gälte er nicht mehr als schweigend.
+        Assert.Null(monitored.Stats.RoundTrip);
         cts.Cancel();
         await Task.WhenAll(draining, receiving);
     }
@@ -55,6 +57,10 @@ public class HeartbeatTests
         await Task.Delay(MessageConnection.HeartbeatTimeout + TimeSpan.FromSeconds(2));
         Assert.False(leftMonitor.IsCompleted);
         Assert.False(rightMonitor.IsCompleted);
+        // Beide überwachen, also schicken beide die Heartbeats der anderen zurück, und beide kennen die Laufzeit.
+        Assert.InRange(left.Stats.RoundTrip!.Value, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+        Assert.NotNull(right.Stats.RoundTrip);
+        Assert.True(left.Stats.SentFrames >= 3 && left.Stats.ReceivedFrames >= 3);
 
         cts.Cancel();
         Assert.False(await leftMonitor);

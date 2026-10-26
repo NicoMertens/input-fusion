@@ -1,6 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace InputFusion.Settings;
 
@@ -26,10 +26,11 @@ public partial class ConnectionCard : UserControl
     /// <summary>Angaben ohne Bezeichnung erscheinen als Hinweis über beide Spalten.</summary>
     public void Show(bool connected, string title, IEnumerable<(string? Label, string Value)> details)
     {
-        Card.Background = (Brush)FindResource(connected ? "ConnectedCardBrush" : "IdleCardBrush");
-        Card.BorderBrush = (Brush)FindResource(connected ? "ConnectedCardBorderBrush" : "IdleCardBorderBrush");
-        Dot.Fill = (Brush)FindResource(connected ? "ConnectedBrush" : "IdleBrush");
-        Icon.Foreground = (Brush)FindResource(connected ? "ClientMonitorBrush" : "IdleBrush");
+        Card.SetResourceReference(Border.BackgroundProperty, connected ? ThemeBrushes.SuccessBackground : ThemeBrushes.CardBackground);
+        Card.SetResourceReference(Border.BorderBrushProperty, ThemeBrushes.CardStroke);
+        IconPlate.SetResourceReference(Border.BackgroundProperty, "SubtleFillColorSecondaryBrush");
+        Dot.SetResourceReference(Shape.FillProperty, connected ? ThemeBrushes.Success : ThemeBrushes.Idle);
+        Icon.SetResourceReference(TextBlock.ForegroundProperty, connected ? ThemeBrushes.Accent : ThemeBrushes.Idle);
         Title.Text = title;
         Details.Children.Clear();
         Details.RowDefinitions.Clear();
@@ -47,17 +48,13 @@ public partial class ConnectionCard : UserControl
         Grid.SetRow(text, row);
         if (label is null)
         {
-            text.Foreground = (Brush)FindResource("HintBrush");
+            text.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrushes.Hint);
             Grid.SetColumnSpan(text, 2);
         }
         else
         {
-            TextBlock caption = new TextBlock
-            {
-                Text = label,
-                Margin = new Thickness(0, 2, 16, 2),
-                Foreground = (Brush)FindResource("HintBrush"),
-            };
+            TextBlock caption = new TextBlock { Text = label, Margin = new Thickness(0, 2, 16, 2) };
+            caption.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrushes.Hint);
             Grid.SetRow(caption, row);
             Details.Children.Add(caption);
             Grid.SetColumn(text, 1);

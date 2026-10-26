@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System.Buffers.Binary;
+using System.Diagnostics;
+using System.IO;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using InputFusion.Core.Protocol;
@@ -21,6 +23,10 @@ public sealed class MessageConnection : IDisposable
     private FrameCipher? _sendCipher;
     private FrameCipher? _receiveCipher;
     private long _lastReceived = Environment.TickCount64;
+    private long _sentFrames, _receivedFrames;
+    // Stopwatch-Ticks der letzten Laufzeit eines Heartbeats hin und zurück; -1, solange keine Antwort kam.
+    private long _roundTrip = -1;
+    private volatile bool _monitoring;
     private bool _disposed;
 
     /// <summary>Abstand, in dem <see cref="MonitorAsync"/> einen Heartbeat schickt.</summary>
@@ -28,6 +34,22 @@ public sealed class MessageConnection : IDisposable
 
     /// <summary>So lange darf die Gegenseite schweigen, bevor sie als weg gilt.</summary>
     public static readonly TimeSpan HeartbeatTimeout = TimeSpan.FromSeconds(3);
+
+    // Nutzlast eines Heartbeats: leer bei älteren Gegenseiten, sonst Kennung und Stopwatch-Zeitstempel des Absenders.
+    private const byte HeartbeatRequest = 0;
+    private const byte HeartbeatEcho = 1;
+    private const int HeartbeatPayloadLength = 1 + sizeof(long);
+
+    /// <summary>Zähler für die Diagnose: Frames in beide Richtungen und die letzte Laufzeit hin und zurück.</summary>
+    public ConnectionStats Stats
+    {
+        get
+        {
+            long roundTrip = Interlocked.Read(ref _roundTrip);
+            return new ConnectionStats(Interlocked.Read(ref _sentFrames), Interlocked.Read(ref _receivedFrames),
+                roundTrip < 0 ? null : Stopwatch.GetElapsedTime(0, roundTrip));
+        }
+    }
 
     /// <summary>Über einem offenen Strom. <paramref name="owner"/> wird beim Dispose mit geschlossen,
     /// etwa der zugrunde liegende <see cref="TcpClient"/>; ist er identisch mit dem Strom, genügt null.</summary>
@@ -75,6 +97,7 @@ public sealed class MessageConnection : IDisposable
                 ? FrameCodec.Write(type, payload.Span)
                 : FrameCodec.Write(MessageType.Encrypted, _sendCipher.Seal(type, payload.Span));
             await _stream.WriteAsync(frame, ct);
+            Interlocked.Increment(ref _sentFrames);
         }
         finally
         {
@@ -88,7 +111,7 @@ public sealed class MessageConnection : IDisposable
         // Frames, die beim vorigen Lesen schon mitkamen (etwa direkt nach der Anmeldung), zuerst ausliefern.
         while (_reader.TryRead(out MessageType bufferedType, out byte[] bufferedPayload))
         {
-            yield return Open(bufferedType, bufferedPayload);
+            yield return Received(Open(bufferedType, bufferedPayload), ct);
         }
 
         byte[] buffer = new byte[4096];
@@ -105,7 +128,7 @@ public sealed class MessageConnection : IDisposable
             _reader.Append(buffer.AsSpan(0, n));
             while (_reader.TryRead(out MessageType type, out byte[] payload))
             {
-                yield return Open(type, payload);
+                yield return Received(Open(type, payload), ct);
             }
         }
     }
@@ -119,9 +142,13 @@ public sealed class MessageConnection : IDisposable
     /// <para>TCP-Keepalive reicht nicht: Es greift nur, solange keine Daten unterwegs sind. Schickt der Host
     /// gerade Mausbewegungen an ein Notebook im Standby, füllen sie erst den Sendepuffer, und bis die
     /// TCP-Wiederholung aufgibt, verschluckt der Host weiter alle Eingaben.</para>
+    ///
+    /// <para>Jeder Heartbeat trägt einen Zeitstempel; läuft auf der Gegenseite ebenfalls <see cref="MonitorAsync"/>,
+    /// schickt sie ihn zurück, und daraus ergibt sich die Laufzeit in <see cref="Stats"/>.</para>
     /// </summary>
     public async Task<bool> MonitorAsync(CancellationToken ct)
     {
+        _monitoring = true;
         Volatile.Write(ref _lastReceived, Environment.TickCount64);
         Task? pending = null;
         while (!ct.IsCancellationRequested)
@@ -138,10 +165,33 @@ public sealed class MessageConnection : IDisposable
             // Prüfung oben muss trotzdem laufen. Höchstens ein Heartbeat zugleich unterwegs.
             if (pending is null || pending.IsCompleted)
             {
-                pending = SendHeartbeatAsync(ct);
+                pending = SendHeartbeatAsync(HeartbeatRequest, Stopwatch.GetTimestamp(), ct);
             }
         }
         return false;
+    }
+
+    /// <summary>
+    /// Zählt den Frame und wertet Heartbeats mit Zeitstempel aus: eine Anfrage geht zurück, eine Antwort ergibt die
+    /// Laufzeit. Der Heartbeat selbst kommt trotzdem beim Aufrufer an. Nur wer selbst überwacht, antwortet; eine Seite,
+    /// die bloß liest, soll für die Gegenseite weiter schweigen.
+    /// </summary>
+    private (MessageType Type, byte[] Payload) Received((MessageType Type, byte[] Payload) frame, CancellationToken ct)
+    {
+        Interlocked.Increment(ref _receivedFrames);
+        if (frame.Type == MessageType.Heartbeat && frame.Payload.Length == HeartbeatPayloadLength)
+        {
+            long sent = BinaryPrimitives.ReadInt64LittleEndian(frame.Payload.AsSpan(1));
+            if (frame.Payload[0] == HeartbeatRequest && _monitoring)
+            {
+                _ = SendHeartbeatAsync(HeartbeatEcho, sent, ct);
+            }
+            else if (frame.Payload[0] == HeartbeatEcho)
+            {
+                Interlocked.Exchange(ref _roundTrip, Stopwatch.GetTimestamp() - sent);
+            }
+        }
+        return frame;
     }
 
     /// <summary>Ohne Verschlüsselung unverändert; mit ihr wird ein Klartext-Frame nicht angenommen.</summary>
@@ -160,11 +210,14 @@ public sealed class MessageConnection : IDisposable
         return _receiveCipher.Open(payload);
     }
 
-    private async Task SendHeartbeatAsync(CancellationToken ct)
+    private async Task SendHeartbeatAsync(byte kind, long timestamp, CancellationToken ct)
     {
+        byte[] payload = new byte[HeartbeatPayloadLength];
+        payload[0] = kind;
+        BinaryPrimitives.WriteInt64LittleEndian(payload.AsSpan(1), timestamp);
         try
         {
-            await SendAsync(MessageType.Heartbeat, ReadOnlyMemory<byte>.Empty, ct);
+            await SendAsync(MessageType.Heartbeat, payload, ct);
         }
         catch (Exception ex) when (ex is IOException or SocketException or OperationCanceledException or ObjectDisposedException)
         {

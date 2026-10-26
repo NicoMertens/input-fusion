@@ -35,7 +35,12 @@ public partial class ClientWindow : Window
             {
                 OnState(state);
             }
+            else if (message is DiagnosticsMessage diagnostics)
+            {
+                Diagnostics.Show(diagnostics);
+            }
         };
+        Diagnostics.Attach(_connection);
         _connection.ErrorReceived += OnError;
         _connection.ConnectedChanged += OnConnectedChanged;
         OnConnectedChanged(false);
@@ -108,6 +113,7 @@ public partial class ClientWindow : Window
             Status.Text = "Der InputFusion-Dienst läuft nicht. Die Einstellungen verbinden sich, sobald er gestartet ist …";
             HostCard.Show(false, "Nicht mit dem PC verbunden", [(null, "Ohne Dienst gibt es keine Verbindung zum PC.")]);
             RenderMonitors();
+            Diagnostics.Show(null);
         }
         Form.IsEnabled = connected;
     }
@@ -115,7 +121,7 @@ public partial class ClientWindow : Window
     private void OnState(ClientStateMessage state)
     {
         _state = state;
-        Status.Text = $"Verbunden mit dem InputFusion-Dienst {state.Version} auf diesem Notebook.";
+        Status.Text = $"Verbunden mit dem InputFusion-Dienst {state.Version}.";
         ShowHost(state);
         RenderMonitors();
 
@@ -160,7 +166,7 @@ public partial class ClientWindow : Window
     private void OnError(string message)
     {
         Message.Text = message;
-        Message.Foreground = (Brush)FindResource("ErrorBrush");
+        ThemeBrushes.SetMessageColor(Message, error: true);
     }
 
     private void OnInputChanged(object sender, TextChangedEventArgs e)
@@ -182,7 +188,7 @@ public partial class ClientWindow : Window
         {
             Apply.IsEnabled = false;
             Message.Text = "Ändern dürfen nur Administratoren; der Schlüssel ist nur für sie sichtbar.";
-            Message.Foreground = (Brush)FindResource("HintBrush");
+            ThemeBrushes.SetMessageColor(Message, error: false);
             return;
         }
 
@@ -190,7 +196,7 @@ public partial class ClientWindow : Window
         bool changed = IsChanged();
         Apply.IsEnabled = error is null && changed;
         Message.Text = error ?? (changed ? "Noch nicht übernommen." : "");
-        Message.Foreground = (Brush)FindResource(error is null ? "HintBrush" : "ErrorBrush");
+        ThemeBrushes.SetMessageColor(Message, error is not null);
     }
 
     private string? Validate() =>

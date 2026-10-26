@@ -127,6 +127,11 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
                     // Nur für die Einstellungen des Notebooks; die Rückkehrkanten kommen getrennt.
                     break;
 
+                case MessageType.KeyChange:
+                    // Ohne Antwort speichert der Host den Schlüssel nach kurzer Wartezeit; ein neu gestarteter Simulator liest ihn aus dessen Konfiguration.
+                    log = "Neuer Schlüssel vom Host; der Simulator übernimmt ihn erst nach einem Neustart";
+                    break;
+
                 default:
                     log = $"Unbekannte Nachricht {type} ({payload.Length} Bytes)";
                     break;

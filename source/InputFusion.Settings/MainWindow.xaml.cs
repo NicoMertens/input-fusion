@@ -41,7 +41,12 @@ public partial class MainWindow : Window
             {
                 OnState(state);
             }
+            else if (message is DiagnosticsMessage diagnostics)
+            {
+                Diagnostics.Show(diagnostics);
+            }
         };
+        Diagnostics.Attach(_connection);
         _connection.ErrorReceived += OnError;
         _connection.ConnectedChanged += OnConnectedChanged;
         OnConnectedChanged(false);
@@ -56,12 +61,16 @@ public partial class MainWindow : Window
             ? "Verbunden mit dem InputFusion-Agent auf diesem PC."
             : "Der InputFusion-Agent läuft nicht. Die Einstellungen verbinden sich, sobald er gestartet ist …";
         Tabs.IsEnabled = connected;
+        if (!connected)
+        {
+            Diagnostics.Show(null);
+        }
     }
 
     private void OnState(HostStateMessage state)
     {
         _state = state;
-        Status.Text = $"Verbunden mit dem InputFusion-Agent {state.Version} auf diesem PC.";
+        Status.Text = $"Verbunden mit dem InputFusion-Agent {state.Version}.";
         MachineName.Text = state.MachineName;
         Addresses.Text = state.Addresses.Count == 0 ? "keine" : string.Join(Environment.NewLine, state.Addresses);
 
@@ -74,10 +83,10 @@ public partial class MainWindow : Window
         }
         UpdatePortState();
 
-        if (Key.Text == state.Key || !KeyField.IsKeyboardFocusWithin)
+        if (Key.Text == CurrentKey || !KeyField.IsKeyboardFocusWithin)
         {
             _updatingKey = true;
-            Key.Text = state.Key;
+            Key.Text = CurrentKey;
             _updatingKey = false;
         }
         UpdateKeyState();
@@ -118,7 +127,7 @@ public partial class MainWindow : Window
         TextBlock target = _lastRequestMessage ?? LayoutMessage;
         _portRejected = target == PortMessage;
         target.Text = message;
-        target.Foreground = (Brush)FindResource("ErrorBrush");
+        ThemeBrushes.SetMessageColor(target, error: true);
     }
 
     private void OnPortChanged(object sender, TextChangedEventArgs e)
@@ -143,14 +152,14 @@ public partial class MainWindow : Window
         if (error is not null)
         {
             PortMessage.Text = error;
-            PortMessage.Foreground = (Brush)FindResource("ErrorBrush");
+            ThemeBrushes.SetMessageColor(PortMessage, error: true);
         }
         else
         {
             PortMessage.Text = changed
                 ? "Noch nicht übernommen."
                 : $"Standard {Ports.Input}. Auf dem Notebook muss derselbe Port stehen.";
-            PortMessage.Foreground = (Brush)FindResource("HintBrush");
+            ThemeBrushes.SetMessageColor(PortMessage, error: false);
         }
     }
 
@@ -217,22 +226,26 @@ public partial class MainWindow : Window
         }
     }
 
+    // Während der Übertragung an das Notebook der neue Schlüssel, sonst sprängen Feld und Meldung kurz auf den alten zurück.
+    private string CurrentKey => _state?.PendingKey ?? _state?.Key ?? "";
+
     private void UpdateKeyState()
     {
         string? error = HostConfig.ValidateKey(Key.Text);
-        bool changed = _state is not null && Key.Text != _state.Key;
-        ApplyKey.IsEnabled = error is null && changed;
+        bool pending = _state?.PendingKey is not null;
+        bool changed = _state is not null && Key.Text != CurrentKey;
+        ApplyKey.IsEnabled = error is null && changed && !pending;
         if (error is not null)
         {
             KeyMessage.Text = error;
-            KeyMessage.Foreground = (Brush)FindResource("ErrorBrush");
+            ThemeBrushes.SetMessageColor(KeyMessage, error: true);
         }
         else
         {
-            KeyMessage.Text = changed
-                ? "Noch nicht übernommen."
-                : $"Mindestens {HostConfig.MinKeyLength} Zeichen; vorbelegt mit einem Zufallswert, änderbar.";
-            KeyMessage.Foreground = (Brush)FindResource("HintBrush");
+            KeyMessage.Text = changed ? "Noch nicht übernommen."
+                : pending ? "Wird an das Notebook übertragen …"
+                : _state?.KeyStatus ?? $"Mindestens {HostConfig.MinKeyLength} Zeichen; vorbelegt mit einem Zufallswert, änderbar.";
+            ThemeBrushes.SetMessageColor(KeyMessage, error: false);
         }
     }
 
@@ -375,7 +388,7 @@ public partial class MainWindow : Window
         RenderArrangement(recenter: false);
         _lastRequestMessage = LayoutMessage;
         LayoutMessage.Text = "Gespeichert für diese Kombination aus Monitoren.";
-        LayoutMessage.Foreground = (Brush)FindResource("HintBrush");
+        ThemeBrushes.SetMessageColor(LayoutMessage, error: false);
         await _connection.SendAsync(new SetClientOffsetRequest(offset.X, offset.Y));
     }
 
