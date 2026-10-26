@@ -48,7 +48,14 @@
                                 Click="OnApplyKey" IsEnabled="False" />
                         <Button DockPanel.Dock="Right" Content="Kopieren" Padding="12,3" Margin="6,0,0,0" Click="OnCopyKey" />
                         <Button DockPanel.Dock="Right" Content="Neu erzeugen" Padding="12,3" Margin="6,0,0,0" Click="OnGenerateKey" />
-                        <TextBox x:Name="Key" FontFamily="Consolas" FontSize="15" Padding="4,3" TextChanged="OnKeyChanged" />
+                        <ToggleButton x:Name="ShowKey" DockPanel.Dock="Right" Content="Anzeigen" Padding="12,3" Margin="6,0,0,0"
+                                      Click="OnShowKey" />
+                        <Grid x:Name="KeyField">
+                            <TextBox x:Name="Key" FontFamily="Consolas" FontSize="15" Padding="4,3" TextChanged="OnKeyChanged"
+                                     Visibility="Collapsed" />
+                            <PasswordBox x:Name="HiddenKey" FontFamily="Consolas" FontSize="15" Padding="4,3"
+                                         PasswordChanged="OnHiddenKeyChanged" />
+                        </Grid>
                     </DockPanel>
 
                     <TextBlock Grid.Row="5" Grid.Column="1" x:Name="KeyMessage" Margin="0,0,0,8" TextWrapping="Wrap"

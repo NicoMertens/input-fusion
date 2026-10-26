@@ -74,7 +74,7 @@ public partial class MainWindow : Window
         }
         UpdatePortState();
 
-        if (Key.Text == state.Key || !Key.IsKeyboardFocusWithin)
+        if (Key.Text == state.Key || !KeyField.IsKeyboardFocusWithin)
         {
             _updatingKey = true;
             Key.Text = state.Key;
@@ -157,11 +157,52 @@ public partial class MainWindow : Window
         Keyboard.ClearFocus();
     }
 
+    // Key hält den Schlüssel, HiddenKey zeigt ihn verdeckt. Beide gleichen sich in beide Richtungen ab; der Vergleich
+    // vorher beendet das Hin und Her.
     private void OnKeyChanged(object sender, TextChangedEventArgs e)
     {
+        if (HiddenKey.Password != Key.Text)
+        {
+            HiddenKey.Password = Key.Text;
+        }
+
         if (!_updatingKey)
         {
             UpdateKeyState();
+        }
+    }
+
+    private void OnHiddenKeyChanged(object sender, RoutedEventArgs e)
+    {
+        if (Key.Text != HiddenKey.Password)
+        {
+            Key.Text = HiddenKey.Password;
+        }
+    }
+
+    private void OnShowKey(object sender, RoutedEventArgs e)
+    {
+        bool show = ShowKey.IsChecked == true;
+        bool focused = KeyField.IsKeyboardFocusWithin;
+        Key.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        HiddenKey.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+        ShowKey.Content = show ? "Verbergen" : "Anzeigen";
+        if (focused)
+        {
+            FocusKey();
+        }
+    }
+
+    private void FocusKey()
+    {
+        if (Key.IsVisible)
+        {
+            Key.Focus();
+            Key.CaretIndex = Key.Text.Length;
+        }
+        else
+        {
+            HiddenKey.Focus();
         }
     }
 
@@ -187,7 +228,7 @@ public partial class MainWindow : Window
     private void OnGenerateKey(object sender, RoutedEventArgs e)
     {
         Key.Text = HostConfig.GenerateKey();
-        Key.Focus();
+        FocusKey();
     }
 
     private void OnCopyKey(object sender, RoutedEventArgs e) => Clipboard.SetText(Key.Text);
