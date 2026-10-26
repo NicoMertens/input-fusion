@@ -32,6 +32,13 @@ internal static class ClientService
         Action? protocolMismatch = null, Func<CancellationToken, Task<string>>? checkForUpdates = null)
     {
         ClientStatus status = new ClientStatus();
+        // Alles, was der Dienst protokolliert, auch für den Reiter Diagnose der Einstellungen.
+        Action<string> write = log;
+        log = message =>
+        {
+            status.Log.Add(message);
+            write(message);
+        };
         ClipboardBridge clipboard = new ClipboardBridge();
         // Der laufende Versuch samt Verbindung. Nach dem Speichern einer neuen Konfiguration wird er abgebrochen, und
         // die Schleife verbindet sofort mit der neuen, statt auf den nächsten Abbruch oder Versuch zu warten.
@@ -85,6 +92,7 @@ internal static class ClientService
                 if (problem is not null && problem != lastProblem)
                 {
                     log($"{problem} Neuer Versuch spätestens alle {_maxRetryDelay.TotalSeconds:0} s.");
+                    status.ReportError(problem);
                 }
 
                 lastProblem = problem;
@@ -130,6 +138,7 @@ internal static class ClientService
                 string address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
                 log($"Mit dem Host {address} (Version {handshake.PeerVersion}) verbunden.");
                 status.Update(s => s with { Connected = true, HostAddress = address, HostVersion = handshake.PeerVersion, Problem = null });
+                status.SetConnection(conn);
                 PipeRelay relay = new PipeRelay(conn, clipboard, status, key => SaveKey(config, key, saveConfig, status, log), log);
                 try
                 {
@@ -137,6 +146,12 @@ internal static class ClientService
                 }
                 finally
                 {
+                    status.SetConnection(null);
+                    if (relay.EndReason is { } reason)
+                    {
+                        status.ReportError(reason);
+                    }
+
                     // Der Grund bleibt als Störung stehen, bis der nächste Versuch gelingt oder einen eigenen hat; der Tray meldet ihn.
                     status.Update(s => s with { Connected = false, HostAddress = null, HostVersion = null, Arrangement = null, Problem = relay.EndReason });
                 }

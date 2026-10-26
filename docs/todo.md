@@ -8,7 +8,6 @@ Arbeitsliste über mehrere Sessions. Erledigtes wird gelöscht, nicht abgehakt: 
 - [ ] **`Strg+Alt+Entf` über `SendSAS`:** Nötig, wenn das Notebook zum Entsperren Strg+Alt+Entf verlangt; eingespielt wirkt die Kombination nicht. Setzt die Richtlinie *SoftwareSASGeneration* voraus. Siehe [Client](client.md#dienst).
 - [ ] **Bilder in der Zwischenablage:** bisher geht nur Text mit. Siehe [Zwischenablage](zwischenablage.md).
 - [ ] **Dateien in der Zwischenablage:** sollen mit den Rechten des Benutzers in dessen Profil landen, deshalb über den Tray. Siehe [Zwischenablage](zwischenablage.md), [Client](client.md#tray).
-- [ ] **Diagnose in den Einstellungen:** Latenz, Nachrichten pro Sekunde, letzter Fehler und ein Knopf, der das Protokoll öffnet; auf PC und Notebook. Siehe [Einstellungen](einstellungen.md).
 
 ## Entscheiden
 
@@ -32,4 +31,5 @@ Umgesetzt, aber bisher nur am PC, mit Unit-Tests oder im [Simulator](simulator.m
 - [ ] **„Nach Updates suchen“ im Tray:** am installierten Host (Velopack) und am installierten Dienst: Meldung „ist aktuell“; mit neuerem Release wird es geladen und eingespielt, auf dem Notebook kommt dabei „Verbindung abgebrochen“ oder das Ergebnis. Siehe [Updates](updates.md).
 - [ ] **Schlüssel übertragen:** neuen Schlüssel auf dem PC übernehmen, während das Notebook verbunden ist; es speichert ihn, die Verbindung bleibt, und nach einem Neustart des Dienstes meldet es sich mit dem neuen an. Siehe [Netzwerk](netzwerk.md).
 - [ ] **Abbruch melden:** Notebook in den Standby, WLAN aus, Dienst neu starten; auf PC und Notebook erscheint der Abbruch mit Grund und danach die Wiederverbindung, bei einem kurzen Neuaufbau nichts, mit der Maus auf dem Notebook sofort. Siehe [Netzwerk](netzwerk.md).
+- [ ] **Reiter Diagnose:** auf PC und Notebook Laufzeit und Nachrichten pro Sekunde bei laufender Verbindung, letzte Störung nach einem Abbruch, mitlaufende Meldungen; „Protokoll öffnen“ öffnet `host.log`, auf dem Notebook die Ereignisanzeige. Bisher nur ohne Verbindung angesehen. Siehe [Einstellungen](einstellungen.md#reiter-diagnose).
 - [ ] **Selbst-Update des Client-Dienstes:** der Tausch der exe mit installiertem Dienst und veröffentlichtem Release. Siehe [Updates](updates.md#client).

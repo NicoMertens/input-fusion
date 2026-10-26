@@ -30,6 +30,11 @@ internal sealed class HostState(HostConfig config)
     private ClientInfo? _clientInfo;
     private MonitorLayout? _layout;
     private bool _isRemote;
+    // Nur für die Diagnose: die Verbindung zum Client, seit wann sie steht, und die letzte Störung.
+    private MessageConnection? _connection;
+    private DateTimeOffset? _connectedSince;
+    private string? _lastError;
+    private DateTimeOffset? _lastErrorAt;
 
     /// <summary>Irgendetwas hat sich geändert; die Einstellungen und der Tray holen sich den neuen Stand.</summary>
     public event Action? Changed;
@@ -259,10 +264,12 @@ internal sealed class HostState(HostConfig config)
         RebuildLayout();
     }
 
-    public void ClientConnected(string address, string version)
+    public void ClientConnected(string address, string version, MessageConnection connection)
     {
         lock (_lock)
         {
+            _connection = connection;
+            _connectedSince = DateTimeOffset.Now;
             _clientAddress = address;
             _clientVersion = version;
             _clientMonitors = [];
@@ -306,11 +313,33 @@ internal sealed class HostState(HostConfig config)
 
     public void ReportProtocolMismatch() => ProtocolMismatch?.Invoke();
 
+    /// <summary>Merkt sich die Störung für die Diagnose; ins Protokoll schreibt sie der Aufrufer.</summary>
+    public void ReportError(string message)
+    {
+        lock (_lock)
+        {
+            _lastError = message;
+            _lastErrorAt = DateTimeOffset.Now;
+        }
+    }
+
+    public DiagnosticsMessage Diagnostics()
+    {
+        lock (_lock)
+        {
+            ConnectionStats? stats = _connection?.Stats;
+            return new DiagnosticsMessage(_connection is not null, _connectedSince, stats?.RoundTrip?.TotalMilliseconds,
+                stats?.SentFrames ?? 0, stats?.ReceivedFrames ?? 0, _lastError, _lastErrorAt, Log.Recent.Lines(), Log.FilePath);
+        }
+    }
+
     public void ClientDisconnected()
     {
         string? pendingKey;
         lock (_lock)
         {
+            _connection = null;
+            _connectedSince = null;
             _clientAddress = null;
             _clientMonitors = [];
             _clientInfo = null;

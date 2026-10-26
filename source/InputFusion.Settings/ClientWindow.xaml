@@ -69,6 +69,10 @@
                     </Border>
                 </DockPanel>
             </TabItem>
+
+            <TabItem Header="Diagnose">
+                <local:DiagnosticsPanel x:Name="Diagnostics" />
+            </TabItem>
         </TabControl>
     </DockPanel>
 </Window>

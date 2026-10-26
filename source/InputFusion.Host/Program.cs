@@ -177,7 +177,7 @@ internal static class Program
             catch (SocketException ex)
             {
                 // Port belegt, etwa von einem zweiten Agent unter einem anderen Benutzer: später erneut versuchen.
-                Log.Write($"Port {port} nicht verfügbar ({ex.SocketErrorCode}), neuer Versuch in 10 s.");
+                ReportError(state, $"Port {port} nicht verfügbar ({ex.SocketErrorCode}), neuer Versuch in 10 s.");
                 try { await Task.Delay(TimeSpan.FromSeconds(10), portChanged.Token); }
                 catch (OperationCanceledException) { }
                 continue;
@@ -192,6 +192,12 @@ internal static class Program
 
             await ServeAsync(tcp, state, notifier, absolute, observe, diag, ct);
         }
+    }
+
+    private static void ReportError(HostState state, string message)
+    {
+        Log.Write(message);
+        state.ReportError(message);
     }
 
     /// <summary>
@@ -231,17 +237,17 @@ internal static class Program
             case HandshakeOutcome.Accepted:
                 break;
             case HandshakeOutcome.ProtocolMismatch:
-                Log.Write($"Client {address} abgewiesen: Version {handshake.PeerVersion} mit Protokoll {handshake.PeerProtocol}, "
+                ReportError(state, $"Client {address} abgewiesen: Version {handshake.PeerVersion} mit Protokoll {handshake.PeerProtocol}, "
                     + $"der Host hat {AppVersion.Current} mit Protokoll {ProtocolVersion.Current}. Suche nach einem Update.");
                 state.ReportProtocolMismatch();
                 return;
             default:
-                Log.Write($"Client {address} abgewiesen: Anmeldung mit dem Schlüssel fehlgeschlagen.");
+                ReportError(state, $"Client {address} abgewiesen: Anmeldung mit dem Schlüssel fehlgeschlagen.");
                 return;
         }
 
         Log.Write($"Client {address} (Version {handshake.PeerVersion}) verbunden. Strg+Alt+F11 schaltet hier um (Test), Strg+Alt+F12 zurück.");
-        state.ClientConnected(address, handshake.PeerVersion);
+        state.ClientConnected(address, handshake.PeerVersion, conn);
         notifier.Restored($"Wieder mit dem Notebook verbunden ({address}).");
 
         // Ereignisse aus der vorigen Verbindung verwerfen, sonst löst etwa eine alte Bewegung an der Kante
@@ -268,6 +274,7 @@ internal static class Program
             if (!ct.IsCancellationRequested)
             {
                 string reason = controller.EndReason ?? "Die Verbindung ist abgebrochen.";
+                state.ReportError(reason);
                 _ = notifier.Lost($"Verbindung {peer} beendet. {reason}{(controller.MouseReturned ? " Die Maus ist zurück auf dem PC." : "")}",
                     immediately: controller.MouseReturned);
             }

@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using InputFusion.Core.Diagnostics;
 
 namespace InputFusion.Host;
 
@@ -15,8 +16,12 @@ internal static class Log
     public static string FilePath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InputFusion", "host.log");
 
+    /// <summary>Die letzten Meldungen für den Reiter Diagnose der Einstellungen.</summary>
+    public static RecentLog Recent { get; } = new();
+
     public static void Write(string message)
     {
+        Recent.Add(message);
         string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {message}";
         Console.WriteLine(line);
         lock (_lock)

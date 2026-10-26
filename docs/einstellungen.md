@@ -37,3 +37,14 @@ Ohne erreichbaren Agent zeigt das Fenster nur „Der InputFusion-Agent läuft ni
 - **Reiter Anordnung:** die eigenen Monitore grau auf ihren Windows-Koordinaten, von links nach rechts nummeriert, der Hauptmonitor markiert. Ist ein Notebook verbunden und hat seine Monitore gemeldet, erscheinen sie blau und lassen sich **als Gruppe** mit der Maus verschieben. Schon beim Ziehen rastet die Gruppe über `MonitorLayout.Snap` an der nächsten Kante ein, also immer rundum anliegend an den eigenen Monitoren; orange Linien zeigen die Übergänge, die daraus folgen. Beim Loslassen geht die Lage an den Agent, der sie noch einmal einrastet und für die Monitor-Kombination speichert. Regeln und Begründung stehen unter [Layout](layout.md).
 - **Zeichenfläche:** ein `Canvas` in Layout-Pixeln in einer `Viewbox`. Um die eigenen Monitore bleibt so viel Rand, wie das Notebook groß ist, damit es an jede Seite passt. Der Ursprung bleibt beim Ziehen stehen, sonst wanderte die Ansicht mit.
 - **Symbol:** je Seite das des Programms, als WPF-Ressource: das Fenster des PCs `InputFusion.Host.ico`, das des Notebooks `InputFusion.Client.ico`. Die Taskleiste zeigt das Symbol des Fensters. Die exe selbst trägt als `ApplicationIcon` das des Hosts, weil sie nur auf dem PC im Startmenü steht.
+
+## Reiter Diagnose
+
+Auf PC und Notebook derselbe Reiter (`DiagnosticsPanel`), damit sich eine gestörte Verbindung ohne Suche nach Protokollen eingrenzen lässt:
+
+- **Verbindung:** seit wann sie steht, sonst „nicht verbunden“.
+- **Laufzeit:** ein Heartbeat hin und zurück, jede Sekunde neu gemessen (siehe [Netzwerk](netzwerk.md)). Eine Gegenseite vor 0.8.0 schickt die Heartbeats nicht zurück; dann steht dort, dass keine Antwort kommt.
+- **Nachrichten pro Sekunde** in beide Richtungen, Heartbeats eingeschlossen, und die Summe seit dem Verbinden. Agent und Dienst zählen nur (`MessageConnection.Stats`); die Rate rechnen die Einstellungen aus zwei Antworten. Nach einer Neuverbindung beginnen die Zähler neu, dann steht für einen Takt nur die Summe da.
+- **Letzte Störung** mit Uhrzeit, auch wenn die Verbindung inzwischen wieder steht: abgewiesene Anmeldung, belegter Port, Abbruch mit Grund, auf dem Notebook auch ein nicht erreichbarer PC.
+- **Letzte Meldungen:** die letzten 100 Zeilen des Protokolls (`RecentLog`), mitlaufend, solange niemand zurückblättert. Auf dem PC öffnet „Protokoll öffnen“ `host.log` mit dem Programm, das Windows für `.log` vorsieht. Der Dienst schreibt keine Datei, nur ins Ereignisprotokoll; dort öffnet die Schaltfläche die Ereignisanzeige, und der Hinweis darunter nennt den Ort.
+- **Nur auf Anfrage:** Solange der Reiter sichtbar ist, fragen die Einstellungen jede Sekunde mit `getDiagnostics` (siehe [IPC](ipc.md)). Im Zustand stünde die Diagnose sonst bei jeder Änderung eines Zählers und ginge auch an den Tray und alle anderen Fenster.

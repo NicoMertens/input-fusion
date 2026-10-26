@@ -78,6 +78,13 @@ internal sealed class ClientSettingsServer(ClientStatus status, ClientService.Co
                 }
 
                 SettingsMessage? message = SettingsMessage.FromPayload(payload);
+                // Ohne den Zustand danach: Gefragt wird jede Sekunde, und am Zustand ändert die Frage nichts.
+                if (message is GetDiagnosticsRequest)
+                {
+                    await SendAsync(connection, status.Diagnostics(), ct);
+                    continue;
+                }
+
                 if (message is CheckForUpdatesRequest)
                 {
                     // Nebenher: Laden und Entpacken dauern, und die Zwischenablage soll so lange weiterlaufen.

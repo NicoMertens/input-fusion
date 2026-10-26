@@ -35,7 +35,12 @@ public partial class ClientWindow : Window
             {
                 OnState(state);
             }
+            else if (message is DiagnosticsMessage diagnostics)
+            {
+                Diagnostics.Show(diagnostics);
+            }
         };
+        Diagnostics.Attach(_connection);
         _connection.ErrorReceived += OnError;
         _connection.ConnectedChanged += OnConnectedChanged;
         OnConnectedChanged(false);
@@ -108,6 +113,7 @@ public partial class ClientWindow : Window
             Status.Text = "Der InputFusion-Dienst läuft nicht. Die Einstellungen verbinden sich, sobald er gestartet ist …";
             HostCard.Show(false, "Nicht mit dem PC verbunden", [(null, "Ohne Dienst gibt es keine Verbindung zum PC.")]);
             RenderMonitors();
+            Diagnostics.Show(null);
         }
         Form.IsEnabled = connected;
     }

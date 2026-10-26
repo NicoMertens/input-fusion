@@ -63,6 +63,23 @@ public class SettingsMessagesTests
         Assert.Equal(2560, back.Arrangement.OffsetX);
     }
 
+    [Fact]
+    public void Diagnostics_RoundTrip()
+    {
+        DateTimeOffset since = new DateTimeOffset(2026, 10, 26, 9, 30, 0, TimeSpan.FromHours(1));
+        SettingsMessage message = new DiagnosticsMessage(true, since, 2.5, 120, 40, "Der PC hat die Verbindung getrennt.", since,
+            ["09:30:00  verbunden"], null);
+
+        DiagnosticsMessage back = Assert.IsType<DiagnosticsMessage>(SettingsMessage.FromPayload(message.ToPayload()));
+
+        Assert.Equal(since, back.ConnectedSince);
+        Assert.Equal(2.5, back.RoundTripMs);
+        Assert.Equal(120, back.SentFrames);
+        Assert.Equal("09:30:00  verbunden", Assert.Single(back.Log));
+        Assert.Null(back.LogPath);
+        Assert.IsType<GetDiagnosticsRequest>(SettingsMessage.FromPayload(new GetDiagnosticsRequest().ToPayload()));
+    }
+
     [Theory]
     [InlineData(true, "PC", null, "Verbunden mit PC (192.168.1.10), Host-Version 0.5.0.")]
     [InlineData(false, "PC", "Host PC:15111 nicht erreichbar (TimedOut).", "Nicht verbunden mit PC. Host PC:15111 nicht erreichbar (TimedOut).")]

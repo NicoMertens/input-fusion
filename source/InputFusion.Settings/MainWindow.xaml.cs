@@ -41,7 +41,12 @@ public partial class MainWindow : Window
             {
                 OnState(state);
             }
+            else if (message is DiagnosticsMessage diagnostics)
+            {
+                Diagnostics.Show(diagnostics);
+            }
         };
+        Diagnostics.Attach(_connection);
         _connection.ErrorReceived += OnError;
         _connection.ConnectedChanged += OnConnectedChanged;
         OnConnectedChanged(false);
@@ -56,6 +61,10 @@ public partial class MainWindow : Window
             ? "Verbunden mit dem InputFusion-Agent auf diesem PC."
             : "Der InputFusion-Agent läuft nicht. Die Einstellungen verbinden sich, sobald er gestartet ist …";
         Tabs.IsEnabled = connected;
+        if (!connected)
+        {
+            Diagnostics.Show(null);
+        }
     }
 
     private void OnState(HostStateMessage state)
