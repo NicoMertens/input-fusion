@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -93,60 +93,25 @@ public partial class MainWindow : Window
 
     private void ShowClient(ClientStateInfo? client)
     {
-        bool connected = client is not null;
-        ClientCard.Background = (Brush)FindResource(connected ? "ConnectedCardBrush" : "IdleCardBrush");
-        ClientCard.BorderBrush = (Brush)FindResource(connected ? "ConnectedCardBorderBrush" : "IdleCardBorderBrush");
-        ClientDot.Fill = (Brush)FindResource(connected ? "ConnectedBrush" : "IdleBrush");
-        ClientIcon.Foreground = (Brush)FindResource(connected ? "ClientMonitorBrush" : "IdleBrush");
-        ClientDetails.Children.Clear();
-        ClientDetails.RowDefinitions.Clear();
-
         if (client is null)
         {
-            ClientTitle.Text = "Kein Notebook verbunden";
-            AddClientDetail(null, "Sobald sich das Notebook anmeldet, erscheint es hier.");
+            ClientCard.Show(false, "Kein Notebook verbunden", [(null, "Sobald sich das Notebook anmeldet, erscheint es hier.")]);
             return;
         }
 
-        ClientTitle.Text = $"{client.MachineName ?? "Notebook"} verbunden";
-        AddClientDetail("Adresse", client.Address);
-        AddClientDetail("Version", client.Version);
-        AddClientDetail("Monitore", client.Monitors.Count == 0
-            ? "noch nicht gemeldet"
-            : client.Monitors.Count.ToString(CultureInfo.CurrentCulture));
+        List<(string?, string)> details =
+        [
+            ("Adresse", client.Address),
+            ("Version", client.Version),
+            ("Monitore", client.Monitors.Count == 0 ? "noch nicht gemeldet" : client.Monitors.Count.ToString(CultureInfo.CurrentCulture)),
+        ];
         // Ohne Namen hat der Client noch nichts gemeldet oder ist zu alt dafür; „niemand angemeldet“ wäre dann falsch.
         if (client.MachineName is not null)
         {
-            AddClientDetail("Windows", client.OsVersion ?? "");
-            AddClientDetail("Angemeldet", client.UserName ?? "niemand");
+            details.Add(("Windows", client.OsVersion ?? ""));
+            details.Add(("Angemeldet", client.UserName ?? "niemand"));
         }
-    }
-
-    /// <summary>Eine Zeile unter dem Titel; ohne Bezeichnung als Hinweis über beide Spalten.</summary>
-    private void AddClientDetail(string? label, string value)
-    {
-        int row = ClientDetails.RowDefinitions.Count;
-        ClientDetails.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        TextBlock text = new TextBlock { Text = value, Margin = new Thickness(0, 2, 0, 2), TextWrapping = TextWrapping.Wrap };
-        Grid.SetRow(text, row);
-        if (label is null)
-        {
-            text.Foreground = (Brush)FindResource("HintBrush");
-            Grid.SetColumnSpan(text, 2);
-        }
-        else
-        {
-            TextBlock caption = new TextBlock
-            {
-                Text = label,
-                Margin = new Thickness(0, 2, 16, 2),
-                Foreground = (Brush)FindResource("HintBrush"),
-            };
-            Grid.SetRow(caption, row);
-            ClientDetails.Children.Add(caption);
-            Grid.SetColumn(text, 1);
-        }
-        ClientDetails.Children.Add(text);
+        ClientCard.Show(true, $"{client.MachineName ?? "Notebook"} verbunden", details);
     }
 
     private void OnError(string message)

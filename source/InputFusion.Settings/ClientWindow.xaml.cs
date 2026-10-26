@@ -85,6 +85,7 @@ public partial class ClientWindow : Window
         {
             _state = null;
             Status.Text = "Der InputFusion-Dienst läuft nicht. Die Einstellungen verbinden sich, sobald er gestartet ist …";
+            HostCard.Show(false, "Nicht mit dem PC verbunden", [(null, "Ohne Dienst gibt es keine Verbindung zum PC.")]);
         }
         Form.IsEnabled = connected;
     }
@@ -92,7 +93,8 @@ public partial class ClientWindow : Window
     private void OnState(ClientStateMessage state)
     {
         _state = state;
-        Status.Text = $"InputFusion Client {state.Version}: {state.Summary()}";
+        Status.Text = $"Verbunden mit dem InputFusion-Dienst {state.Version} auf diesem Notebook.";
+        ShowHost(state);
 
         // Was gerade bearbeitet wird, nicht überschreiben; sonst springt die Eingabe bei jeder Zustandsänderung zurück.
         if (!Form.IsKeyboardFocusWithin || !IsChanged())
@@ -114,6 +116,22 @@ public partial class ClientWindow : Window
         Apply.Visibility = state.CanEdit ? Visibility.Visible : Visibility.Collapsed;
         Elevate.Visibility = state.CanEdit ? Visibility.Collapsed : Visibility.Visible;
         UpdateMessage();
+    }
+
+    private void ShowHost(ClientStateMessage state)
+    {
+        if (state.Connected)
+        {
+            HostCard.Show(true, $"{state.Host} verbunden",
+                [("Adresse", state.HostAddress ?? ""), ("Version", state.HostVersion ?? "")]);
+            return;
+        }
+
+        string title = state.Host is null ? "Kein PC eingetragen" : $"Nicht mit {state.Host} verbunden";
+        string hint = state.Problem ?? (state.Host is null
+            ? "PC-Name, Port und Schlüssel oben eintragen."
+            : "Der Dienst versucht es weiter, sobald der PC erreichbar ist.");
+        HostCard.Show(false, title, [(null, hint)]);
     }
 
     private void OnError(string message)
