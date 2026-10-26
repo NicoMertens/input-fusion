@@ -77,7 +77,8 @@
                     <TextBlock Grid.Row="6" Grid.Column="1" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{StaticResource HintBrush}">
                         Auf dem Notebook PC-Name (oder IP), Port und Schlüssel eintragen: beim Installieren im Setup, danach
                         in dessen Einstellungen (Tray-Symbol, als Administrator).
-                        Ein geänderter Port oder Schlüssel gilt ab der nächsten Verbindung.
+                        Einen neuen Schlüssel übernimmt ein verbundenes Notebook selbst; sonst gilt er ab der nächsten
+                        Verbindung und muss dort eingetragen werden. Ein geänderter Port gilt ab der nächsten Verbindung.
                     </TextBlock>
 
                     <local:ConnectionCard Grid.Row="7" Grid.ColumnSpan="2" x:Name="ClientCard" Margin="0,24,0,0"

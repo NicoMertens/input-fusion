@@ -51,7 +51,11 @@ public sealed record SetClientOffsetRequest(int OffsetX, int OffsetY) : Settings
 /// <summary>Neue Verbindungsdaten für den Dienst auf dem Notebook. Nur Administratoren dürfen sie schicken.</summary>
 public sealed record SetClientConfigRequest(string Host, string? Ip, int Port, string Key) : SettingsMessage;
 
-/// <summary>Der ganze Zustand des Agents, wie die Einstellungen ihn anzeigen.</summary>
+/// <summary>
+/// Der ganze Zustand des Agents, wie die Einstellungen ihn anzeigen. <see cref="PendingKey"/> ist ein neuer Schlüssel,
+/// der gerade an den Client geht; bis der ihn übernommen hat, gilt noch <see cref="Key"/>. <see cref="KeyStatus"/> sagt,
+/// wie die letzte Übertragung ausging.
+/// </summary>
 public sealed record HostStateMessage(
     string MachineName,
     string Version,
@@ -59,7 +63,9 @@ public sealed record HostStateMessage(
     int Port,
     string Key,
     IReadOnlyList<MonitorRect> HostMonitors,
-    ClientStateInfo? Client) : SettingsMessage;
+    ClientStateInfo? Client,
+    string? PendingKey = null,
+    string? KeyStatus = null) : SettingsMessage;
 
 /// <summary>
 /// Der verbundene Client. <see cref="Monitors"/> ist leer, solange er seine Monitore nicht gemeldet hat; Name,

@@ -51,6 +51,12 @@ public enum MessageType : byte
     /// <summary>Host → Client: Monitore beider Seiten und Lage des Clients, nur zur Anzeige, siehe <c>ClientArrangement</c>.</summary>
     Arrangement = 21,
 
+    /// <summary>Host → Client: neuer gemeinsamer Schlüssel als UTF-8; der Client speichert ihn und antwortet mit <see cref="KeyChangeResult"/>.</summary>
+    KeyChange = 22,
+
+    /// <summary>Client → Host: leer, wenn der Schlüssel gespeichert ist, sonst der Grund als UTF-8.</summary>
+    KeyChangeResult = 23,
+
     /// <summary>Einstellungen ↔ Agent über die Named Pipe, Nutzlast JSON, siehe <c>SettingsMessage</c>.</summary>
     Settings = 32,
 }

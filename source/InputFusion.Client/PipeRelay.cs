@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.IO.Pipes;
 using System.Net.Sockets;
+using System.Text;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
@@ -14,10 +15,12 @@ namespace InputFusion.Client;
 /// verbinden, etwa nach einem Sitzungswechsel; was in der Lücke kommt, verfällt. Endet die Host-Verbindung,
 /// endet auch das Relay; der Injector sieht den Pipe-Abbruch und lässt alle Tasten los. Die Zwischenablage geht
 /// nicht zum Injector, sondern über die <see cref="ClipboardBridge"/> zum Tray, die Anordnung in den
-/// <see cref="ClientStatus"/> für die Einstellungen. Angaben zum Notebook schickt der Dienst
-/// selbst (<see cref="ClientInfoReporter"/>), damit der Injector als SYSTEM nicht mehr tun muss als abspielen.
+/// <see cref="ClientStatus"/> für die Einstellungen, ein neuer Schlüssel an <paramref name="saveKey"/>. Angaben zum
+/// Notebook schickt der Dienst selbst (<see cref="ClientInfoReporter"/>), damit der Injector als SYSTEM nicht mehr tun
+/// muss als abspielen.
 /// </summary>
-internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboard, ClientStatus status, Action<string> log)
+/// <param name="saveKey">Speichert einen neuen Schlüssel vom Host; null bei Erfolg, sonst der Grund.</param>
+internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboard, ClientStatus status, Func<string, string?> saveKey, Action<string> log)
 {
     private volatile MessageConnection? _injector;
     // Die zuletzt vom Host geschickten Rückkehrkanten. Ein neu verbundener Injector bekommt sie sofort, weil der
@@ -54,6 +57,14 @@ internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboar
                     {
                         status.Update(s => s with { Arrangement = arrangement });
                     }
+                    continue;
+                }
+
+                // Geht nie zum Injector: Der Schlüssel gehört nur in client.json.
+                if (type == MessageType.KeyChange)
+                {
+                    string? error = saveKey(Encoding.UTF8.GetString(payload));
+                    await host.SendAsync(MessageType.KeyChangeResult, error is null ? [] : Encoding.UTF8.GetBytes(error), linked.Token);
                     continue;
                 }
 

@@ -26,10 +26,10 @@ Umgesetzt in `InputFusion.Core.Ipc.SettingsPipe` (Pipe), `SettingsMessages` (Nac
   | `type` | Richtung | Inhalt |
   |---|---|---|
   | `getState` | Einstellungen → Agent | fordert den Zustand an |
-  | `setKey` | Einstellungen → Agent | neuer Schlüssel; der Agent prüft ihn (mindestens 16 Zeichen, keine Leerzeichen am Rand, keine Steuerzeichen) und speichert ihn |
+  | `setKey` | Einstellungen → Agent | neuer Schlüssel; der Agent prüft ihn (mindestens 16 Zeichen, keine Leerzeichen am Rand, keine Steuerzeichen) und speichert ihn, mit verbundenem Notebook erst, wenn es ihn übernommen hat (siehe [Netzwerk](netzwerk.md)) |
   | `setPort` | Einstellungen → Agent | neuer Port; der Agent prüft ihn (1–65535, probeweise gebunden), speichert ihn und lauscht sofort darauf |
   | `setClientOffset` | Einstellungen → Agent | neue Lage der Client-Gruppe; der Agent rastet sie selbst noch einmal ein (`MonitorLayout.Snap`) und speichert sie für die Monitor-Kombination |
-  | `hostState` | Agent → Einstellungen | Rechnername, Version des Agents, IPv4-Adressen, Port, Schlüssel, eigene Monitore, verbundener Client mit Adresse, Version, Monitoren und Lage |
+  | `hostState` | Agent → Einstellungen | Rechnername, Version des Agents, IPv4-Adressen, Port, Schlüssel, eigene Monitore, verbundener Client mit Adresse, Version, Monitoren und Lage; ein Schlüssel, der gerade an das Notebook geht (`pendingKey`), und wie die letzte Übertragung ausging (`keyStatus`) |
   | `error` | Agent → Einstellungen | eine Änderung wurde abgelehnt, mit Grund |
 
 - **Ablauf:** Der Agent schickt jeder neuen Verbindung sofort `hostState`, danach bei jeder Änderung von selbst (Client verbunden oder getrennt, Monitore, Schlüssel, Layout) und nach jeder Anfrage. Bei einer Ablehnung kommt erst `error`, dann der unveränderte Zustand, der die Anzeige zurücksetzt.

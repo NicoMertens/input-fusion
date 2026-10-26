@@ -23,6 +23,19 @@ public class SettingsMessagesTests
         Assert.Equal("N1", Assert.Single(back.Client.Monitors).DeviceId);
         Assert.Equal("NOTEBOOK", back.Client.MachineName);
         Assert.Null(back.Client.UserName);
+        Assert.Null(back.PendingKey);
+    }
+
+    [Fact]
+    public void HostState_WithKeyTransfer_RoundTrip()
+    {
+        SettingsMessage message = new HostStateMessage("PC", "0.8.0", [], 15111, "abcdefghijkmnpqr", [], null,
+            PendingKey: "zyxwvutsrqpnmkjh", KeyStatus: "Das Notebook hat den neuen Schlüssel übernommen.");
+
+        HostStateMessage back = Assert.IsType<HostStateMessage>(SettingsMessage.FromPayload(message.ToPayload()));
+
+        Assert.Equal("zyxwvutsrqpnmkjh", back.PendingKey);
+        Assert.Equal("Das Notebook hat den neuen Schlüssel übernommen.", back.KeyStatus);
     }
 
     [Fact]

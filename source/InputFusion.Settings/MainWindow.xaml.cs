@@ -74,10 +74,10 @@ public partial class MainWindow : Window
         }
         UpdatePortState();
 
-        if (Key.Text == state.Key || !KeyField.IsKeyboardFocusWithin)
+        if (Key.Text == CurrentKey || !KeyField.IsKeyboardFocusWithin)
         {
             _updatingKey = true;
-            Key.Text = state.Key;
+            Key.Text = CurrentKey;
             _updatingKey = false;
         }
         UpdateKeyState();
@@ -217,11 +217,15 @@ public partial class MainWindow : Window
         }
     }
 
+    // Während der Übertragung an das Notebook der neue Schlüssel, sonst sprängen Feld und Meldung kurz auf den alten zurück.
+    private string CurrentKey => _state?.PendingKey ?? _state?.Key ?? "";
+
     private void UpdateKeyState()
     {
         string? error = HostConfig.ValidateKey(Key.Text);
-        bool changed = _state is not null && Key.Text != _state.Key;
-        ApplyKey.IsEnabled = error is null && changed;
+        bool pending = _state?.PendingKey is not null;
+        bool changed = _state is not null && Key.Text != CurrentKey;
+        ApplyKey.IsEnabled = error is null && changed && !pending;
         if (error is not null)
         {
             KeyMessage.Text = error;
@@ -229,9 +233,9 @@ public partial class MainWindow : Window
         }
         else
         {
-            KeyMessage.Text = changed
-                ? "Noch nicht übernommen."
-                : $"Mindestens {HostConfig.MinKeyLength} Zeichen; vorbelegt mit einem Zufallswert, änderbar.";
+            KeyMessage.Text = changed ? "Noch nicht übernommen."
+                : pending ? "Wird an das Notebook übertragen …"
+                : _state?.KeyStatus ?? $"Mindestens {HostConfig.MinKeyLength} Zeichen; vorbelegt mit einem Zufallswert, änderbar.";
             KeyMessage.Foreground = (Brush)FindResource("HintBrush");
         }
     }

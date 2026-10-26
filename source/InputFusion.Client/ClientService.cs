@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using InputFusion.Core.Config;
 using InputFusion.Core.Net;
 using InputFusion.Core.Protocol;
 
@@ -65,7 +66,7 @@ internal static class ClientService
             {
                 if (config is not null)
                 {
-                    (problem, wasConnected) = await AttemptAsync(config, status, clipboard, log, protocolMismatch, current.Token);
+                    (problem, wasConnected) = await AttemptAsync(config, saveConfig, status, clipboard, log, protocolMismatch, current.Token);
                 }
 
                 if (wasConnected)
@@ -110,9 +111,8 @@ internal static class ClientService
 
     /// <summary>Ein Versuch: verbinden, anmelden und, wenn das klappt, Eingaben weiterreichen, bis die Verbindung endet.</summary>
     /// <returns>Die Störung, wenn keine Verbindung zustande kam; ob eine Verbindung bestand.</returns>
-    private static async Task<(string? Problem, bool WasConnected)> AttemptAsync(ClientConfig config, ClientStatus status, ClipboardBridge clipboard,
-        Action<string> log,
-        Action? protocolMismatch, CancellationToken ct)
+    private static async Task<(string? Problem, bool WasConnected)> AttemptAsync(ClientConfig config, ConfigSaver? saveConfig, ClientStatus status,
+        ClipboardBridge clipboard, Action<string> log, Action? protocolMismatch, CancellationToken ct)
     {
         (TcpClient? tcp, string? connectError) = await ConnectAsync(config, ct);
         if (tcp is null)
@@ -132,7 +132,7 @@ internal static class ClientService
                 status.Update(s => s with { Connected = true, HostAddress = address, HostVersion = handshake.PeerVersion, Problem = null });
                 try
                 {
-                    await new PipeRelay(conn, clipboard, status, log).RunAsync(ct);
+                    await new PipeRelay(conn, clipboard, status, key => SaveKey(config, key, saveConfig, status, log), log).RunAsync(ct);
                 }
                 finally
                 {
@@ -152,6 +152,29 @@ internal static class ClientService
         // Falscher Schlüssel: wie ein nicht erreichbarer Host mit wachsendem Abstand neu versuchen, damit eine Korrektur
         // in den Einstellungen oder in client.json ohne Neustart greift.
         return ($"Host {config.Host} hat die Anmeldung abgelehnt oder sich nicht ausgewiesen; stimmt der Schlüssel?", false);
+    }
+
+    /// <summary>
+    /// Speichert einen neuen Schlüssel, den der Host über die angemeldete Verbindung schickt. Direkt mit
+    /// <paramref name="saveConfig"/>, nicht über den Weg der Einstellungen: Der bräche die Verbindung ab, und die neue
+    /// Anmeldung käme beim Host an, bevor er den Schlüssel selbst gespeichert hat.
+    /// </summary>
+    private static string? SaveKey(ClientConfig config, string key, ConfigSaver? saveConfig, ClientStatus status, Action<string> log)
+    {
+        ClientConfig updated = config with { Key = key };
+        string? error = saveConfig is null
+            ? "Im Entwicklungsmodus mit --relay steht die Konfiguration fest."
+            : ClientConfigRules.Validate(updated.Host, updated.Ip, updated.Port, updated.Key) ?? saveConfig(updated);
+        if (error is null)
+        {
+            status.SetConfig(updated);
+            log("Neuen Schlüssel vom Host übernommen.");
+        }
+        else
+        {
+            log($"Neuen Schlüssel vom Host nicht übernommen: {error}");
+        }
+        return error;
     }
 
     /// <summary>

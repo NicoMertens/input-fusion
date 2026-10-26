@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Text;
 using Windows.Win32;
 using Windows.Win32.UI.WindowsAndMessaging;
 using InputFusion.Core.Layout;
@@ -64,6 +65,8 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         CancellationToken token = linked.Token;
         Action<MonitorLayout?> layoutChanged = layout => _ = SendLayoutAsync(layout, token);
         state.LayoutChanged += layoutChanged;
+        Action<string> keyTransfer = key => _ = SendKeyAsync(key, token);
+        state.KeyTransferRequested += keyTransfer;
         Task incoming = Task.Run(() => PumpIncoming(linked));
         Task monitor = WatchClient(linked);
 
@@ -95,6 +98,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         finally
         {
             state.LayoutChanged -= layoutChanged;
+            state.KeyTransferRequested -= keyTransfer;
             LowLevelHooks.Swallow = false;
             // Brach die Verbindung im Remote-Modus ab, die Maus dort zurückgeben, wo sie den Host verlassen hat.
             if (state.IsRemote)
@@ -121,6 +125,19 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         }
         catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or OperationCanceledException or ObjectDisposedException)
         {
+        }
+    }
+
+    /// <summary>Schickt dem Client den neuen Schlüssel; verschlüsselt mit dem alten, unter dem die Verbindung steht.</summary>
+    private async Task SendKeyAsync(string key, CancellationToken ct)
+    {
+        try
+        {
+            await connection.SendAsync(MessageType.KeyChange, Encoding.UTF8.GetBytes(key), ct);
+        }
+        catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or OperationCanceledException or ObjectDisposedException)
+        {
+            // Die Verbindung ist weg; HostState speichert den Schlüssel beim Abbruch trotzdem.
         }
     }
 
@@ -171,6 +188,10 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
                 else if (type == MessageType.ClientInfo && ClientInfo.FromPayload(payload) is { } info)
                 {
                     state.ClientInfoReported(info);
+                }
+                else if (type == MessageType.KeyChangeResult)
+                {
+                    state.KeyTransferred(payload.Length == 0 ? null : Encoding.UTF8.GetString(payload));
                 }
                 else if (type == MessageType.SwitchBackRequest && state.IsRemote)
                 {
