@@ -9,6 +9,10 @@
     "InputFusionClient" an (LocalSystem, Start automatisch, Neustart nach Absturz) und startet ihn.
     Ein vorhandener Dienst wird vorher gestoppt und ersetzt. Läuft auch unter Windows PowerShell 5.1.
 
+    Der Client kann mehrere PCs kennen, etwa zu Hause und im Büro, und verbindet sich mit dem, der gerade
+    erreichbar ist. Das Skript trägt einen PC ein: Steht einer mit demselben Namen schon in client.json,
+    wird er ersetzt, die übrigen bleiben. Für den nächsten PC das Skript erneut aufrufen.
+
 .PARAMETER HostName
     Rechnername des PCs mit dem InputFusion-Host, wird per DNS aufgelöst.
 
@@ -25,6 +29,9 @@
     Ordner mit InputFusion.Client.exe. Standard: der Ordner dieses Skripts, falls die exe dort liegt,
     sonst die Build-Ausgabe im Repo (_out\InputFusion.Client).
 
+.PARAMETER Replace
+    Die übrigen PCs aus client.json verwerfen; danach steht nur dieser eine drin.
+
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File .\install-client.ps1 -HostName PC-NAME -Key <Schlüssel>
 #>
@@ -33,7 +40,8 @@ param(
     [Parameter(Mandatory = $true)][string]$Key,
     [string]$Ip,
     [ValidateRange(1, 65535)][int]$Port = 15111,
-    [string]$Source
+    [string]$Source,
+    [switch]$Replace
 )
 
 $ErrorActionPreference = 'Stop'
@@ -50,6 +58,27 @@ $Source = (Resolve-Path $Source).Path
 if (-not (Test-Path (Join-Path $Source 'InputFusion.Client.exe'))) {
     throw "InputFusion.Client.exe nicht gefunden in $Source"
 }
+
+# PCs für client.json: die vorhandenen behalten, einen mit demselben Namen ersetzen. Vor dem Stoppen des Dienstes,
+# damit eine unlesbare Datei abbricht, bevor etwas verändert ist. Bis 0.11 stand dort ein PC flach statt unter "hosts".
+$configFile = Join-Path $configDir 'client.json'
+$entry = [ordered]@{ host = $HostName; key = $Key }
+if ($Ip) { $entry.ip = $Ip }
+$entry.port = $Port
+$hosts = New-Object System.Collections.Generic.List[object]
+if (-not $Replace -and (Test-Path $configFile)) {
+    try { $old = [IO.File]::ReadAllText($configFile) | ConvertFrom-Json }
+    catch { throw "$configFile ist nicht lesbar ($($_.Exception.Message)). Von Hand korrigieren oder mit -Replace neu schreiben." }
+    $oldHosts = if ($old.hosts) { @($old.hosts) } elseif ($old.host) { @($old) } else { @() }
+    foreach ($h in $oldHosts) {
+        if ($h.host -eq $HostName) { continue }
+        $kept = [ordered]@{ host = $h.host; key = $h.key }
+        if ($h.ip) { $kept.ip = $h.ip }
+        $kept.port = if ($h.port) { [int]$h.port } else { 15111 }
+        $hosts.Add($kept)
+    }
+}
+$hosts.Insert(0, $entry)
 
 # Vorhandenen Dienst stoppen, sonst sind die Dateien gesperrt. Der Injector läuft als eigener Prozess
 # weiter, bis der Dienst ihn beendet; zur Sicherheit auch ihn beenden.
@@ -75,11 +104,7 @@ Copy-Item -Path (Join-Path $Source '*') -Destination $target -Recurse -Force
 # Konfiguration schreiben, ACL nur SYSTEM und Administratoren (Vererbung aus). Die Datei entsteht gleich mit der
 # ACL; nachträglich gesetzt wäre sie mit dem Schlüssel kurz für alle Benutzer lesbar, weil ProgramData Lesen vererbt.
 New-Item -ItemType Directory -Path $configDir -Force | Out-Null
-$configFile = Join-Path $configDir 'client.json'
-$config = [ordered]@{ host = $HostName; key = $Key }
-if ($Ip) { $config.ip = $Ip }
-$config.port = $Port
-$bytes = (New-Object System.Text.UTF8Encoding $false).GetBytes(($config | ConvertTo-Json))
+$bytes = (New-Object System.Text.UTF8Encoding $false).GetBytes(([ordered]@{ hosts = $hosts.ToArray() } | ConvertTo-Json -Depth 4))
 
 $acl = New-Object System.Security.AccessControl.FileSecurity
 $acl.SetAccessRuleProtection($true, $false)
@@ -96,7 +121,9 @@ try { $stream.Write($bytes, 0, $bytes.Length) } finally { $stream.Dispose() }
 
 # Ohne Schlüssel ausgeben, die Konsole landet leicht in Protokollen oder Chats.
 Write-Host "Konfiguration: $configFile"
-Write-Host "  Host: $HostName$(if ($Ip) { ", IP $Ip" }), Port $Port, Schlüssel $($Key.Length) Zeichen (nicht angezeigt)"
+foreach ($h in $hosts) {
+    Write-Host "  Host: $($h.host)$(if ($h.ip) { ", IP $($h.ip)" }), Port $($h.port), Schlüssel $($h.key.Length) Zeichen (nicht angezeigt)"
+}
 
 # Dienst anlegen oder umkonfigurieren.
 $binary = '"' + (Join-Path $target 'InputFusion.Client.exe') + '"'

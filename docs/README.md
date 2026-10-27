@@ -44,6 +44,7 @@ PC (Server)                                    Notebook (Client)
 | [client.md](client.md) | Dienst und Injector auf dem Notebook: Sitzungen, Desktop-Wechsel, Abspielen |
 | [einstellungen.md](einstellungen.md) | Die WPF-App für beide Seiten |
 | [netzwerk.md](netzwerk.md) | Verbindung zwischen PC und Notebook, Anmeldung und Verschlüsselung |
+| [mehrere-pcs.md](mehrere-pcs.md) | Ein Notebook, mehrere PCs (etwa zu Hause und im Büro): paralleler Aufbau, Netzwechsel |
 | [ipc.md](ipc.md) | Named Pipes zwischen den Prozessen eines Rechners |
 | [zwischenablage.md](zwischenablage.md) | Text der Zwischenablage beim Wechsel zwischen PC und Notebook |
 | [layout.md](layout.md) | Multimonitor-Layout und Layout-Engine |

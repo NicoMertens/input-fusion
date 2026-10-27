@@ -33,4 +33,24 @@ public static class ClientConfigRules
 
         return Ports.Validate(port) ?? HostConfig.ValidateKey(key);
     }
+
+    /// <returns>Die erste Beanstandung, bei mehreren PCs mit dessen Nummer, oder null.</returns>
+    public static string? Validate(IReadOnlyList<HostEntry> hosts)
+    {
+        if (hosts.Count == 0)
+        {
+            return "Bitte mindestens einen PC eintragen.";
+        }
+
+        for (int i = 0; i < hosts.Count; i++)
+        {
+            HostEntry entry = hosts[i];
+            if (Validate(entry.Host, entry.Ip, entry.Port, entry.Key) is { } error)
+            {
+                return hosts.Count == 1 ? error : $"{i + 1}. PC: {error}";
+            }
+        }
+
+        return null;
+    }
 }

@@ -50,8 +50,8 @@ public sealed record SetPortRequest(int Port) : SettingsMessage;
 /// <summary>Neue Lage der Client-Gruppe auf der gemeinsamen Fläche. Der Agent rastet sie selbst noch einmal ein.</summary>
 public sealed record SetClientOffsetRequest(int OffsetX, int OffsetY) : SettingsMessage;
 
-/// <summary>Neue Verbindungsdaten für den Dienst auf dem Notebook. Nur Administratoren dürfen sie schicken.</summary>
-public sealed record SetClientConfigRequest(string Host, string? Ip, int Port, string Key) : SettingsMessage;
+/// <summary>Neue Liste der PCs für den Dienst auf dem Notebook, als Ganzes. Nur Administratoren dürfen sie schicken.</summary>
+public sealed record SetClientConfigRequest(IReadOnlyList<Config.HostEntry> Hosts) : SettingsMessage;
 
 /// <summary>
 /// Der ganze Zustand des Agents, wie die Einstellungen ihn anzeigen. <see cref="PendingKey"/> ist ein neuer Schlüssel,
@@ -84,20 +84,18 @@ public sealed record ClientStateInfo(
     string? UserName);
 
 /// <summary>
-/// Der Zustand des Dienstes auf dem Notebook. <see cref="Host"/> ist null, solange <c>client.json</c> fehlt oder
-/// nicht lesbar ist; <see cref="Problem"/> ist die letzte Störung beim Verbinden, solange keine Verbindung steht.
-/// <see cref="Key"/> bekommen nur Administratoren, <see cref="CanEdit"/> sagt, ob diese Verbindung ändern darf.
-/// <see cref="Arrangement"/> ist die Anordnung, die der Host zuletzt geschickt hat; null ohne Verbindung oder bei einem
-/// Host, der sie noch nicht schickt.
+/// Der Zustand des Dienstes auf dem Notebook. <see cref="Hosts"/> ist leer, solange <c>client.json</c> fehlt oder
+/// nicht lesbar ist; die Schlüssel darin bekommen nur Administratoren, sonst sind sie leer. <see cref="CanEdit"/> sagt,
+/// ob diese Verbindung ändern darf. <see cref="Host"/> ist der Name des PCs, mit dem der Dienst gerade verbunden ist;
+/// <see cref="Problem"/> die letzte Störung beim Verbinden, solange keine Verbindung steht. <see cref="Arrangement"/> ist
+/// die Anordnung, die der Host zuletzt geschickt hat; null ohne Verbindung oder bei einem Host, der sie noch nicht schickt.
 /// </summary>
 public sealed record ClientStateMessage(
     string Version,
-    string? Host,
-    string? Ip,
-    int Port,
-    string? Key,
+    IReadOnlyList<Config.HostEntry> Hosts,
     bool CanEdit,
     bool Connected,
+    string? Host,
     string? HostAddress,
     string? HostVersion,
     string? Problem,
@@ -106,8 +104,13 @@ public sealed record ClientStateMessage(
     /// <summary>Eine Zeile für Tooltip und Statuszeile.</summary>
     public string Summary() =>
         Connected ? $"Verbunden mit {Host} ({HostAddress}), Host-Version {HostVersion}."
-        : Host is null ? $"Nicht eingerichtet. {Problem}".TrimEnd()
-        : $"Nicht verbunden mit {Host}. {Problem}".TrimEnd();
+        : Hosts.Count == 0 ? $"Nicht eingerichtet. {Problem}".TrimEnd()
+        : $"Nicht verbunden mit {HostNames()}. {Problem}".TrimEnd();
+
+    /// <summary>Die eingetragenen PCs für Meldungen, etwa „PC-A oder PC-B“.</summary>
+    public string HostNames() =>
+        Hosts.Count <= 1 ? Hosts.FirstOrDefault()?.Host ?? "dem PC"
+        : $"{string.Join(", ", Hosts.SkipLast(1).Select(h => h.Host))} oder {Hosts[^1].Host}";
 }
 
 /// <summary>Eine Änderung wurde abgelehnt; geht nur an die Einstellungen, die sie verlangt haben.</summary>

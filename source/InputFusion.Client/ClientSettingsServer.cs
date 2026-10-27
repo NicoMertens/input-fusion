@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.IO;
 using System.IO.Pipes;
 using InputFusion.Core.Config;
@@ -151,9 +151,15 @@ internal sealed class ClientSettingsServer(ClientStatus status, ClientService.Co
             return "Im Entwicklungsmodus mit --relay steht die Verbindung fest.";
         }
 
-        string? ip = string.IsNullOrWhiteSpace(request.Ip) ? null : request.Ip.Trim();
-        return ClientConfigRules.Validate(request.Host, ip, request.Port, request.Key)
-            ?? save(new ClientConfig(request.Host, request.Key, ip, request.Port));
+        // Die Anfrage kann von einer beliebigen Anwendung kommen; JSON lässt null zu, wo der Typ es nicht vorsieht.
+        if (request.Hosts is null || request.Hosts.Any(h => h is null || h.Host is null || h.Key is null))
+        {
+            return "Ungültige Anfrage.";
+        }
+
+        ClientConfig config = new ClientConfig(request.Hosts
+            .Select(h => h with { Ip = string.IsNullOrWhiteSpace(h.Ip) ? null : h.Ip.Trim() }).ToArray());
+        return ClientConfigRules.Validate(config.Hosts) ?? save(config);
     }
 
     private static async Task SendAsync(MessageConnection connection, SettingsMessage message, CancellationToken ct)

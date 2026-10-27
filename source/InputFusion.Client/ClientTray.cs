@@ -79,6 +79,8 @@ internal static class ClientTray
                     current = connection;
                     // Je Verbindung zum Dienst neu: Der erste Zustand ist kein Wechsel.
                     bool? hostConnected = null;
+                    // Nach dem Abbruch nennt der Zustand keinen verbundenen PC mehr, die Meldung soll ihn aber nennen.
+                    string? lastHost = null;
                     await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(cts.Token))
                     {
                         SettingsMessage? message = type == MessageType.Settings ? SettingsMessage.FromPayload(payload) : null;
@@ -87,13 +89,14 @@ internal static class ClientTray
                             tray.SetTooltip($"InputFusion: {state.Summary()}");
                             if (hostConnected == true && !state.Connected)
                             {
-                                _ = notifier.Lost($"Verbindung zu {state.Host ?? "dem PC"} beendet. {state.Problem}".TrimEnd());
+                                _ = notifier.Lost($"Verbindung zu {lastHost ?? "dem PC"} beendet. {state.Problem}".TrimEnd());
                             }
                             else if (hostConnected == false && state.Connected)
                             {
                                 notifier.Restored($"Wieder mit {state.Host} verbunden.");
                             }
                             hostConnected = state.Connected;
+                            lastHost = state.Host ?? lastHost;
                         }
                         else if (message is UpdateCheckResult check)
                         {

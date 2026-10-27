@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using InputFusion.Core.Config;
 using InputFusion.Core.Net;
@@ -7,9 +8,10 @@ using InputFusion.Core.Protocol;
 namespace InputFusion.Client;
 
 /// <summary>
-/// Die Dienst-Rolle: hält Injector und Tray-Symbol am Leben und die Verbindung zum Host. Ist der Host nicht erreichbar
-/// oder bricht die Verbindung ab, wird es mit wachsendem Abstand bis <see cref="_maxRetryDelay"/> erneut
-/// versucht. Läuft im Windows-Dienst (<see cref="Worker"/>) und zum Entwickeln als Konsole (<c>--relay</c>).
+/// Die Dienst-Rolle: hält Injector und Tray-Symbol am Leben und die Verbindung zu einem der eingetragenen PCs. Ohne
+/// Verbindung versucht sie alle zugleich, der erste mit gelungener Anmeldung gewinnt. Klappt das bei keinem oder bricht
+/// die Verbindung ab, wird es mit wachsendem Abstand bis <see cref="_maxRetryDelay"/> erneut versucht, nach einem
+/// Netzwechsel sofort. Läuft im Windows-Dienst (<see cref="Worker"/>) und zum Entwickeln als Konsole (<c>--relay</c>).
 /// </summary>
 internal static class ClientService
 {
@@ -48,12 +50,24 @@ internal static class ClientService
             string? error = saveConfig(config);
             if (error is null)
             {
-                log($"Konfiguration geändert: Host {config.Host}, Port {config.Port}{(config.Ip is null ? "" : $", IP {config.Ip}")}.");
+                log($"Konfiguration geändert: {Describe(config)}.");
                 try { attempt?.Cancel(); }
                 catch (ObjectDisposedException) { }
             }
             return error;
         };
+
+        // Ein Netzwechsel (WLAN, LAN, VPN) kürzt nur das Warten auf den nächsten Versuch ab. Eine bestehende Verbindung
+        // bleibt; ob sie noch lebt, entscheidet der Heartbeat.
+        bool networkChanged = false;
+        CancellationTokenSource? waiting = null;
+        NetworkAddressChangedEventHandler onNetworkChange = (_, _) =>
+        {
+            Volatile.Write(ref networkChanged, true);
+            try { waiting?.Cancel(); }
+            catch (ObjectDisposedException) { }
+        };
+        NetworkChange.NetworkAddressChanged += onNetworkChange;
 
         Task injector = new SessionSupervisor("Injector", OwnerProcess.Arguments(Injector.Argument), asUser: false, asService, log).RunAsync(ct);
         Task tray = new SessionSupervisor("Tray", OwnerProcess.Arguments(ClientTray.Argument), asUser: true, asService, log).RunAsync(ct);
@@ -65,6 +79,8 @@ internal static class ClientService
         {
             using CancellationTokenSource current = CancellationTokenSource.CreateLinkedTokenSource(ct);
             attempt = current;
+            // Ein Wechsel während des Versuchs zählt mit: Er kann gerade daran gescheitert sein, dass das Netz noch fehlte.
+            Volatile.Write(ref networkChanged, false);
             ClientConfig? config = loadConfig(out string? error);
             status.SetConfig(config);
             string? problem = error;
@@ -97,8 +113,7 @@ internal static class ClientService
 
                 lastProblem = problem;
                 status.Update(s => s with { Problem = problem });
-                await Task.Delay(delay, current.Token);
-                delay = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, _maxRetryDelay.Ticks));
+                delay = await WaitAsync(delay, () => Volatile.Read(ref networkChanged), wait => waiting = wait, log, current.Token);
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
@@ -112,100 +127,209 @@ internal static class ClientService
             }
         }
 
+        NetworkChange.NetworkAddressChanged -= onNetworkChange;
         await injector;
         await tray;
         await settings;
     }
 
-    /// <summary>Ein Versuch: verbinden, anmelden und, wenn das klappt, Eingaben weiterreichen, bis die Verbindung endet.</summary>
+    /// <summary>Wartet bis zum nächsten Versuch, nach einem Netzwechsel nicht länger.</summary>
+    /// <param name="setWaiting">Bekommt das Token des Wartens, damit der Netzwechsel es abbrechen kann, danach null.</param>
+    /// <returns>Der Abstand für das nächste Warten.</returns>
+    private static async Task<TimeSpan> WaitAsync(TimeSpan delay, Func<bool> networkChanged, Action<CancellationTokenSource?> setWaiting,
+        Action<string> log, CancellationToken ct)
+    {
+        using CancellationTokenSource wait = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        setWaiting(wait);
+        try
+        {
+            // Erst danach prüfen: Ein Wechsel kurz vor setWaiting fände sonst kein Warten zum Abbrechen.
+            if (networkChanged())
+            {
+                wait.Cancel();
+            }
+
+            await Task.Delay(delay, wait.Token);
+            return TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, _maxRetryDelay.Ticks));
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            log("Netzwerk geändert, verbinde sofort neu.");
+            return _minRetryDelay;
+        }
+        finally
+        {
+            setWaiting(null);
+        }
+    }
+
+    /// <summary>
+    /// Ein Versuch: mit einem der PCs verbinden und anmelden und, wenn das klappt, Eingaben weiterreichen, bis die
+    /// Verbindung endet.
+    /// </summary>
     /// <returns>Die Störung, wenn keine Verbindung zustande kam; ob eine Verbindung bestand.</returns>
     private static async Task<(string? Problem, bool WasConnected)> AttemptAsync(ClientConfig config, ConfigSaver? saveConfig, ClientStatus status,
         ClipboardBridge clipboard, Action<string> log, Action? protocolMismatch, CancellationToken ct)
     {
-        (TcpClient? tcp, string? connectError) = await ConnectAsync(config, ct);
-        if (tcp is null)
+        (Candidate? winner, string? problem, bool mismatch) = await ConnectAnyAsync(config.Hosts, ct);
+        if (winner is null)
         {
-            return (connectError, false);
+            if (mismatch)
+            {
+                protocolMismatch?.Invoke();
+            }
+            return (problem, false);
         }
 
-        HandshakeResult handshake;
-        using (tcp)
-        using (MessageConnection conn = MessageConnection.FromTcp(tcp))
+        using (winner.Connection)
         {
-            handshake = await Handshake.ClientAsync(conn, config.Key, AppVersion.Current, ct);
-            if (handshake.Outcome == HandshakeOutcome.Accepted)
+            HostEntry entry = winner.Entry;
+            log($"Mit dem Host {entry.Host} ({winner.Address}, Version {winner.Version}) verbunden.");
+            status.Update(s => s with { Connected = true, Host = entry.Host, HostAddress = winner.Address, HostVersion = winner.Version, Problem = null });
+            status.SetConnection(winner.Connection);
+            PipeRelay relay = new PipeRelay(winner.Connection, clipboard, status, key => SaveKey(config, entry, key, saveConfig, status, log), log);
+            try
             {
-                string address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
-                log($"Mit dem Host {address} (Version {handshake.PeerVersion}) verbunden.");
-                status.Update(s => s with { Connected = true, HostAddress = address, HostVersion = handshake.PeerVersion, Problem = null });
-                status.SetConnection(conn);
-                PipeRelay relay = new PipeRelay(conn, clipboard, status, key => SaveKey(config, key, saveConfig, status, log), log);
-                try
+                await relay.RunAsync(ct);
+            }
+            finally
+            {
+                status.SetConnection(null);
+                if (relay.EndReason is { } reason)
                 {
-                    await relay.RunAsync(ct);
+                    status.ReportError(reason);
                 }
-                finally
-                {
-                    status.SetConnection(null);
-                    if (relay.EndReason is { } reason)
-                    {
-                        status.ReportError(reason);
-                    }
 
-                    // Der Grund bleibt als Störung stehen, bis der nächste Versuch gelingt oder einen eigenen hat; der Tray meldet ihn.
-                    status.Update(s => s with { Connected = false, HostAddress = null, HostVersion = null, Arrangement = null, Problem = relay.EndReason });
-                }
-                return (null, true);
+                // Der Grund bleibt als Störung stehen, bis der nächste Versuch gelingt oder einen eigenen hat; der Tray meldet ihn.
+                status.Update(s => s with
+                {
+                    Connected = false, Host = null, HostAddress = null, HostVersion = null, Arrangement = null, Problem = relay.EndReason,
+                });
             }
         }
+        return (null, true);
+    }
 
-        if (handshake.Outcome == HandshakeOutcome.ProtocolMismatch)
+    /// <summary>Ein PC, bei dem die Anmeldung gelungen ist; die Verbindung ist verschlüsselt und bereit.</summary>
+    private sealed record Candidate(HostEntry Entry, MessageConnection Connection, string Address, string Version);
+
+    /// <summary>Ausgang des Versuchs bei einem PC: angemeldet oder die Störung; ob er eine andere Protokollversion sprach.</summary>
+    private sealed record HostAttempt(Candidate? Candidate, string? Problem = null, bool Mismatch = false);
+
+    /// <summary>
+    /// Versucht alle PCs zugleich. Der erste mit gelungener Anmeldung gewinnt, die übrigen Versuche werden abgebrochen.
+    /// Ist ein anderer im selben Moment ebenfalls angemeldet, trennt der Client ihn wieder; der sieht dann einen Abbruch.
+    /// </summary>
+    /// <returns>Den Gewinner oder die Störungen aller Versuche in der Reihenfolge der Liste, damit dieselbe Lage
+    /// dieselbe Meldung ergibt; ob ein PC eine andere Protokollversion sprach.</returns>
+    private static async Task<(Candidate? Winner, string? Problem, bool ProtocolMismatch)> ConnectAnyAsync(IReadOnlyList<HostEntry> hosts,
+        CancellationToken ct)
+    {
+        (HostAttempt? won, IReadOnlyList<HostAttempt> attempts) = await AttemptRace.FirstAsync(
+            hosts.Select(h => (Func<CancellationToken, Task<HostAttempt>>)(token => TryHostAsync(h, token))).ToArray(),
+            a => a.Candidate is not null, a => a.Candidate!.Connection.Dispose(), ct);
+        Candidate? winner = won?.Candidate;
+        if (ct.IsCancellationRequested)
         {
-            protocolMismatch?.Invoke();
-            return ($"Host {config.Host} hat Version {handshake.PeerVersion} mit Protokoll {handshake.PeerProtocol}, "
-                + $"dieser Client {AppVersion.Current} mit Protokoll {ProtocolVersion.Current}. Suche nach einem Update.", false);
+            winner?.Connection.Dispose();
+            return (null, null, false);
         }
 
-        // Falscher Schlüssel: wie ein nicht erreichbarer Host mit wachsendem Abstand neu versuchen, damit eine Korrektur
-        // in den Einstellungen oder in client.json ohne Neustart greift.
-        return ($"Host {config.Host} hat die Anmeldung abgelehnt oder sich nicht ausgewiesen; stimmt der Schlüssel?", false);
+        if (winner is not null)
+        {
+            return (winner, null, false);
+        }
+
+        string[] problems = attempts.Select(a => a.Problem).OfType<string>().ToArray();
+        return (null, problems.Length == 0 ? null : string.Join(" ", problems), attempts.Any(a => a.Mismatch));
     }
 
     /// <summary>
-    /// Speichert einen neuen Schlüssel, den der Host über die angemeldete Verbindung schickt. Direkt mit
-    /// <paramref name="saveConfig"/>, nicht über den Weg der Einstellungen: Der bräche die Verbindung ab, und die neue
-    /// Anmeldung käme beim Host an, bevor er den Schlüssel selbst gespeichert hat.
+    /// Verbinden und anmelden bei einem PC. Ein Abbruch, auch weil ein anderer PC gewonnen hat, endet ohne Störung und
+    /// ohne Ausnahme; sonst risse er im Rennen den Gewinner mit.
     /// </summary>
-    private static string? SaveKey(ClientConfig config, string key, ConfigSaver? saveConfig, ClientStatus status, Action<string> log)
+    private static async Task<HostAttempt> TryHostAsync(HostEntry entry, CancellationToken ct)
     {
-        ClientConfig updated = config with { Key = key };
+        MessageConnection? connection = null;
+        try
+        {
+            (TcpClient? tcp, string? connectError) = await ConnectAsync(entry, ct);
+            if (tcp is null)
+            {
+                return new HostAttempt(null, connectError);
+            }
+
+            string address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
+            connection = MessageConnection.FromTcp(tcp);
+            HandshakeResult handshake = await Handshake.ClientAsync(connection, entry.Key, AppVersion.Current, ct);
+            if (handshake.Outcome == HandshakeOutcome.Accepted)
+            {
+                Candidate candidate = new Candidate(entry, connection, address, handshake.PeerVersion);
+                connection = null;
+                return new HostAttempt(candidate);
+            }
+
+            if (handshake.Outcome == HandshakeOutcome.ProtocolMismatch)
+            {
+                return new HostAttempt(null, $"Host {entry.Host} hat Version {handshake.PeerVersion} mit Protokoll {handshake.PeerProtocol}, "
+                    + $"dieser Client {AppVersion.Current} mit Protokoll {ProtocolVersion.Current}. Suche nach einem Update.", Mismatch: true);
+            }
+
+            // Falscher Schlüssel: wie ein nicht erreichbarer Host mit wachsendem Abstand neu versuchen, damit eine Korrektur
+            // in den Einstellungen oder in client.json ohne Neustart greift.
+            return new HostAttempt(null, $"Host {entry.Host} hat die Anmeldung abgelehnt oder sich nicht ausgewiesen; stimmt der Schlüssel?");
+        }
+        catch (OperationCanceledException)
+        {
+            return new HostAttempt(null);
+        }
+        finally
+        {
+            connection?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Speichert einen neuen Schlüssel, den der Host über die angemeldete Verbindung schickt, in dessen Eintrag. Direkt
+    /// mit <paramref name="saveConfig"/>, nicht über den Weg der Einstellungen: Der bräche die Verbindung ab, und die
+    /// neue Anmeldung käme beim Host an, bevor er den Schlüssel selbst gespeichert hat.
+    /// </summary>
+    private static string? SaveKey(ClientConfig config, HostEntry entry, string key, ConfigSaver? saveConfig, ClientStatus status, Action<string> log)
+    {
+        // Nach dem Eintrag selbst, nicht nach dem Namen: Derselbe PC darf zweimal stehen, etwa mit verschiedenen festen IPs.
+        int index = config.Hosts.ToList().FindIndex(h => ReferenceEquals(h, entry));
+        ClientConfig updated = new ClientConfig(config.Hosts.Select((h, i) => i == index ? h with { Key = key } : h).ToArray());
         string? error = saveConfig is null
             ? "Im Entwicklungsmodus mit --relay steht die Konfiguration fest."
-            : ClientConfigRules.Validate(updated.Host, updated.Ip, updated.Port, updated.Key) ?? saveConfig(updated);
+            : ClientConfigRules.Validate(updated.Hosts) ?? saveConfig(updated);
         if (error is null)
         {
             status.SetConfig(updated);
-            log("Neuen Schlüssel vom Host übernommen.");
+            log($"Neuen Schlüssel vom Host {entry.Host} übernommen.");
         }
         else
         {
-            log($"Neuen Schlüssel vom Host nicht übernommen: {error}");
+            log($"Neuen Schlüssel vom Host {entry.Host} nicht übernommen: {error}");
         }
         return error;
     }
+
+    /// <summary>Für das Protokoll, ohne Schlüssel.</summary>
+    private static string Describe(ClientConfig config) =>
+        string.Join("; ", config.Hosts.Select(h => $"Host {h.Host}, Port {h.Port}{(h.Ip is null ? "" : $", IP {h.Ip}")}"));
 
     /// <summary>
     /// Löst den Rechnernamen selbst auf und versucht die Adressen einzeln in der Reihenfolge von
     /// <see cref="HostAddresses.Order"/>, jede mit eigenem Zeitlimit. Mit dem Namen versuchte <c>ConnectAsync</c> sie
     /// nacheinander in einem gemeinsamen Zeitlimit; blieb eine IPv6-Adresse hängen, kam die IPv4-Adresse nie dran.
     /// </summary>
-    private static async Task<(TcpClient? Client, string? Error)> ConnectAsync(ClientConfig config, CancellationToken ct)
+    private static async Task<(TcpClient? Client, string? Error)> ConnectAsync(HostEntry entry, CancellationToken ct)
     {
-        (IPAddress[] resolved, string? error) = await ResolveAsync(config.Host, ct);
+        (IPAddress[] resolved, string? error) = await ResolveAsync(entry.Host, ct);
         // Ältere Setups ließen in "ip" auch einen Namen zu.
-        IPAddress[] fixedIps = config.Ip is null ? []
-            : IPAddress.TryParse(config.Ip, out IPAddress? parsed) ? [parsed]
-            : (await ResolveAsync(config.Ip, ct)).Addresses;
+        IPAddress[] fixedIps = entry.Ip is null ? []
+            : IPAddress.TryParse(entry.Ip, out IPAddress? parsed) ? [parsed]
+            : (await ResolveAsync(entry.Ip, ct)).Addresses;
 
         foreach (IPAddress address in HostAddresses.Order(resolved, fixedIps))
         {
@@ -214,16 +338,16 @@ internal static class ClientService
             timeout.CancelAfter(_connectTimeout);
             try
             {
-                await tcp.ConnectAsync(address, config.Port, timeout.Token);
+                await tcp.ConnectAsync(address, entry.Port, timeout.Token);
                 return (tcp, null);
             }
             catch (SocketException ex)
             {
-                error = $"Host {config.Host} ({address}:{config.Port}) nicht erreichbar ({ex.SocketErrorCode}).";
+                error = $"Host {entry.Host} ({address}:{entry.Port}) nicht erreichbar ({ex.SocketErrorCode}).";
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                error = $"Host {config.Host} ({address}:{config.Port}) antwortet nicht.";
+                error = $"Host {entry.Host} ({address}:{entry.Port}) antwortet nicht.";
             }
             catch (OperationCanceledException)
             {

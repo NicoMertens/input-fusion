@@ -2,7 +2,7 @@
 
 **Eine Maus, eine Tastatur, zwei Rechner.** InputFusion steuert mit Maus und Tastatur des PCs zusätzlich ein Notebook: Die Maus wandert einfach über den Bildschirmrand hinüber, und alles, was danach getippt und geklickt wird, landet auf dem Notebook. Kein Umstecken, kein KVM-Switch, keine zweite Tastatur auf dem Schreibtisch.
 
-InputFusion ist auf genau einen PC und ein Notebook zugeschnitten und richtet die Übergänge an einzelnen Monitoren aus statt an ganzen Rechnern.
+InputFusion ist auf einen PC und ein Notebook zugeschnitten und richtet die Übergänge an einzelnen Monitoren aus statt an ganzen Rechnern. Wechselt das Notebook zwischen zwei Schreibtischen, etwa zu Hause und im Büro, kennt es beide PCs und verbindet sich mit dem, der gerade erreichbar ist.
 
 ![Einstellungen auf dem PC: verbundenes Notebook, Port und Schlüssel](docs/bilder/einstellungen-pc.png)
 
@@ -14,7 +14,7 @@ InputFusion ist auf genau einen PC und ein Notebook zugeschnitten und richtet di
 - **Gemeinsame Zwischenablage.** Text, der auf dem einen Rechner kopiert wird, lässt sich auf dem anderen einfügen.
 - **Win+L sperrt beide Rechner.**
 - **Verschlüsselt und gegenseitig angemeldet.** Beide Seiten weisen sich mit einem gemeinsamen Schlüssel aus, der selbst nie über das Netz geht. Jede Verbindung wird per ECDH mit eigenem Schlüssel ausgehandelt und mit AES-GCM verschlüsselt; mitgeschnittener Verkehr bleibt auch dann unlesbar, wenn der Schlüssel später bekannt wird. Einen neuen Schlüssel übernimmt ein verbundenes Notebook von selbst.
-- **Findet den PC über seinen Namen.** Das Notebook verbindet sich über den Rechnernamen, per IPv4 oder IPv6, und nach Standby oder Netzwechsel von selbst neu.
+- **Findet den PC über seinen Namen.** Das Notebook verbindet sich über den Rechnernamen, per IPv4 oder IPv6, und nach Standby oder Netzwechsel von selbst neu. Mehrere PCs lassen sich eintragen; das Notebook versucht alle zugleich und nimmt den, der antwortet.
 - **Hält sich selbst aktuell.** PC und Notebook laden neue Versionen aus den GitHub-Releases und spielen sie ein, ohne die Arbeit zu unterbrechen.
 - **Sagt, was los ist.** Bricht die Verbindung ab, meldet das Tray-Symbol den Grund. Der Bereich Diagnose zeigt Laufzeit, Nachrichten pro Sekunde, die letzte Störung und die jüngsten Meldungen.
 - **Modernes Windows-11-Design**, hell oder dunkel nach der Windows-Einstellung.
@@ -36,7 +36,7 @@ Auf dem PC läuft InputFusion als Symbol im Infobereich der Taskleiste. Er fäng
 Beide Dateien gibt es im [neuesten Release](https://github.com/NicoMertens/input-fusion/releases/latest).
 
 1. **PC:** `InputFusion.Host-win-Setup.exe` ausführen. Beim ersten Start fragt InputFusion einmal nach Adminrechten, um künftig mit der Anmeldung zu starten und die Firewall zu öffnen. In den Einstellungen stehen danach PC-Name und Schlüssel.
-2. **Notebook:** `InputFusion.Client-Setup.exe` per Doppelklick starten, PC-Name und Schlüssel eingeben. Das Setup richtet den Dienst ein, die Verbindung steht sofort.
+2. **Notebook:** `InputFusion.Client-Setup.exe` per Doppelklick starten, PC-Name und Schlüssel eingeben, bei Bedarf auch für einen zweiten PC. Das Setup richtet den Dienst ein, die Verbindung steht sofort. Weitere PCs lassen sich später in den Einstellungen des Notebooks eintragen.
 3. Auf dem PC in den Einstellungen unter **Anordnung** das Notebook an die Kante ziehen, an der es auf dem Schreibtisch steht.
 
 Einzelheiten, auch zur Installation per Skript, unter [`docs/installation.md`](docs/installation.md).

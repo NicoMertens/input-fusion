@@ -24,4 +24,16 @@ public class ClientConfigRulesTests
     [InlineData("PC", null, 15111, "zu kurz")]
     public void Rejects(string host, string? ip, int port, string key) =>
         Assert.NotNull(ClientConfigRules.Validate(host, ip, port, key));
+
+    [Fact]
+    public void List_NeedsOneHost() =>
+        Assert.Equal("Bitte mindestens einen PC eintragen.", ClientConfigRules.Validate([]));
+
+    [Fact]
+    public void List_NamesFaultyHost()
+    {
+        Assert.Null(ClientConfigRules.Validate([new HostEntry("PC", Key), new HostEntry("BUERO-PC", Key)]));
+        Assert.Equal("Bitte den PC-Namen des Hosts angeben.", ClientConfigRules.Validate([new HostEntry("", Key)]));
+        Assert.Equal("2. PC: Bitte den PC-Namen des Hosts angeben.", ClientConfigRules.Validate([new HostEntry("PC", Key), new HostEntry("", Key)]));
+    }
 }
