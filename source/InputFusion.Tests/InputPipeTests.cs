@@ -99,13 +99,14 @@ public class InputPipeTests
 
         using MessageConnection serverConn = new MessageConnection(server);
         using MessageConnection clientConn = new MessageConnection(client);
-        ClientStateMessage state = new ClientStateMessage("0.5.0", "PC", null, 15111, null, false, false, null, null, "Host PC:15111 antwortet nicht.");
+        ClientStateMessage state = new ClientStateMessage("0.5.0", [], false, false, null, null, null, "Host PC:15111 antwortet nicht.");
         await serverConn.SendAsync(MessageType.Settings, state.ToPayload(), cts.Token);
 
         await foreach ((MessageType type, byte[] payload) in clientConn.ReceiveAsync(cts.Token))
         {
             Assert.Equal(MessageType.Settings, type);
-            Assert.Equal(state, SettingsMessage.FromPayload(payload));
+            ClientStateMessage back = Assert.IsType<ClientStateMessage>(SettingsMessage.FromPayload(payload));
+            Assert.Equal(state, back with { Hosts = state.Hosts });
             break;
         }
     }

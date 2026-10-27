@@ -1,3 +1,4 @@
+﻿using InputFusion.Core.Config;
 using InputFusion.Core.Diagnostics;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Net;
@@ -13,7 +14,7 @@ namespace InputFusion.Client;
 internal sealed class ClientStatus
 {
     private readonly Lock _lock = new();
-    private ClientStateMessage _state = new(AppVersion.Current, null, null, Ports.Input, null, false, false, null, null, null);
+    private ClientStateMessage _state = new(AppVersion.Current, [], false, false, null, null, null, null);
     private ClientConfig? _config;
     // Nur für die Diagnose: die Verbindung zum Host, seit wann sie steht, und die letzte Störung.
     private MessageConnection? _connection;
@@ -64,10 +65,7 @@ internal sealed class ClientStatus
         {
             return _state with
             {
-                Host = _config?.Host,
-                Ip = _config?.Ip,
-                Port = _config?.Port ?? Ports.Input,
-                Key = administrator ? _config?.Key : null,
+                Hosts = _config?.Hosts.Select(h => administrator ? h : h with { Key = "" }).ToArray() ?? [],
                 CanEdit = canEdit,
             };
         }

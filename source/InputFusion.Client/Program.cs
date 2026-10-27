@@ -1,4 +1,5 @@
 ﻿using InputFusion.Client;
+using InputFusion.Core.Config;
 using InputFusion.Core.Net;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Logging.EventLog;
@@ -33,7 +34,7 @@ if (args is ["--relay", var relayHost, "--key", var relayKey, .. var relayRest])
     int relayPort = PortArgument(relayRest);
     using CancellationTokenSource cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
-    ClientService.ConfigLoader fixedHost = (out string? error) => { error = null; return new ClientConfig(relayHost, relayKey, Port: relayPort); };
+    ClientService.ConfigLoader fixedHost = (out string? error) => { error = null; return new ClientConfig([new HostEntry(relayHost, relayKey, Port: relayPort)]); };
     await ClientService.RunAsync(fixedHost, saveConfig: null, asService: false, Console.WriteLine, cts.Token);
     return;
 }

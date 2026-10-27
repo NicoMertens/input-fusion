@@ -12,7 +12,7 @@ namespace InputFusion.Client;
 
 /// <summary>
 /// Die exe installiert sich selbst, wenn sie per Doppelklick außerhalb des Installationsordners startet: erst eine
-/// Nachfrage, dann per UAC erhöht neu starten, PC-Name, Schlüssel, IP und Port abfragen und dasselbe tun wie
+/// Nachfrage, dann per UAC erhöht neu starten, je PC Name, Schlüssel, IP und Port abfragen und dasselbe tun wie
 /// <c>build/install-client.ps1</c>. Dateien nach <see cref="ClientUpdater.InstallDirectory"/> (nur Administratoren
 /// schreiben dort, wichtig, weil der Dienst die exe als SYSTEM ausführt), <c>client.json</c> mit ACL nur für SYSTEM
 /// und Administratoren, Dienst anlegen und starten.
@@ -63,22 +63,24 @@ internal static class ClientSetup
     {
         try
         {
-            ClientConfig? existing = ClientConfig.Load(out _);
-            if (existing is not null)
+            IReadOnlyList<HostEntry> existing = ClientConfigFile.Load(out _)?.Hosts ?? [];
+            if (existing.Count > 0)
             {
-                Console.WriteLine($"Vorhandene Konfiguration: {ClientConfig.FilePath}. Enter übernimmt den Wert in Klammern.");
+                Console.WriteLine($"Vorhandene Konfiguration: {ClientConfigFile.FilePath}. Enter übernimmt den Wert in Klammern.");
             }
 
-            Console.WriteLine();
-            string host = Ask("PC-Name des Hosts (in dessen Einstellungen, Reiter Verbindung)", existing?.Host, value => value.Length > 0 ? null : "Bitte einen Namen angeben.");
-            string key = Ask("Schlüssel", existing?.Key, HostConfig.ValidateKey);
-            string ip = Ask("Feste IP des Hosts, optional", existing?.Ip ?? "", _ => null);
-            string portText = Ask("Port (wie beim Host, Reiter Verbindung)", (existing?.Port ?? Ports.Input).ToString(CultureInfo.InvariantCulture),
-                value => Ports.Validate(value, out _));
-            Ports.Validate(portText, out int port);
+            // Mehrere PCs, etwa zu Hause und im Büro; der Dienst verbindet sich mit dem, der gerade erreichbar ist.
+            List<HostEntry> hosts = [];
+            do
+            {
+                Console.WriteLine();
+                Console.WriteLine($"{hosts.Count + 1}. PC");
+                hosts.Add(AskHost(hosts.Count < existing.Count ? existing[hosts.Count] : null));
+            }
+            while (AskYes("Weiteren PC eintragen, etwa für ein anderes Netz?", defaultYes: hosts.Count < existing.Count));
             Console.WriteLine();
 
-            Install(new ClientConfig(host, key, ip.Length == 0 ? null : ip, port));
+            Install(new ClientConfig(hosts));
             Console.WriteLine();
             Console.WriteLine("Fertig. Der Dienst läuft und verbindet sich mit dem Host; Updates holt er sich selbst.");
             Console.WriteLine("Protokoll: Ereignisanzeige > Windows-Protokolle > Anwendung, Quelle InputFusion.Client.");
@@ -93,6 +95,17 @@ internal static class ClientSetup
             WaitForKey();
             return 1;
         }
+    }
+
+    private static HostEntry AskHost(HostEntry? existing)
+    {
+        string host = Ask("PC-Name des Hosts (in dessen Einstellungen, Reiter Verbindung)", existing?.Host, value => value.Length > 0 ? null : "Bitte einen Namen angeben.");
+        string key = Ask("Schlüssel", existing?.Key, HostConfig.ValidateKey);
+        string ip = Ask("Feste IP des Hosts, optional", existing?.Ip ?? "", _ => null);
+        string portText = Ask("Port (wie beim Host, Reiter Verbindung)", (existing?.Port ?? Ports.Input).ToString(CultureInfo.InvariantCulture),
+            value => Ports.Validate(value, out _));
+        Ports.Validate(portText, out int port);
+        return new HostEntry(host, key, ip.Length == 0 ? null : ip, port);
     }
 
     private static void Install(ClientConfig config)
@@ -126,8 +139,8 @@ internal static class ClientSetup
             File.Copy(Environment.ProcessPath!, Path.Combine(target, UpdateApplier.ExeName));
         }
 
-        Console.WriteLine($"Schreibe {ClientConfig.FilePath} …");
-        if (ClientConfig.Save(config) is { } saveError)
+        Console.WriteLine($"Schreibe {ClientConfigFile.FilePath} …");
+        if (ClientConfigFile.Save(config) is { } saveError)
         {
             throw new IOException(saveError);
         }
@@ -179,11 +192,12 @@ internal static class ClientSetup
         return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
     }
 
-    private static bool AskYes(string question)
+    private static bool AskYes(string question, bool defaultYes = true)
     {
-        Console.Write($"{question} [J/n] ");
+        Console.Write($"{question} {(defaultYes ? "[J/n]" : "[j/N]")} ");
         string answer = (Console.ReadLine() ?? "").Trim();
-        return answer.Length == 0 || answer.StartsWith('j') || answer.StartsWith('J') || answer.StartsWith('y') || answer.StartsWith('Y');
+        return answer.Length == 0 ? defaultYes
+            : answer.StartsWith('j') || answer.StartsWith('J') || answer.StartsWith('y') || answer.StartsWith('Y');
     }
 
     /// <summary>Fragt, bis <paramref name="validate"/> nichts mehr auszusetzen hat. Enter übernimmt den Vorschlag.</summary>

@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using InputFusion.Core.Config;
 using InputFusion.Core.Ipc;
 using InputFusion.Core.Layout;
 using InputFusion.Core.Protocol;
@@ -41,11 +42,15 @@ public class SettingsMessagesTests
     [Fact]
     public void ClientState_RoundTrip()
     {
-        SettingsMessage message = new ClientStateMessage("0.5.0", "PC", "192.168.1.10", 15111, "abcdefghijkmnpqr", true, true, "192.168.1.10", "0.5.0", null);
+        HostEntry home = new HostEntry("PC", "abcdefghijkmnpqr", "192.168.1.10");
+        HostEntry office = new HostEntry("BUERO-PC", "zyxwvutsrqpnmkjh", Port: 15112);
+        ClientStateMessage message = new ClientStateMessage("0.5.0", [home, office], true, true, "PC", "192.168.1.10", "0.5.0", null);
 
         ClientStateMessage back = Assert.IsType<ClientStateMessage>(SettingsMessage.FromPayload(message.ToPayload()));
 
-        Assert.Equal(message, back);
+        Assert.Equal([home, office], back.Hosts);
+        // Die Liste vergleicht der Record nur als Verweis.
+        Assert.Equal(message, back with { Hosts = message.Hosts });
     }
 
     [Fact]
@@ -53,7 +58,7 @@ public class SettingsMessagesTests
     {
         MonitorRect host = new MonitorRect(0, 0, 2560, 1440, 96, "H1");
         MonitorRect client = new MonitorRect(0, 0, 1920, 1200, 144, "N1");
-        SettingsMessage message = new ClientStateMessage("0.8.0", "PC", null, 15111, null, false, true, "192.168.1.10", "0.8.0", null,
+        SettingsMessage message = new ClientStateMessage("0.8.0", [new HostEntry("PC", "")], false, true, "PC", "192.168.1.10", "0.8.0", null,
             new ClientArrangement([host], [client], 2560, 0));
 
         ClientStateMessage back = Assert.IsType<ClientStateMessage>(SettingsMessage.FromPayload(message.ToPayload()));
@@ -82,12 +87,16 @@ public class SettingsMessagesTests
 
     [Theory]
     [InlineData(true, "PC", null, "Verbunden mit PC (192.168.1.10), Host-Version 0.5.0.")]
+    [InlineData(true, "PC,BUERO", null, "Verbunden mit PC (192.168.1.10), Host-Version 0.5.0.")]
     [InlineData(false, "PC", "Host PC:15111 nicht erreichbar (TimedOut).", "Nicht verbunden mit PC. Host PC:15111 nicht erreichbar (TimedOut).")]
-    [InlineData(false, null, null, "Nicht eingerichtet.")]
-    public void ClientState_Summary(bool connected, string? host, string? problem, string expected)
+    [InlineData(false, "PC,BUERO", null, "Nicht verbunden mit PC oder BUERO.")]
+    [InlineData(false, "PC,BUERO,LABOR", null, "Nicht verbunden mit PC, BUERO oder LABOR.")]
+    [InlineData(false, "", null, "Nicht eingerichtet.")]
+    public void ClientState_Summary(bool connected, string hosts, string? problem, string expected)
     {
-        ClientStateMessage state = new ClientStateMessage("0.5.0", host, null, 15111, null, false, connected,
-            connected ? "192.168.1.10" : null, connected ? "0.5.0" : null, problem);
+        HostEntry[] entries = hosts.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(h => new HostEntry(h, "")).ToArray();
+        ClientStateMessage state = new ClientStateMessage("0.5.0", entries, false, connected,
+            connected ? entries[0].Host : null, connected ? "192.168.1.10" : null, connected ? "0.5.0" : null, problem);
 
         Assert.Equal(expected, state.Summary());
     }
@@ -99,8 +108,8 @@ public class SettingsMessagesTests
         Assert.Contains("\"type\":\"setKey\"", json);
         Assert.Equal(new SetPortRequest(15112), SettingsMessage.FromPayload(new SetPortRequest(15112).ToPayload()));
         Assert.IsType<SetClientOffsetRequest>(SettingsMessage.FromPayload(new SetClientOffsetRequest(1, 2).ToPayload()));
-        SetClientConfigRequest config = new SetClientConfigRequest("PC", null, 15111, "abcdefghijkmnpqr");
-        Assert.Equal(config, SettingsMessage.FromPayload(config.ToPayload()));
+        SetClientConfigRequest config = new SetClientConfigRequest([new HostEntry("PC", "abcdefghijkmnpqr"), new HostEntry("BUERO", "zyxwvutsrqpnmkjh", "10.0.0.5")]);
+        Assert.Equal(config.Hosts, Assert.IsType<SetClientConfigRequest>(SettingsMessage.FromPayload(config.ToPayload())).Hosts);
         Assert.IsType<CheckForUpdatesRequest>(SettingsMessage.FromPayload(new CheckForUpdatesRequest().ToPayload()));
         UpdateCheckResult result = new UpdateCheckResult("InputFusion Client 0.6.0 ist aktuell.");
         Assert.Equal(result, SettingsMessage.FromPayload(result.ToPayload()));
