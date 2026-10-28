@@ -14,12 +14,12 @@ public sealed class InputDispatcher(InputPlayer player)
 {
     // Zwischen SwitchToClient und dem Austritt bzw. SwitchToHost. Nur dann wird ein Austritt gemeldet,
     // damit Bewegungen, die nach dem Austritt noch unterwegs sind, ihn nicht ein zweites Mal auslösen.
-    private bool _active;
+    private Boolean _active;
     private ReturnEdge[] _returnEdges = [];
 
     /// <summary>Spielt die Nachricht ab. Erreicht der Cursor dabei eine Rückkehrkante, kommt der Austritt zurück;
     /// der Aufrufer meldet ihn dann als <see cref="MessageType.SwitchBackRequest"/> an den Host.</summary>
-    public SwitchBackRequest? Dispatch(MessageType type, byte[] payload)
+    public SwitchBackRequest? Dispatch(MessageType type, Byte[] payload)
     {
         switch (type)
         {
@@ -65,7 +65,7 @@ public sealed class InputDispatcher(InputPlayer player)
 
     /// <summary>Windows hält den Cursor an der Monitorkante fest; steht er auf einer Rückkehrkante und drückt nach
     /// außen, ist der Austritt fällig.</summary>
-    private SwitchBackRequest? TryExit(int dx, int dy)
+    private SwitchBackRequest? TryExit(Int32 dx, Int32 dy)
     {
         if (!_active || !PInvoke.GetCursorPos(out Point cursor))
         {

@@ -14,7 +14,7 @@ public class MonitorLayoutTests
     [Fact]
     public void DefaultOffset_PlacesClientRightOfRightmostHostMonitor_TopAligned()
     {
-        (int x, int y) = MonitorLayout.DefaultOffset(_host, _client);
+        (Int32 x, Int32 y) = MonitorLayout.DefaultOffset(_host, _client);
         Assert.Equal(_hostRight.Right, x);
         Assert.Equal(_hostRight.Top, y);
     }
@@ -48,8 +48,8 @@ public class MonitorLayoutTests
         MonitorLayout layout = new MonitorLayout(_host, _client, _hostRight.Right, -200);
 
         // Cursor bei x = Rand − 3 auf Höhe 500, Bewegung um 10 nach rechts.
-        int x = _hostRight.Right - 3 + 10;
-        Assert.True(layout.TryLeaveHost(x, 500, 10, 0, out EdgeTransition t, out (int X, int Y) entry));
+        Int32 x = _hostRight.Right - 3 + 10;
+        Assert.True(layout.TryLeaveHost(x, 500, 10, 0, out EdgeTransition t, out (Int32 X, Int32 Y) entry));
         Assert.Equal(EdgeSide.Right, t.Side);
         Assert.Equal((0, 700), entry);
     }
@@ -73,7 +73,7 @@ public class MonitorLayoutTests
     {
         // Windows hat die Zielposition auf den Rand geklemmt: Ereignis ohne Bewegung auf dem Randpixel.
         MonitorLayout layout = new MonitorLayout(_host, _client, _hostRight.Right, -200);
-        Assert.True(layout.TryLeaveHost(_hostRight.Right - 1, 500, 0, 0, out _, out (int X, int Y) entry));
+        Assert.True(layout.TryLeaveHost(_hostRight.Right - 1, 500, 0, 0, out _, out (Int32 X, Int32 Y) entry));
         Assert.Equal((0, 700), entry);
     }
 
@@ -90,7 +90,7 @@ public class MonitorLayoutTests
         // Notebook über dem linken Host-Monitor, links bündig.
         MonitorLayout layout = new MonitorLayout(_host, _client, 0, -1200);
 
-        Assert.True(layout.TryLeaveHost(300, -4, 0, -4, out EdgeTransition t, out (int X, int Y) entry));
+        Assert.True(layout.TryLeaveHost(300, -4, 0, -4, out EdgeTransition t, out (Int32 X, Int32 Y) entry));
         Assert.Equal(EdgeSide.Top, t.Side);
         Assert.Equal((300, 1199), entry);
     }
@@ -100,7 +100,7 @@ public class MonitorLayoutTests
     {
         MonitorLayout layout = new MonitorLayout(_host, _client, _hostRight.Right, -200);
 
-        Assert.True(layout.TryReturn(EdgeSide.Left, 0, 700, out (int X, int Y) hostPoint));
+        Assert.True(layout.TryReturn(EdgeSide.Left, 0, 700, out (Int32 X, Int32 Y) hostPoint));
         Assert.Equal((_hostRight.Right - 1 - MonitorLayout.ReturnInset, 500), hostPoint);
     }
 
@@ -116,19 +116,19 @@ public class MonitorLayoutTests
     {
         MonitorLayout layout = new MonitorLayout(_host, _client, 0, _hostLeft.Bottom);
 
-        Assert.True(layout.TryLeaveHost(800, _hostLeft.Bottom - 1, 0, 3, out _, out (int X, int Y) entry));
+        Assert.True(layout.TryLeaveHost(800, _hostLeft.Bottom - 1, 0, 3, out _, out (Int32 X, Int32 Y) entry));
         Assert.Equal((800, 0), entry);
 
         ReturnEdge? edge = ReturnEdge.Find(layout.ReturnEdges, entry.X, entry.Y, 0, -1);
         Assert.NotNull(edge);
-        Assert.True(layout.TryReturn(edge.Value.Side, entry.X, entry.Y, out (int X, int Y) back));
+        Assert.True(layout.TryReturn(edge.Value.Side, entry.X, entry.Y, out (Int32 X, Int32 Y) back));
         Assert.Equal((800, _hostLeft.Bottom - 1 - MonitorLayout.ReturnInset), back);
     }
 
     [Fact]
     public void Snap_FromFarAway_LandsAdjacentWithoutOverlap()
     {
-        (int x, int y) = MonitorLayout.Snap(_host, _client, 9000, 300);
+        (Int32 x, Int32 y) = MonitorLayout.Snap(_host, _client, 9000, 300);
         MonitorLayout layout = new MonitorLayout(_host, _client, x, y);
 
         Assert.Equal(_hostRight.Right, x);
@@ -139,7 +139,7 @@ public class MonitorLayoutTests
     public void Snap_OnTopOfHost_PushesToNearestEdge()
     {
         // Wunsch mitten auf dem linken Host-Monitor, etwas nach oben versetzt: am nächsten ist die Lage darüber.
-        (int x, int y) = MonitorLayout.Snap(_host, _client, 0, -300);
+        (Int32 x, Int32 y) = MonitorLayout.Snap(_host, _client, 0, -300);
         MonitorLayout layout = new MonitorLayout(_host, _client, x, y);
 
         Assert.True(layout.IsValid);
@@ -149,7 +149,7 @@ public class MonitorLayoutTests
     [Fact]
     public void Snap_NearlyAligned_SnapsFlush()
     {
-        (int _, int y) = MonitorLayout.Snap(_host, _client, _hostRight.Right, _hostRight.Top + 25);
+        (Int32 _, Int32 y) = MonitorLayout.Snap(_host, _client, _hostRight.Right, _hostRight.Top + 25);
         Assert.Equal(_hostRight.Top, y);
     }
 
@@ -157,7 +157,7 @@ public class MonitorLayoutTests
     public void Snap_KeepsMinimumOverlap()
     {
         // Gewünscht rechts neben dem linken Host-Monitor, aber fast ganz darunter.
-        (int x, int y) = MonitorLayout.Snap([_hostLeft], _client, 2500, 1100);
+        (Int32 x, Int32 y) = MonitorLayout.Snap([_hostLeft], _client, 2500, 1100);
         Assert.Equal(_hostLeft.Right, x);
         Assert.Equal(_hostLeft.Bottom - MonitorLayout.MinOverlap, y);
     }
@@ -182,7 +182,7 @@ public class MonitorLayoutTests
     [InlineData(EdgeSide.Left, 1, 100, -1, 0, false)]
     [InlineData(EdgeSide.Left, 0, 300, -1, 0, false)]
     [InlineData(EdgeSide.Bottom, 50, 1199, 0, 1, true)]
-    public void ReturnEdge_IsHit(EdgeSide side, int x, int y, int dx, int dy, bool expected)
+    public void ReturnEdge_IsHit(EdgeSide side, Int32 x, Int32 y, Int32 dx, Int32 dy, Boolean expected)
     {
         ReturnEdge edge = side == EdgeSide.Left ? new ReturnEdge(side, 0, 0, 240) : new ReturnEdge(side, 1199, 0, 1920);
         Assert.Equal(expected, edge.IsHit(x, y, dx, dy));

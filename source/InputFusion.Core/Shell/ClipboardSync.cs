@@ -7,32 +7,32 @@ namespace InputFusion.Core.Shell;
 /// geändert hat; was von der Gegenseite kam, geht nicht wieder zurück. Ohne Text wird nichts gesendet, die Gegenseite
 /// behält dann ihren. Threadsicher.
 /// </summary>
-public sealed class ClipboardSync(Action<string> log)
+public sealed class ClipboardSync(Action<String> log)
 {
     private readonly Lock _lock = new();
     private readonly ClipboardAssembler _assembler = new();
     // 0 kommt als Stand nicht vor; beim ersten Wechsel geht der vorhandene Text also mit.
-    private uint _synced;
+    private UInt32 _synced;
 
     /// <summary>Die Stücke für die Gegenseite, leer, wenn es nichts zu senden gibt.</summary>
-    public IReadOnlyList<byte[]> TakeChanged()
+    public IReadOnlyList<Byte[]> TakeChanged()
     {
         lock (_lock)
         {
-            uint sequence = ClipboardText.SequenceNumber;
+            UInt32 sequence = ClipboardText.SequenceNumber;
             if (sequence == _synced)
             {
                 return [];
             }
 
-            if (!ClipboardText.TryRead(out string? text))
+            if (!ClipboardText.TryRead(out String? text))
             {
                 log("Zwischenablage ließ sich nicht lesen, sie bleibt diesmal auf diesem Rechner.");
                 return [];
             }
 
             _synced = sequence;
-            if (string.IsNullOrEmpty(text))
+            if (String.IsNullOrEmpty(text))
             {
                 return [];
             }
@@ -47,7 +47,7 @@ public sealed class ClipboardSync(Action<string> log)
     }
 
     /// <summary>Nimmt ein Stück der Gegenseite an und schreibt den Text, sobald er vollständig ist.</summary>
-    public void Receive(ReadOnlySpan<byte> chunk)
+    public void Receive(ReadOnlySpan<Byte> chunk)
     {
         lock (_lock)
         {

@@ -10,14 +10,14 @@ namespace InputFusion.Settings;
 
 public partial class App : Application
 {
-    private const string InstanceMutexName = @"Local\InputFusion.Settings";
-    private const string ClientExeName = "InputFusion.Client.exe";
+    private const String InstanceMutexName = @"Local\InputFusion.Settings";
+    private const String ClientExeName = "InputFusion.Client.exe";
 
     private Mutex? _instance;
 
-    private void OnStartup(object sender, StartupEventArgs e)
+    private void OnStartup(Object sender, StartupEventArgs e)
     {
-        _instance = new Mutex(initiallyOwned: true, InstanceMutexName, out bool first);
+        _instance = new Mutex(initiallyOwned: true, InstanceMutexName, out Boolean first);
         if (!first)
         {
             BringExistingToFront();
@@ -40,7 +40,7 @@ public partial class App : Application
     /// Prozess nur dieses Fenster nach vorn; lehnt der Benutzer ab, nimmt diese Instanz sie wieder.
     /// </summary>
     /// <returns>Ob der neue Prozess gestartet ist; dann schließt der Aufrufer sein Fenster.</returns>
-    public bool RestartElevated(string argument)
+    public Boolean RestartElevated(String argument)
     {
         _instance?.ReleaseMutex();
         _instance?.Dispose();
@@ -62,14 +62,14 @@ public partial class App : Application
     /// Die Seite ergibt sich aus der laufenden Pipe: die des Agents auf dem PC, die des Dienstes auf dem Notebook. Läuft
     /// keins von beiden, entscheidet der Ordner: Auf dem Notebook liegt die Oberfläche neben der Client-exe.
     /// </summary>
-    private static bool IsClientSide(string[] args)
+    private static Boolean IsClientSide(String[] args)
     {
         if (args.Contains(SettingsLauncher.ClientArgument))
         {
             return true;
         }
 
-        HashSet<string> pipes = Directory.EnumerateFiles(@"\\.\pipe\").Select(Path.GetFileName).OfType<string>()
+        HashSet<String> pipes = Directory.EnumerateFiles(@"\\.\pipe\").Select(Path.GetFileName).OfType<String>()
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (pipes.Contains(SettingsPipe.Name))
         {
@@ -103,14 +103,14 @@ public partial class App : Application
         }
     }
 
-    private const int SwRestore = 9;
+    private const Int32 SwRestore = 9;
 
     [DllImport("user32.dll")]
-    private static extern bool SetForegroundWindow(nint hwnd);
+    private static extern Boolean SetForegroundWindow(IntPtr hwnd);
 
     [DllImport("user32.dll")]
-    private static extern bool ShowWindow(nint hwnd, int command);
+    private static extern Boolean ShowWindow(IntPtr hwnd, Int32 command);
 
     [DllImport("user32.dll")]
-    private static extern bool IsIconic(nint hwnd);
+    private static extern Boolean IsIconic(IntPtr hwnd);
 }

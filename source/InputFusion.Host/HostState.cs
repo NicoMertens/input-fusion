@@ -21,19 +21,19 @@ internal sealed class HostState(HostConfig config)
     private static readonly TimeSpan _keyTransferTimeout = TimeSpan.FromSeconds(5);
 
     private readonly Lock _lock = new();
-    private string? _pendingKey;
-    private string? _keyStatus;
+    private String? _pendingKey;
+    private String? _keyStatus;
     private IReadOnlyList<MonitorRect> _hostMonitors = MonitorEnumerator.GetMonitors();
-    private string? _clientAddress;
-    private string _clientVersion = "";
+    private String? _clientAddress;
+    private String _clientVersion = "";
     private IReadOnlyList<MonitorRect> _clientMonitors = [];
     private ClientInfo? _clientInfo;
     private MonitorLayout? _layout;
-    private bool _isRemote;
+    private Boolean _isRemote;
     // Nur für die Diagnose: die Verbindung zum Client, seit wann sie steht, und die letzte Störung.
     private MessageConnection? _connection;
     private DateTimeOffset? _connectedSince;
-    private string? _lastError;
+    private String? _lastError;
     private DateTimeOffset? _lastErrorAt;
 
     /// <summary>Irgendetwas hat sich geändert; die Einstellungen und der Tray holen sich den neuen Stand.</summary>
@@ -43,16 +43,16 @@ internal sealed class HostState(HostConfig config)
     public event Action<MonitorLayout?>? LayoutChanged;
 
     /// <summary>Der Port wurde geändert; der Listener lauscht neu, die Firewall-Regel zieht nach.</summary>
-    public event Action<int>? PortChanged;
+    public event Action<Int32>? PortChanged;
 
     /// <summary>Ein neuer Schlüssel soll an den verbundenen Client; die Verbindung schickt ihn.</summary>
-    public event Action<string>? KeyTransferRequested;
+    public event Action<String>? KeyTransferRequested;
 
     /// <summary>Ein Client mit anderer Protokollversion hat sich gemeldet; vielleicht ist der Host der ältere.</summary>
     public event Action? ProtocolMismatch;
 
     /// <summary>Die Maus ist gerade auf dem Notebook; solange wird kein Update eingespielt.</summary>
-    public bool IsRemote
+    public Boolean IsRemote
     {
         get => Volatile.Read(ref _isRemote);
         set => Volatile.Write(ref _isRemote, value);
@@ -61,7 +61,7 @@ internal sealed class HostState(HostConfig config)
     /// <summary>Null, solange kein Client seine Monitore gemeldet hat.</summary>
     public MonitorLayout? Layout => Volatile.Read(ref _layout);
 
-    public string Key
+    public String Key
     {
         get
         {
@@ -72,7 +72,7 @@ internal sealed class HostState(HostConfig config)
         }
     }
 
-    public int Port
+    public Int32 Port
     {
         get
         {
@@ -83,7 +83,7 @@ internal sealed class HostState(HostConfig config)
         }
     }
 
-    public string StatusText
+    public String StatusText
     {
         get
         {
@@ -101,15 +101,15 @@ internal sealed class HostState(HostConfig config)
     /// Client geht er erst an ihn und wird gespeichert, wenn er ihn übernommen hat (<see cref="KeyTransferred"/>); sonst
     /// sperrte sich das Notebook aus, wenn es ihn nicht speichern kann.
     /// </summary>
-    public string? SetKey(string key)
+    public String? SetKey(String key)
     {
-        string? error = HostConfig.ValidateKey(key);
+        String? error = HostConfig.ValidateKey(key);
         if (error is not null)
         {
             return error;
         }
 
-        bool transfer;
+        Boolean transfer;
         lock (_lock)
         {
             if (_pendingKey is not null)
@@ -150,9 +150,9 @@ internal sealed class HostState(HostConfig config)
     }
 
     /// <summary>Antwort des Clients auf den neuen Schlüssel: null, wenn er ihn gespeichert hat, sonst der Grund.</summary>
-    public void KeyTransferred(string? error)
+    public void KeyTransferred(String? error)
     {
-        string? key;
+        String? key;
         lock (_lock)
         {
             key = _pendingKey;
@@ -177,7 +177,7 @@ internal sealed class HostState(HostConfig config)
     /// Ohne Antwort trotzdem speichern: Ein älterer Client versteht die Nachricht nicht, und der Nutzer will den Schlüssel
     /// ändern. Dann muss er auf dem Notebook von Hand nachgetragen werden, wie vor der Übertragung.
     /// </summary>
-    private async Task FinishKeyTransferLaterAsync(string key)
+    private async Task FinishKeyTransferLaterAsync(String key)
     {
         await Task.Delay(_keyTransferTimeout);
         FinishKeyTransfer(key, commit: true,
@@ -185,7 +185,7 @@ internal sealed class HostState(HostConfig config)
     }
 
     /// <summary>Nur für die Übertragung von <paramref name="key"/>; ist sie schon beendet, bleibt alles, wie es ist.</summary>
-    private void FinishKeyTransfer(string key, bool commit, string status)
+    private void FinishKeyTransfer(String key, Boolean commit, String status)
     {
         lock (_lock)
         {
@@ -210,9 +210,9 @@ internal sealed class HostState(HostConfig config)
     /// Null bei Erfolg, sonst der Grund der Ablehnung. Der Listener zieht sofort um, eine bestehende Verbindung bleibt.
     /// Vorher kurz binden: Ein belegter Port fiele sonst erst im Protokoll auf, und das Notebook fände den Host nicht mehr.
     /// </summary>
-    public string? SetPort(int port)
+    public String? SetPort(Int32 port)
     {
-        string? error = Ports.Validate(port);
+        String? error = Ports.Validate(port);
         if (error is not null)
         {
             return error;
@@ -264,7 +264,7 @@ internal sealed class HostState(HostConfig config)
         RebuildLayout();
     }
 
-    public void ClientConnected(string address, string version, MessageConnection connection)
+    public void ClientConnected(String address, String version, MessageConnection connection)
     {
         lock (_lock)
         {
@@ -314,7 +314,7 @@ internal sealed class HostState(HostConfig config)
     public void ReportProtocolMismatch() => ProtocolMismatch?.Invoke();
 
     /// <summary>Merkt sich die Störung für die Diagnose; ins Protokoll schreibt sie der Aufrufer.</summary>
-    public void ReportError(string message)
+    public void ReportError(String message)
     {
         lock (_lock)
         {
@@ -335,7 +335,7 @@ internal sealed class HostState(HostConfig config)
 
     public void ClientDisconnected()
     {
-        string? pendingKey;
+        String? pendingKey;
         lock (_lock)
         {
             _connection = null;
@@ -357,7 +357,7 @@ internal sealed class HostState(HostConfig config)
     }
 
     /// <summary>Verschiebt die Client-Gruppe, rastet sie ein und speichert die Lage für diese Monitor-Kombination.</summary>
-    public string? SetClientOffset(int offsetX, int offsetY)
+    public String? SetClientOffset(Int32 offsetX, Int32 offsetY)
     {
         MonitorLayout layout;
         lock (_lock)
@@ -367,14 +367,14 @@ internal sealed class HostState(HostConfig config)
                 return "Kein Client mit Monitoren verbunden.";
             }
 
-            (int x, int y) = MonitorLayout.Snap(_hostMonitors, _clientMonitors, offsetX, offsetY);
+            (Int32 x, Int32 y) = MonitorLayout.Snap(_hostMonitors, _clientMonitors, offsetX, offsetY);
             layout = new MonitorLayout(_hostMonitors, _clientMonitors, x, y);
             if (!layout.IsValid)
             {
                 return "An dieser Stelle grenzt kein Client-Monitor an einen eigenen Monitor.";
             }
 
-            string combination = MonitorLayout.CombinationKey(_hostMonitors, _clientMonitors);
+            String combination = MonitorLayout.CombinationKey(_hostMonitors, _clientMonitors);
             config.Layouts.RemoveAll(l => l.Combination == combination);
             config.Layouts.Add(new SavedLayout(combination, x, y));
             config.Save();
@@ -407,7 +407,7 @@ internal sealed class HostState(HostConfig config)
         {
             if (_clientMonitors.Count > 0 && _hostMonitors.Count > 0)
             {
-                string combination = MonitorLayout.CombinationKey(_hostMonitors, _clientMonitors);
+                String combination = MonitorLayout.CombinationKey(_hostMonitors, _clientMonitors);
                 SavedLayout? saved = config.Layouts.FirstOrDefault(l => l.Combination == combination);
                 if (saved is not null)
                 {
@@ -416,7 +416,7 @@ internal sealed class HostState(HostConfig config)
 
                 if (layout is not { IsValid: true })
                 {
-                    (int x, int y) = MonitorLayout.DefaultOffset(_hostMonitors, _clientMonitors);
+                    (Int32 x, Int32 y) = MonitorLayout.DefaultOffset(_hostMonitors, _clientMonitors);
                     layout = new MonitorLayout(_hostMonitors, _clientMonitors, x, y);
                 }
             }
@@ -427,7 +427,7 @@ internal sealed class HostState(HostConfig config)
     }
 
     /// <summary>Die IPv4-Adressen aller aktiven Netzwerkkarten außer Loopback, für die Anzeige in den Einstellungen.</summary>
-    private static string[] Addresses() =>
+    private static String[] Addresses() =>
         NetworkInterface.GetAllNetworkInterfaces()
             .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
             .SelectMany(n => n.GetIPProperties().UnicastAddresses)
@@ -436,6 +436,6 @@ internal sealed class HostState(HostConfig config)
             .Distinct()
             .ToArray();
 
-    private static string Describe(IReadOnlyList<MonitorRect> monitors) =>
-        string.Join(", ", monitors.Select(m => $"{m.Width}×{m.Height} bei ({m.X}, {m.Y}), {m.Dpi} DPI"));
+    private static String Describe(IReadOnlyList<MonitorRect> monitors) =>
+        String.Join(", ", monitors.Select(m => $"{m.Width}×{m.Height} bei ({m.X}, {m.Y}), {m.Dpi} DPI"));
 }

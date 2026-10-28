@@ -20,7 +20,7 @@ public static unsafe class PipeIdentity
     /// <exception cref="UnauthorizedAccessException">Der Server läuft unter keinem der erlaubten Konten.</exception>
     public static void VerifyServer(NamedPipeClientStream pipe, params SecurityIdentifier?[] allowed)
     {
-        uint pid;
+        UInt32 pid;
         SecurityIdentifier? server = null;
         if (PInvoke.GetNamedPipeServerProcessId((HANDLE)pipe.SafePipeHandle.DangerousGetHandle(), &pid))
         {
@@ -31,7 +31,7 @@ public static unsafe class PipeIdentity
         if (server is null || !allowed.Contains(server))
         {
             throw new UnauthorizedAccessException(
-                $"Server der Pipe (PID {pid}) läuft als {server?.Value ?? "unbekannt"}, erlaubt: {string.Join(", ", allowed.Select(sid => sid?.Value))}.");
+                $"Server der Pipe (PID {pid}) läuft als {server?.Value ?? "unbekannt"}, erlaubt: {String.Join(", ", allowed.Select(sid => sid?.Value))}.");
         }
     }
 
@@ -39,9 +39,9 @@ public static unsafe class PipeIdentity
     /// Ob der verbundene Client als SYSTEM oder als erhöhter Administrator läuft. Ein nicht erhöhter Administrator
     /// zählt nicht: In seinem Token ist die Gruppe nur zum Verweigern gesetzt.
     /// </summary>
-    public static bool IsClientAdministrator(NamedPipeServerStream pipe)
+    public static Boolean IsClientAdministrator(NamedPipeServerStream pipe)
     {
-        uint pid;
+        UInt32 pid;
         if (!PInvoke.GetNamedPipeClientProcessId((HANDLE)pipe.SafePipeHandle.DangerousGetHandle(), &pid))
         {
             return false;
@@ -53,9 +53,9 @@ public static unsafe class PipeIdentity
     }
 
     /// <summary>Die Sitzung des verbundenen Clients, null, wenn sie nicht zu ermitteln ist.</summary>
-    public static uint? ClientSessionId(NamedPipeServerStream pipe)
+    public static UInt32? ClientSessionId(NamedPipeServerStream pipe)
     {
-        uint session;
+        UInt32 session;
         return PInvoke.GetNamedPipeClientSessionId((HANDLE)pipe.SafePipeHandle.DangerousGetHandle(), &session) ? session : null;
     }
 

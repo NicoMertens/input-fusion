@@ -13,7 +13,7 @@ namespace InputFusion.Core.Ipc;
 /// </summary>
 public static class SettingsPipe
 {
-    public static string Name { get; } = "InputFusion.Settings." + CurrentUser().Value;
+    public static String Name { get; } = "InputFusion.Settings." + CurrentUser().Value;
 
     /// <summary>Legt einen weiteren Server an; die Pipe erlaubt beliebig viele gleichzeitige Verbindungen.</summary>
     public static NamedPipeServerStream CreateServer() =>

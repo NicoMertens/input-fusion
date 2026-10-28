@@ -11,8 +11,8 @@ public sealed class Worker(ILogger<Worker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        bool asService = WindowsServiceHelpers.IsWindowsService();
-        Action<string> log = message => logger.LogInformation("{Message}", message);
+        Boolean asService = WindowsServiceHelpers.IsWindowsService();
+        Action<String> log = message => logger.LogInformation("{Message}", message);
         if (asService && ClientUpdater.RunsFromInstallDirectory)
         {
             SettingsExtractor.Run(log);

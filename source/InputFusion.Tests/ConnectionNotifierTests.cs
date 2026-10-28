@@ -4,7 +4,7 @@ namespace InputFusion.Tests;
 
 public class ConnectionNotifierTests
 {
-    private readonly List<string> _shown = [];
+    private readonly List<String> _shown = [];
 
     [Fact]
     public async Task Lost_ThenRestoredInTime_ShowsNothing()

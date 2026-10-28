@@ -19,7 +19,7 @@ internal sealed class ClientStatus
     // Nur für die Diagnose: die Verbindung zum Host, seit wann sie steht, und die letzte Störung.
     private MessageConnection? _connection;
     private DateTimeOffset? _connectedSince;
-    private string? _lastError;
+    private String? _lastError;
     private DateTimeOffset? _lastErrorAt;
 
     public event Action? Changed;
@@ -38,7 +38,7 @@ internal sealed class ClientStatus
     }
 
     /// <summary>Merkt sich die Störung für die Diagnose; ins Protokoll schreibt sie der Aufrufer.</summary>
-    public void ReportError(string message)
+    public void ReportError(String message)
     {
         lock (_lock)
         {
@@ -59,7 +59,7 @@ internal sealed class ClientStatus
 
     /// <param name="administrator">Ob die Oberfläche als Administrator verbunden ist: nur dann mit Schlüssel.</param>
     /// <param name="canEdit">Ob sie ändern darf; Administrator und eine änderbare Konfiguration.</param>
-    public ClientStateMessage Snapshot(bool administrator, bool canEdit)
+    public ClientStateMessage Snapshot(Boolean administrator, Boolean canEdit)
     {
         lock (_lock)
         {
@@ -88,7 +88,7 @@ internal sealed class ClientStatus
 
     public void Update(Func<ClientStateMessage, ClientStateMessage> change)
     {
-        bool changed;
+        Boolean changed;
         lock (_lock)
         {
             ClientStateMessage next = change(_state);

@@ -11,13 +11,13 @@ public static class AttemptRace
     /// <param name="discard">Räumt ein erfolgreiches Ergebnis ab, das nicht gewonnen hat, etwa eine offene Verbindung.</param>
     /// <returns>Den Gewinner oder default und alle Ergebnisse in der Reihenfolge der Versuche.</returns>
     public static async Task<(T? Winner, IReadOnlyList<T> Results)> FirstAsync<T>(IReadOnlyList<Func<CancellationToken, Task<T>>> attempts,
-        Func<T, bool> succeeded, Action<T> discard, CancellationToken ct)
+        Func<T, Boolean> succeeded, Action<T> discard, CancellationToken ct)
     {
         using CancellationTokenSource race = CancellationTokenSource.CreateLinkedTokenSource(ct);
         Task<T>[] tasks = attempts.Select(a => a(race.Token)).ToArray();
         List<Task<T>> pending = [.. tasks];
         T? winner = default;
-        bool won = false;
+        Boolean won = false;
         while (pending.Count > 0)
         {
             Task<T> done = await Task.WhenAny(pending);

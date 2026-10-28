@@ -15,21 +15,21 @@ public partial class MainWindow : Window
     private readonly CancellationTokenSource _cts = new();
     private readonly SettingsConnection _connection;
     private HostStateMessage? _state;
-    private bool _updatingKey;
-    private bool _updatingPort;
+    private Boolean _updatingKey;
+    private Boolean _updatingPort;
     // Nur der Agent kann einen Port ablehnen (belegt); die Meldung bleibt stehen, bis im Feld geändert wird.
-    private bool _portRejected;
+    private Boolean _portRejected;
     // Wohin eine Ablehnung des Agents gehört: unter das Feld der letzten Anfrage.
     private TextBlock? _lastRequestMessage;
 
     // Verschieben der Client-Gruppe: Ausgangspunkt der Maus und Lage beim Anfassen, dazu die eingerastete Vorschau.
-    private bool _dragging;
+    private Boolean _dragging;
     private Point _dragStart;
-    private (int X, int Y) _dragStartOffset;
-    private (int X, int Y) _previewOffset;
+    private (Int32 X, Int32 Y) _dragStartOffset;
+    private (Int32 X, Int32 Y) _previewOffset;
 
     // Linke obere Ecke der Zeichenfläche in Layout-Koordinaten. Bleibt beim Ziehen stehen, sonst wanderte die Ansicht mit.
-    private double _originX, _originY;
+    private Double _originX, _originY;
 
     public MainWindow()
     {
@@ -55,7 +55,7 @@ public partial class MainWindow : Window
         _ = _connection.RunAsync(_cts.Token);
     }
 
-    private void OnConnectedChanged(bool connected)
+    private void OnConnectedChanged(Boolean connected)
     {
         Status.Text = connected
             ? "Verbunden mit dem InputFusion-Agent auf diesem PC."
@@ -72,9 +72,9 @@ public partial class MainWindow : Window
         _state = state;
         Status.Text = $"Verbunden mit dem InputFusion-Agent {state.Version}.";
         MachineName.Text = state.MachineName;
-        Addresses.Text = state.Addresses.Count == 0 ? "keine" : string.Join(Environment.NewLine, state.Addresses);
+        Addresses.Text = state.Addresses.Count == 0 ? "keine" : String.Join(Environment.NewLine, state.Addresses);
 
-        string port = state.Port.ToString(CultureInfo.InvariantCulture);
+        String port = state.Port.ToString(CultureInfo.InvariantCulture);
         if (Port.Text == port || !Port.IsKeyboardFocusWithin)
         {
             _updatingPort = true;
@@ -107,7 +107,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        List<(string?, string)> details =
+        List<(String?, String)> details =
         [
             ("Adresse", client.Address),
             ("Version", client.Version),
@@ -122,7 +122,7 @@ public partial class MainWindow : Window
         ClientCard.Show(true, $"{client.MachineName ?? "Notebook"} verbunden", details);
     }
 
-    private void OnError(string message)
+    private void OnError(String message)
     {
         TextBlock target = _lastRequestMessage ?? LayoutMessage;
         _portRejected = target == PortMessage;
@@ -130,7 +130,7 @@ public partial class MainWindow : Window
         ThemeBrushes.SetMessageColor(target, error: true);
     }
 
-    private void OnPortChanged(object sender, TextChangedEventArgs e)
+    private void OnPortChanged(Object sender, TextChangedEventArgs e)
     {
         if (!_updatingPort)
         {
@@ -141,8 +141,8 @@ public partial class MainWindow : Window
 
     private void UpdatePortState()
     {
-        string? error = Ports.Validate(Port.Text, out int port);
-        bool changed = _state is not null && port != _state.Port;
+        String? error = Ports.Validate(Port.Text, out Int32 port);
+        Boolean changed = _state is not null && port != _state.Port;
         ApplyPort.IsEnabled = error is null && changed;
         if (_portRejected)
         {
@@ -163,9 +163,9 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OnApplyPort(object sender, RoutedEventArgs e)
+    private async void OnApplyPort(Object sender, RoutedEventArgs e)
     {
-        if (Ports.Validate(Port.Text, out int port) is not null)
+        if (Ports.Validate(Port.Text, out Int32 port) is not null)
         {
             return;
         }
@@ -177,7 +177,7 @@ public partial class MainWindow : Window
 
     // Key hält den Schlüssel, HiddenKey zeigt ihn verdeckt. Beide gleichen sich in beide Richtungen ab; der Vergleich
     // vorher beendet das Hin und Her.
-    private void OnKeyChanged(object sender, TextChangedEventArgs e)
+    private void OnKeyChanged(Object sender, TextChangedEventArgs e)
     {
         if (HiddenKey.Password != Key.Text)
         {
@@ -190,7 +190,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnHiddenKeyChanged(object sender, RoutedEventArgs e)
+    private void OnHiddenKeyChanged(Object sender, RoutedEventArgs e)
     {
         if (Key.Text != HiddenKey.Password)
         {
@@ -198,10 +198,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnShowKey(object sender, RoutedEventArgs e)
+    private void OnShowKey(Object sender, RoutedEventArgs e)
     {
-        bool show = ShowKey.IsChecked == true;
-        bool focused = KeyField.IsKeyboardFocusWithin;
+        Boolean show = ShowKey.IsChecked == true;
+        Boolean focused = KeyField.IsKeyboardFocusWithin;
         Key.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         HiddenKey.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
         // Symbole aus Segoe Fluent Icons: durchgestrichenes Auge (Hide), Auge (View).
@@ -227,13 +227,13 @@ public partial class MainWindow : Window
     }
 
     // Während der Übertragung an das Notebook der neue Schlüssel, sonst sprängen Feld und Meldung kurz auf den alten zurück.
-    private string CurrentKey => _state?.PendingKey ?? _state?.Key ?? "";
+    private String CurrentKey => _state?.PendingKey ?? _state?.Key ?? "";
 
     private void UpdateKeyState()
     {
-        string? error = HostConfig.ValidateKey(Key.Text);
-        bool pending = _state?.PendingKey is not null;
-        bool changed = _state is not null && Key.Text != CurrentKey;
+        String? error = HostConfig.ValidateKey(Key.Text);
+        Boolean pending = _state?.PendingKey is not null;
+        Boolean changed = _state is not null && Key.Text != CurrentKey;
         ApplyKey.IsEnabled = error is null && changed && !pending;
         if (error is not null)
         {
@@ -249,15 +249,15 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnGenerateKey(object sender, RoutedEventArgs e)
+    private void OnGenerateKey(Object sender, RoutedEventArgs e)
     {
         Key.Text = HostConfig.GenerateKey();
         FocusKey();
     }
 
-    private void OnCopyKey(object sender, RoutedEventArgs e) => Clipboard.SetText(Key.Text);
+    private void OnCopyKey(Object sender, RoutedEventArgs e) => Clipboard.SetText(Key.Text);
 
-    private async void OnApplyKey(object sender, RoutedEventArgs e)
+    private async void OnApplyKey(Object sender, RoutedEventArgs e)
     {
         _lastRequestMessage = KeyMessage;
         await _connection.SendAsync(new SetKeyRequest(Key.Text));
@@ -269,10 +269,10 @@ public partial class MainWindow : Window
 
     private IReadOnlyList<MonitorRect> ClientMonitors => _state?.Client?.Monitors ?? [];
 
-    private (int X, int Y) CurrentOffset =>
+    private (Int32 X, Int32 Y) CurrentOffset =>
         _dragging ? _previewOffset : (_state?.Client?.OffsetX ?? 0, _state?.Client?.OffsetY ?? 0);
 
-    private void RenderArrangement(bool recenter)
+    private void RenderArrangement(Boolean recenter)
     {
         Arrangement.Children.Clear();
         IReadOnlyList<MonitorRect> host = HostMonitors;
@@ -292,7 +292,7 @@ public partial class MainWindow : Window
         {
             // Platz um die eigenen Monitore, damit sich das Notebook an jede Seite ziehen lässt. Die halbe Größe des
             // Notebooks genügt: Es liegt immer an, der Rest darf über den Rand ragen und wird abgeschnitten.
-            int margin = client.Count == 0
+            Int32 margin = client.Count == 0
                 ? host.Max(m => Math.Max(m.Width, m.Height)) / 3
                 : Math.Max(client.Max(m => m.Right) - client.Min(m => m.Left), client.Max(m => m.Bottom) - client.Min(m => m.Top)) / 2;
             _originX = host.Min(m => m.Left) - margin;
@@ -300,9 +300,9 @@ public partial class MainWindow : Window
             Arrangement.Width = host.Max(m => m.Right) + margin - _originX;
             Arrangement.Height = host.Max(m => m.Bottom) + margin - _originY;
         }
-        double unit = Math.Max(Arrangement.Width, Arrangement.Height) / 100.0;
+        Double unit = Math.Max(Arrangement.Width, Arrangement.Height) / 100.0;
 
-        foreach ((MonitorRect m, string label) in MonitorBox.Numbered(host))
+        foreach ((MonitorRect m, String label) in MonitorBox.Numbered(host))
         {
             AddMonitor(m, label, "HostMonitorBrush", "HostMonitorBorderBrush", unit, draggable: false);
         }
@@ -312,9 +312,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        (int ox, int oy) = CurrentOffset;
+        (Int32 ox, Int32 oy) = CurrentOffset;
         MonitorLayout layout = new MonitorLayout(host, client, ox, oy);
-        for (int i = 0; i < client.Count; i++)
+        for (Int32 i = 0; i < client.Count; i++)
         {
             MonitorRect m = layout.Place(client[i]);
             AddMonitor(m, $"Notebook {i + 1}\n{m.Width} × {m.Height}", "ClientMonitorBrush", "ClientMonitorBorderBrush", unit, draggable: true);
@@ -325,7 +325,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void AddMonitor(MonitorRect m, string label, string fill, string border, double unit, bool draggable)
+    private void AddMonitor(MonitorRect m, String label, String fill, String border, Double unit, Boolean draggable)
     {
         Border box = MonitorBox.Create(m, label, fill, border, unit);
         if (draggable)
@@ -338,7 +338,7 @@ public partial class MainWindow : Window
         Arrangement.Children.Add(box);
     }
 
-    private void OnClientMouseDown(object sender, MouseButtonEventArgs e)
+    private void OnClientMouseDown(Object sender, MouseButtonEventArgs e)
     {
         _dragging = true;
         _dragStart = e.GetPosition(Arrangement);
@@ -349,7 +349,7 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void OnArrangementMouseMove(object sender, MouseEventArgs e)
+    private void OnArrangementMouseMove(Object sender, MouseEventArgs e)
     {
         if (!_dragging)
         {
@@ -357,9 +357,9 @@ public partial class MainWindow : Window
         }
 
         Point p = e.GetPosition(Arrangement);
-        int x = _dragStartOffset.X + (int)Math.Round(p.X - _dragStart.X);
-        int y = _dragStartOffset.Y + (int)Math.Round(p.Y - _dragStart.Y);
-        (int X, int Y) snapped = MonitorLayout.Snap(HostMonitors, ClientMonitors, x, y);
+        Int32 x = _dragStartOffset.X + (Int32)Math.Round(p.X - _dragStart.X);
+        Int32 y = _dragStartOffset.Y + (Int32)Math.Round(p.Y - _dragStart.Y);
+        (Int32 X, Int32 Y) snapped = MonitorLayout.Snap(HostMonitors, ClientMonitors, x, y);
         if (snapped == _previewOffset)
         {
             return;
@@ -369,14 +369,14 @@ public partial class MainWindow : Window
         RenderArrangement(recenter: false);
     }
 
-    private async void OnArrangementMouseUp(object sender, MouseButtonEventArgs e)
+    private async void OnArrangementMouseUp(Object sender, MouseButtonEventArgs e)
     {
         if (!_dragging)
         {
             return;
         }
 
-        (int X, int Y) offset = _previewOffset;
+        (Int32 X, Int32 Y) offset = _previewOffset;
         Arrangement.ReleaseMouseCapture();
         if (offset == _dragStartOffset || _state?.Client is not { } client)
         {
@@ -392,7 +392,7 @@ public partial class MainWindow : Window
         await _connection.SendAsync(new SetClientOffsetRequest(offset.X, offset.Y));
     }
 
-    private void OnArrangementLostCapture(object sender, MouseEventArgs e)
+    private void OnArrangementLostCapture(Object sender, MouseEventArgs e)
     {
         if (!_dragging)
         {

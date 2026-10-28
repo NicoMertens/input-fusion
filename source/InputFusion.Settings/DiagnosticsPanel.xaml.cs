@@ -18,7 +18,7 @@ public partial class DiagnosticsPanel : UserControl
     private SettingsConnection? _connection;
     private DiagnosticsMessage? _last;
     private DateTime _lastAt;
-    private string? _logPath;
+    private String? _logPath;
 
     public DiagnosticsPanel()
     {
@@ -56,11 +56,11 @@ public partial class DiagnosticsPanel : UserControl
             : diagnostics.LastError is { } error ? $"{diagnostics.LastErrorAt?.ToLocalTime():HH:mm:ss}  {error}"
             : "keine";
 
-        string log = diagnostics is null ? "" : string.Join(Environment.NewLine, diagnostics.Log);
+        String log = diagnostics is null ? "" : String.Join(Environment.NewLine, diagnostics.Log);
         if (LogLines.Text != log)
         {
             // Wer zurückgeblättert hat, liest gerade; nur wer am Ende steht, läuft mit.
-            bool atEnd = LogLines.VerticalOffset + LogLines.ViewportHeight >= LogLines.ExtentHeight - 1;
+            Boolean atEnd = LogLines.VerticalOffset + LogLines.ViewportHeight >= LogLines.ExtentHeight - 1;
             LogLines.Text = log;
             if (atEnd)
             {
@@ -88,27 +88,27 @@ public partial class DiagnosticsPanel : UserControl
     }
 
     /// <summary>Aus der Differenz zur vorigen Antwort; nach einer Neuverbindung beginnen die Zähler neu.</summary>
-    private string DescribeRates(DiagnosticsMessage current, DateTime now)
+    private String DescribeRates(DiagnosticsMessage current, DateTime now)
     {
-        string totals = $"(gesamt {current.SentFrames:N0} gesendet, {current.ReceivedFrames:N0} empfangen)";
-        double seconds = (now - _lastAt).TotalSeconds;
+        String totals = $"(gesamt {current.SentFrames:N0} gesendet, {current.ReceivedFrames:N0} empfangen)";
+        Double seconds = (now - _lastAt).TotalSeconds;
         if (_last is not { Connected: true } last || last.ConnectedSince != current.ConnectedSince || seconds <= 0)
         {
             return totals;
         }
 
-        double sent = (current.SentFrames - last.SentFrames) / seconds;
-        double received = (current.ReceivedFrames - last.ReceivedFrames) / seconds;
+        Double sent = (current.SentFrames - last.SentFrames) / seconds;
+        Double received = (current.ReceivedFrames - last.ReceivedFrames) / seconds;
         return $"{sent:0} gesendet, {received:0} empfangen {totals}";
     }
 
-    private static string Describe(TimeSpan duration) =>
+    private static String Describe(TimeSpan duration) =>
         duration.TotalMinutes < 1 ? "gerade eben"
-        : duration.TotalHours < 1 ? $"{(int)duration.TotalMinutes} min"
-        : duration.TotalDays < 1 ? $"{(int)duration.TotalHours} h {duration.Minutes} min"
-        : $"{(int)duration.TotalDays} d {duration.Hours} h";
+        : duration.TotalHours < 1 ? $"{(Int32)duration.TotalMinutes} min"
+        : duration.TotalDays < 1 ? $"{(Int32)duration.TotalHours} h {duration.Minutes} min"
+        : $"{(Int32)duration.TotalDays} d {duration.Hours} h";
 
-    private void OnOpenLog(object sender, RoutedEventArgs e)
+    private void OnOpenLog(Object sender, RoutedEventArgs e)
     {
         try
         {

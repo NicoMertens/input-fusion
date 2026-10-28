@@ -13,14 +13,14 @@ namespace InputFusion.Core.Shell;
 public static unsafe class ClipboardText
 {
     // Hält eine andere Anwendung die Zwischenablage gerade offen, kurz warten statt aufzugeben.
-    private const int OpenAttempts = 10;
+    private const Int32 OpenAttempts = 10;
     private static readonly TimeSpan _retryDelay = TimeSpan.FromMilliseconds(20);
 
     /// <summary>Steigt bei jeder Änderung der Zwischenablage, auch bei der eigenen.</summary>
-    public static uint SequenceNumber => PInvoke.GetClipboardSequenceNumber();
+    public static UInt32 SequenceNumber => PInvoke.GetClipboardSequenceNumber();
 
     /// <summary>False, wenn sich die Zwischenablage nicht öffnen ließ. <paramref name="text"/> ist null, wenn sie keinen Text enthält.</summary>
-    public static bool TryRead(out string? text)
+    public static Boolean TryRead(out String? text)
     {
         text = null;
         if (!Open())
@@ -30,13 +30,13 @@ public static unsafe class ClipboardText
 
         try
         {
-            if (!PInvoke.IsClipboardFormatAvailable((uint)CLIPBOARD_FORMAT.CF_UNICODETEXT))
+            if (!PInvoke.IsClipboardFormatAvailable((UInt32)CLIPBOARD_FORMAT.CF_UNICODETEXT))
             {
                 return true;
             }
 
-            HGLOBAL data = (HGLOBAL)PInvoke.GetClipboardData((uint)CLIPBOARD_FORMAT.CF_UNICODETEXT).Value;
-            char* chars = (char*)PInvoke.GlobalLock(data);
+            HGLOBAL data = (HGLOBAL)PInvoke.GetClipboardData((UInt32)CLIPBOARD_FORMAT.CF_UNICODETEXT).Value;
+            Char* chars = (Char*)PInvoke.GlobalLock(data);
             if (chars is null)
             {
                 return true;
@@ -45,9 +45,9 @@ public static unsafe class ClipboardText
             try
             {
                 // Nicht über das Ende des Speicherblocks hinaus lesen, falls die Null am Ende fehlt.
-                int max = (int)(PInvoke.GlobalSize(data) / sizeof(char));
-                int length = new ReadOnlySpan<char>(chars, max).IndexOf('\0');
-                text = new string(chars, 0, length < 0 ? max : length);
+                Int32 max = (Int32)(PInvoke.GlobalSize(data) / sizeof(Char));
+                Int32 length = new ReadOnlySpan<Char>(chars, max).IndexOf('\0');
+                text = new String(chars, 0, length < 0 ? max : length);
             }
             finally
             {
@@ -61,24 +61,24 @@ public static unsafe class ClipboardText
         }
     }
 
-    public static bool Write(string text)
+    public static Boolean Write(String text)
     {
         // Erst den Text vorbereiten, dann leeren: Scheitert die Vorbereitung, bleibt der alte Inhalt stehen.
-        nuint size = (nuint)((text.Length + 1) * sizeof(char));
+        UIntPtr size = (UIntPtr)((text.Length + 1) * sizeof(Char));
         HGLOBAL data = PInvoke.GlobalAlloc(GLOBAL_ALLOC_FLAGS.GMEM_MOVEABLE, size);
         if (data.IsNull)
         {
             return false;
         }
 
-        char* chars = (char*)PInvoke.GlobalLock(data);
+        Char* chars = (Char*)PInvoke.GlobalLock(data);
         if (chars is null)
         {
             PInvoke.GlobalFree(data);
             return false;
         }
 
-        text.AsSpan().CopyTo(new Span<char>(chars, text.Length));
+        text.AsSpan().CopyTo(new Span<Char>(chars, text.Length));
         chars[text.Length] = '\0';
         PInvoke.GlobalUnlock(data);
 
@@ -92,7 +92,7 @@ public static unsafe class ClipboardText
         {
             PInvoke.EmptyClipboard();
             // Bei Erfolg gehört der Speicher der Zwischenablage, sonst bleibt er beim Aufrufer.
-            if (PInvoke.SetClipboardData((uint)CLIPBOARD_FORMAT.CF_UNICODETEXT, (HANDLE)data.Value).IsNull)
+            if (PInvoke.SetClipboardData((UInt32)CLIPBOARD_FORMAT.CF_UNICODETEXT, (HANDLE)data.Value).IsNull)
             {
                 PInvoke.GlobalFree(data);
                 return false;
@@ -105,9 +105,9 @@ public static unsafe class ClipboardText
         }
     }
 
-    private static bool Open()
+    private static Boolean Open()
     {
-        for (int i = 0; i < OpenAttempts; i++)
+        for (Int32 i = 0; i < OpenAttempts; i++)
         {
             if (PInvoke.OpenClipboard(HWND.Null))
             {

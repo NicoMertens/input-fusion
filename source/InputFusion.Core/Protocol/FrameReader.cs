@@ -8,13 +8,13 @@ namespace InputFusion.Core.Protocol;
 /// </summary>
 public sealed class FrameReader
 {
-    private byte[] _buffer;
-    private int _count;
+    private Byte[] _buffer;
+    private Int32 _count;
 
-    public FrameReader(int initialCapacity = 1024) => _buffer = new byte[initialCapacity];
+    public FrameReader(Int32 initialCapacity = 1024) => _buffer = new Byte[initialCapacity];
 
     /// <summary>Hängt empfangene Bytes an.</summary>
-    public void Append(ReadOnlySpan<byte> data)
+    public void Append(ReadOnlySpan<Byte> data)
     {
         EnsureCapacity(_count + data.Length);
         data.CopyTo(_buffer.AsSpan(_count));
@@ -25,7 +25,7 @@ public sealed class FrameReader
     /// Gibt den nächsten vollständigen Frame zurück, sonst false. In einer Schleife aufrufen,
     /// bis false. Die Nutzlast ist eine Kopie, der interne Puffer wird danach verschoben.
     /// </summary>
-    public bool TryRead(out MessageType type, out byte[] payload)
+    public Boolean TryRead(out MessageType type, out Byte[] payload)
     {
         type = default;
         payload = [];
@@ -34,8 +34,8 @@ public sealed class FrameReader
             return false;
         }
 
-        int payloadLength = BinaryPrimitives.ReadUInt16LittleEndian(_buffer);
-        int frameLength = FrameCodec.HeaderSize + payloadLength;
+        Int32 payloadLength = BinaryPrimitives.ReadUInt16LittleEndian(_buffer);
+        Int32 frameLength = FrameCodec.HeaderSize + payloadLength;
         if (_count < frameLength)
         {
             return false;
@@ -44,20 +44,20 @@ public sealed class FrameReader
         type = (MessageType)_buffer[2];
         payload = _buffer.AsSpan(FrameCodec.HeaderSize, payloadLength).ToArray();
 
-        int rest = _count - frameLength;
+        Int32 rest = _count - frameLength;
         _buffer.AsSpan(frameLength, rest).CopyTo(_buffer);
         _count = rest;
         return true;
     }
 
-    private void EnsureCapacity(int needed)
+    private void EnsureCapacity(Int32 needed)
     {
         if (needed <= _buffer.Length)
         {
             return;
         }
 
-        int size = _buffer.Length * 2;
+        Int32 size = _buffer.Length * 2;
         while (size < needed)
         {
             size *= 2;

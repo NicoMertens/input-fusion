@@ -5,7 +5,7 @@ namespace InputFusion.Tests;
 public class AttemptRaceTests
 {
     /// <summary>Liefert nach <paramref name="delayMs"/> Erfolg oder Störung; ein Abbruch endet als „abgebrochen“.</summary>
-    private static Func<CancellationToken, Task<string>> Attempt(int delayMs, string result) => async ct =>
+    private static Func<CancellationToken, Task<String>> Attempt(Int32 delayMs, String result) => async ct =>
     {
         try
         {
@@ -18,14 +18,14 @@ public class AttemptRaceTests
         }
     };
 
-    private static bool Succeeded(string result) => result.StartsWith("ok", StringComparison.Ordinal);
+    private static Boolean Succeeded(String result) => result.StartsWith("ok", StringComparison.Ordinal);
 
     [Fact]
     public async Task FirstSuccess_Wins_AndCancelsTheRest()
     {
-        List<string> discarded = [];
+        List<String> discarded = [];
 
-        (string? winner, IReadOnlyList<string> results) = await AttemptRace.FirstAsync(
+        (String? winner, IReadOnlyList<String> results) = await AttemptRace.FirstAsync(
             [Attempt(5000, "ok langsam"), Attempt(10, "ok schnell"), Attempt(5000, "fehler")], Succeeded, discarded.Add, CancellationToken.None);
 
         Assert.Equal("ok schnell", winner);
@@ -36,7 +36,7 @@ public class AttemptRaceTests
     [Fact]
     public async Task FailureBeforeSuccess_DoesNotEndTheRace()
     {
-        (string? winner, _) = await AttemptRace.FirstAsync(
+        (String? winner, _) = await AttemptRace.FirstAsync(
             [Attempt(0, "fehler"), Attempt(50, "ok")], Succeeded, _ => { }, CancellationToken.None);
 
         Assert.Equal("ok", winner);
@@ -45,15 +45,15 @@ public class AttemptRaceTests
     [Fact]
     public async Task SecondSuccess_IsDiscarded()
     {
-        List<string> discarded = [];
+        List<String> discarded = [];
         // Gelingt trotz Abbruch, wie eine Anmeldung, die im selben Moment fertig wird.
-        Func<CancellationToken, Task<string>> ignoresCancel = async _ =>
+        Func<CancellationToken, Task<String>> ignoresCancel = async _ =>
         {
             await Task.Delay(100, CancellationToken.None);
             return "ok spät";
         };
 
-        (string? winner, _) = await AttemptRace.FirstAsync([Attempt(0, "ok früh"), ignoresCancel], Succeeded, discarded.Add, CancellationToken.None);
+        (String? winner, _) = await AttemptRace.FirstAsync([Attempt(0, "ok früh"), ignoresCancel], Succeeded, discarded.Add, CancellationToken.None);
 
         Assert.Equal("ok früh", winner);
         Assert.Equal(["ok spät"], discarded);
@@ -62,7 +62,7 @@ public class AttemptRaceTests
     [Fact]
     public async Task AllFail_ReturnsResultsInOrder()
     {
-        (string? winner, IReadOnlyList<string> results) = await AttemptRace.FirstAsync(
+        (String? winner, IReadOnlyList<String> results) = await AttemptRace.FirstAsync(
             [Attempt(50, "fehler A"), Attempt(0, "fehler B")], Succeeded, _ => { }, CancellationToken.None);
 
         Assert.Null(winner);
@@ -74,7 +74,7 @@ public class AttemptRaceTests
     {
         using CancellationTokenSource cts = new CancellationTokenSource(50);
 
-        (string? winner, IReadOnlyList<string> results) = await AttemptRace.FirstAsync(
+        (String? winner, IReadOnlyList<String> results) = await AttemptRace.FirstAsync(
             [Attempt(5000, "ok"), Attempt(5000, "ok")], Succeeded, _ => { }, cts.Token);
 
         Assert.Null(winner);

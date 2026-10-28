@@ -8,12 +8,12 @@ namespace InputFusion.Core.Protocol;
 /// Felder dürfen fehlen; so lassen sich später weitere ergänzen, ohne dass ältere Gegenseiten scheitern.
 /// </summary>
 /// <param name="UserName">Null, solange niemand angemeldet ist.</param>
-public sealed record ClientInfo(string? MachineName, string? OsVersion, string? UserName)
+public sealed record ClientInfo(String? MachineName, String? OsVersion, String? UserName)
 {
-    public byte[] ToPayload() => JsonSerializer.SerializeToUtf8Bytes(this, ClientInfoJson.Default.ClientInfo);
+    public Byte[] ToPayload() => JsonSerializer.SerializeToUtf8Bytes(this, ClientInfoJson.Default.ClientInfo);
 
     /// <summary>Null bei unlesbarer Nutzlast.</summary>
-    public static ClientInfo? FromPayload(byte[] payload)
+    public static ClientInfo? FromPayload(Byte[] payload)
     {
         try
         {

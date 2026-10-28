@@ -10,26 +10,26 @@ namespace InputFusion.Core.Shell;
 /// </summary>
 public static class SettingsLauncher
 {
-    private const string ExeName = "InputFusion.Settings.exe";
+    private const String ExeName = "InputFusion.Settings.exe";
 
     /// <summary>
     /// Erzwingt das Fenster des Notebooks. Ohne erkennen die Einstellungen die Seite an der laufenden Pipe, und auf
     /// einem Entwicklungs-PC mit Host und Client gewönne die des Hosts.
     /// </summary>
-    public const string ClientArgument = "--client";
+    public const String ClientArgument = "--client";
 
-    public static void Open(Action<string> log, string? argument = null)
+    public static void Open(Action<String> log, String? argument = null)
     {
         // Installiert liegen die Programme im selben Ordner, im Build je Projekt unter _out\.
-        string[] candidates =
+        String[] candidates =
         [
             Path.Combine(AppContext.BaseDirectory, ExeName),
             Path.Combine(AppContext.BaseDirectory, "..", "InputFusion.Settings", ExeName),
         ];
-        string? path = candidates.FirstOrDefault(File.Exists);
+        String? path = candidates.FirstOrDefault(File.Exists);
         if (path is null)
         {
-            log($"Einstellungen nicht gefunden, gesucht: {string.Join(", ", candidates)}");
+            log($"Einstellungen nicht gefunden, gesucht: {String.Join(", ", candidates)}");
             return;
         }
 

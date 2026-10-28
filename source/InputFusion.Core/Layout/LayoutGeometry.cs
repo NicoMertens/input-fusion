@@ -8,7 +8,7 @@
 public static class LayoutGeometry
 {
     /// <summary>Der Monitor, der den Punkt enthält, oder null.</summary>
-    public static MonitorRect? MonitorAt(IReadOnlyList<MonitorRect> monitors, int x, int y)
+    public static MonitorRect? MonitorAt(IReadOnlyList<MonitorRect> monitors, Int32 x, Int32 y)
     {
         foreach (MonitorRect m in monitors)
         {
@@ -26,17 +26,17 @@ public static class LayoutGeometry
     /// Zielbereich [targetStart, targetEnd] ab. Außerhalb liegende Werte werden auf den Zielbereich
     /// geklemmt. Ein Quellbereich der Länge 0 liefert die Mitte des Ziels.
     /// </summary>
-    public static int MapProportional(int value, int sourceStart, int sourceEnd, int targetStart, int targetEnd)
+    public static Int32 MapProportional(Int32 value, Int32 sourceStart, Int32 sourceEnd, Int32 targetStart, Int32 targetEnd)
     {
-        int sourceSpan = sourceEnd - sourceStart;
+        Int32 sourceSpan = sourceEnd - sourceStart;
         if (sourceSpan == 0)
         {
             return targetStart + (targetEnd - targetStart) / 2;
         }
 
-        double t = (double)(value - sourceStart) / sourceSpan;
+        Double t = (Double)(value - sourceStart) / sourceSpan;
         t = Math.Clamp(t, 0.0, 1.0);
-        return targetStart + (int)Math.Round(t * (targetEnd - targetStart));
+        return targetStart + (Int32)Math.Round(t * (targetEnd - targetStart));
     }
 
     /// <summary>
@@ -44,57 +44,57 @@ public static class LayoutGeometry
     /// y-Koordinate am Eintritt an der linken Kante des Zielmonitors um. Der Eintritt liegt einen
     /// Pixel innerhalb der Zielkante.
     /// </summary>
-    public static (int X, int Y) MapAcrossRightEdge(MonitorRect source, MonitorRect target, int sourceY)
+    public static (Int32 X, Int32 Y) MapAcrossRightEdge(MonitorRect source, MonitorRect target, Int32 sourceY)
     {
-        int targetY = MapProportional(sourceY, source.Top, source.Bottom, target.Top, target.Bottom);
+        Int32 targetY = MapProportional(sourceY, source.Top, source.Bottom, target.Top, target.Bottom);
         return (target.Left, targetY);
     }
 
     /// <summary>Normiert einen Punkt auf 0…65535 über die Bounding-Box aller Monitore (wie das Vorbild).</summary>
-    public static (ushort X, ushort Y) NormalizeToVirtualDesktop(IReadOnlyList<MonitorRect> monitors, int x, int y)
+    public static (UInt16 X, UInt16 Y) NormalizeToVirtualDesktop(IReadOnlyList<MonitorRect> monitors, Int32 x, Int32 y)
     {
         if (monitors.Count == 0)
         {
             return (0, 0);
         }
 
-        int minX = monitors.Min(m => m.Left);
-        int minY = monitors.Min(m => m.Top);
-        int maxX = monitors.Max(m => m.Right);
-        int maxY = monitors.Max(m => m.Bottom);
+        Int32 minX = monitors.Min(m => m.Left);
+        Int32 minY = monitors.Min(m => m.Top);
+        Int32 maxX = monitors.Max(m => m.Right);
+        Int32 maxY = monitors.Max(m => m.Bottom);
 
-        ushort nx = Normalize(x, minX, maxX);
-        ushort ny = Normalize(y, minY, maxY);
+        UInt16 nx = Normalize(x, minX, maxX);
+        UInt16 ny = Normalize(y, minY, maxY);
         return (nx, ny);
     }
 
     /// <summary>Umkehrung von <see cref="NormalizeToVirtualDesktop"/>: 0…65535 zurück auf die Bounding-Box.</summary>
-    public static (int X, int Y) DenormalizeFromVirtualDesktop(IReadOnlyList<MonitorRect> monitors, ushort x, ushort y)
+    public static (Int32 X, Int32 Y) DenormalizeFromVirtualDesktop(IReadOnlyList<MonitorRect> monitors, UInt16 x, UInt16 y)
     {
         if (monitors.Count == 0)
         {
             return (0, 0);
         }
 
-        int minX = monitors.Min(m => m.Left);
-        int minY = monitors.Min(m => m.Top);
-        int maxX = monitors.Max(m => m.Right);
-        int maxY = monitors.Max(m => m.Bottom);
+        Int32 minX = monitors.Min(m => m.Left);
+        Int32 minY = monitors.Min(m => m.Top);
+        Int32 maxX = monitors.Max(m => m.Right);
+        Int32 maxY = monitors.Max(m => m.Bottom);
 
         return (Denormalize(x, minX, maxX), Denormalize(y, minY, maxY));
     }
 
-    private static int Denormalize(ushort value, int min, int max) =>
-        min + (int)Math.Round((double)value / ushort.MaxValue * (max - min));
+    private static Int32 Denormalize(UInt16 value, Int32 min, Int32 max) =>
+        min + (Int32)Math.Round((Double)value / UInt16.MaxValue * (max - min));
 
-    private static ushort Normalize(int value, int min, int max)
+    private static UInt16 Normalize(Int32 value, Int32 min, Int32 max)
     {
         if (max <= min)
         {
             return 0;
         }
 
-        double t = Math.Clamp((double)(value - min) / (max - min), 0.0, 1.0);
-        return (ushort)Math.Round(t * ushort.MaxValue);
+        Double t = Math.Clamp((Double)(value - min) / (max - min), 0.0, 1.0);
+        return (UInt16)Math.Round(t * UInt16.MaxValue);
     }
 }

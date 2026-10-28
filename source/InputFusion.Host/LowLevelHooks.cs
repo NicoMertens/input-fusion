@@ -17,12 +17,12 @@ namespace InputFusion.Host;
 /// </summary>
 internal static class LowLevelHooks
 {
-    private const uint WM_MOUSEMOVE = 0x0200;
-    private const uint WM_LBUTTONDOWN = 0x0201, WM_LBUTTONUP = 0x0202;
-    private const uint WM_RBUTTONDOWN = 0x0204, WM_RBUTTONUP = 0x0205;
-    private const uint WM_MBUTTONDOWN = 0x0207, WM_MBUTTONUP = 0x0208;
-    private const uint WM_MOUSEWHEEL = 0x020A, WM_MOUSEHWHEEL = 0x020E;
-    private const uint WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101, WM_SYSKEYDOWN = 0x0104, WM_SYSKEYUP = 0x0105;
+    private const UInt32 WM_MOUSEMOVE = 0x0200;
+    private const UInt32 WM_LBUTTONDOWN = 0x0201, WM_LBUTTONUP = 0x0202;
+    private const UInt32 WM_RBUTTONDOWN = 0x0204, WM_RBUTTONUP = 0x0205;
+    private const UInt32 WM_MBUTTONDOWN = 0x0207, WM_MBUTTONUP = 0x0208;
+    private const UInt32 WM_MOUSEWHEEL = 0x020A, WM_MOUSEHWHEEL = 0x020E;
+    private const UInt32 WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101, WM_SYSKEYDOWN = 0x0104, WM_SYSKEYUP = 0x0105;
 
     private static readonly Channel<InputEvent> _channel =
         Channel.CreateUnbounded<InputEvent>(new UnboundedChannelOptions { SingleReader = true });
@@ -32,7 +32,7 @@ internal static class LowLevelHooks
     private static FreeLibrarySafeHandle? _module;
 
     /// <summary>Wenn true, verschluckt der Hook die Eingabe lokal (Remote-Modus).</summary>
-    public static volatile bool Swallow;
+    public static volatile Boolean Swallow;
 
     public static ChannelReader<InputEvent> Events => _channel.Reader;
 
@@ -50,7 +50,7 @@ internal static class LowLevelHooks
     public static unsafe void Install()
     {
         // Nicht disposen: GetModuleHandle gibt ein nicht-besitzendes Handle auf die eigene exe zurück.
-        _module = PInvoke.GetModuleHandle((string?)null);
+        _module = PInvoke.GetModuleHandle((String?)null);
         _mouseHook = PInvoke.SetWindowsHookEx(WINDOWS_HOOK_ID.WH_MOUSE_LL, &MouseProc, _module, 0);
         _keyboardHook = PInvoke.SetWindowsHookEx(WINDOWS_HOOK_ID.WH_KEYBOARD_LL, &KeyboardProc, _module, 0);
     }
@@ -62,15 +62,15 @@ internal static class LowLevelHooks
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static LRESULT MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
+    private static LRESULT MouseProc(Int32 nCode, WPARAM wParam, LPARAM lParam)
     {
         if (nCode >= 0)
         {
             MSLLHOOKSTRUCT data = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam.Value);
-            bool injected = (data.flags & 1) != 0;
+            Boolean injected = (data.flags & 1) != 0;
             if (!injected)
             {
-                Publish((uint)wParam.Value, data);
+                Publish((UInt32)wParam.Value, data);
             }
 
             if (Swallow)
@@ -82,18 +82,18 @@ internal static class LowLevelHooks
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static LRESULT KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
+    private static LRESULT KeyboardProc(Int32 nCode, WPARAM wParam, LPARAM lParam)
     {
         if (nCode >= 0)
         {
             KBDLLHOOKSTRUCT data = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam.Value);
-            bool injected = ((uint)data.flags & 0x10) != 0;
+            Boolean injected = ((UInt32)data.flags & 0x10) != 0;
             if (!injected)
             {
-                uint msg = (uint)wParam.Value;
-                bool down = msg is WM_KEYDOWN or WM_SYSKEYDOWN;
-                bool extended = ((uint)data.flags & 0x01) != 0;
-                _channel.Writer.TryWrite(new KeyInputEvent((ushort)data.vkCode, (ushort)data.scanCode, down, extended));
+                UInt32 msg = (UInt32)wParam.Value;
+                Boolean down = msg is WM_KEYDOWN or WM_SYSKEYDOWN;
+                Boolean extended = ((UInt32)data.flags & 0x01) != 0;
+                _channel.Writer.TryWrite(new KeyInputEvent((UInt16)data.vkCode, (UInt16)data.scanCode, down, extended));
             }
             if (Swallow)
             {
@@ -103,7 +103,7 @@ internal static class LowLevelHooks
         return PInvoke.CallNextHookEx((HHOOK)default, nCode, wParam, lParam);
     }
 
-    private static void Publish(uint message, MSLLHOOKSTRUCT data)
+    private static void Publish(UInt32 message, MSLLHOOKSTRUCT data)
     {
         InputEvent? e = message switch
         {
@@ -114,8 +114,8 @@ internal static class LowLevelHooks
             WM_RBUTTONUP => new MouseButtonEvent(1, false),
             WM_MBUTTONDOWN => new MouseButtonEvent(2, true),
             WM_MBUTTONUP => new MouseButtonEvent(2, false),
-            WM_MOUSEWHEEL => new MouseWheelEvent((short)(data.mouseData >> 16), false),
-            WM_MOUSEHWHEEL => new MouseWheelEvent((short)(data.mouseData >> 16), true),
+            WM_MOUSEWHEEL => new MouseWheelEvent((Int16)(data.mouseData >> 16), false),
+            WM_MOUSEHWHEEL => new MouseWheelEvent((Int16)(data.mouseData >> 16), true),
             _ => null,
         };
         if (e is not null)

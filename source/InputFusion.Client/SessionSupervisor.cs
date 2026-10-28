@@ -10,22 +10,22 @@ namespace InputFusion.Client;
 /// Kindprozess in derselben Sitzung. Statt auf OnSessionChange zu reagieren, prüft er jede Sekunde die aktive
 /// Sitzung und ob der Prozess noch lebt. Das deckt Anmelden, Abmelden, Benutzerwechsel und Abstürze gleichermaßen ab.
 /// </summary>
-internal sealed class SessionSupervisor(string name, string argument, bool asUser, bool asService, Action<string> log)
+internal sealed class SessionSupervisor(String name, String argument, Boolean asUser, Boolean asService, Action<String> log)
 {
-    private const uint NoSession = 0xFFFFFFFF;
+    private const UInt32 NoSession = 0xFFFFFFFF;
 
     public async Task RunAsync(CancellationToken ct)
     {
         Process? process = null;
-        uint session = NoSession;
-        string? lastError = null;
+        UInt32 session = NoSession;
+        String? lastError = null;
         try
         {
             while (!ct.IsCancellationRequested)
             {
                 // Zwischen zwei Sitzungen meldet Windows kurz keine aktive; dann abwarten.
-                uint target = asService ? PInvoke.WTSGetActiveConsoleSessionId() : (uint)Environment.ProcessId;
-                bool alive = process is { HasExited: false };
+                UInt32 target = asService ? PInvoke.WTSGetActiveConsoleSessionId() : (UInt32)Environment.ProcessId;
+                Boolean alive = process is { HasExited: false };
                 if (target != NoSession && (!alive || target != session))
                 {
                     Stop(process);
@@ -61,9 +61,9 @@ internal sealed class SessionSupervisor(string name, string argument, bool asUse
         }
     }
 
-    private Process Launch(uint session)
+    private Process Launch(UInt32 session)
     {
-        string exe = Environment.ProcessPath!;
+        String exe = Environment.ProcessPath!;
         if (asService)
         {
             return asUser ? SessionLauncher.StartAsUser(session, exe, argument) : SessionLauncher.StartAsSystem(session, exe, argument);

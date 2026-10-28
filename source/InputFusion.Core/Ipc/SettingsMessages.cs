@@ -24,10 +24,10 @@ namespace InputFusion.Core.Ipc;
 [JsonDerivedType(typeof(DiagnosticsMessage), "diagnostics")]
 public abstract record SettingsMessage
 {
-    public byte[] ToPayload() => JsonSerializer.SerializeToUtf8Bytes(this, SettingsJson.Default.SettingsMessage);
+    public Byte[] ToPayload() => JsonSerializer.SerializeToUtf8Bytes(this, SettingsJson.Default.SettingsMessage);
 
     /// <summary>Null bei unlesbarer Nutzlast; die Gegenseite ist eine eigene Anwendung und kann veraltet sein.</summary>
-    public static SettingsMessage? FromPayload(byte[] payload)
+    public static SettingsMessage? FromPayload(Byte[] payload)
     {
         try
         {
@@ -42,13 +42,13 @@ public abstract record SettingsMessage
 
 public sealed record GetStateRequest : SettingsMessage;
 
-public sealed record SetKeyRequest(string Key) : SettingsMessage;
+public sealed record SetKeyRequest(String Key) : SettingsMessage;
 
 /// <summary>Neuer Port, auf dem der Agent lauscht. Eine bestehende Verbindung bleibt.</summary>
-public sealed record SetPortRequest(int Port) : SettingsMessage;
+public sealed record SetPortRequest(Int32 Port) : SettingsMessage;
 
 /// <summary>Neue Lage der Client-Gruppe auf der gemeinsamen Fläche. Der Agent rastet sie selbst noch einmal ein.</summary>
-public sealed record SetClientOffsetRequest(int OffsetX, int OffsetY) : SettingsMessage;
+public sealed record SetClientOffsetRequest(Int32 OffsetX, Int32 OffsetY) : SettingsMessage;
 
 /// <summary>Neue Liste der PCs für den Dienst auf dem Notebook, als Ganzes. Nur Administratoren dürfen sie schicken.</summary>
 public sealed record SetClientConfigRequest(IReadOnlyList<Config.HostEntry> Hosts) : SettingsMessage;
@@ -59,29 +59,29 @@ public sealed record SetClientConfigRequest(IReadOnlyList<Config.HostEntry> Host
 /// wie die letzte Übertragung ausging.
 /// </summary>
 public sealed record HostStateMessage(
-    string MachineName,
-    string Version,
-    IReadOnlyList<string> Addresses,
-    int Port,
-    string Key,
+    String MachineName,
+    String Version,
+    IReadOnlyList<String> Addresses,
+    Int32 Port,
+    String Key,
     IReadOnlyList<MonitorRect> HostMonitors,
     ClientStateInfo? Client,
-    string? PendingKey = null,
-    string? KeyStatus = null) : SettingsMessage;
+    String? PendingKey = null,
+    String? KeyStatus = null) : SettingsMessage;
 
 /// <summary>
 /// Der verbundene Client. <see cref="Monitors"/> ist leer, solange er seine Monitore nicht gemeldet hat; Name,
 /// Windows-Version und Benutzer sind null, solange er sie nicht gemeldet hat, siehe <see cref="Protocol.ClientInfo"/>.
 /// </summary>
 public sealed record ClientStateInfo(
-    string Address,
-    string Version,
+    String Address,
+    String Version,
     IReadOnlyList<MonitorRect> Monitors,
-    int OffsetX,
-    int OffsetY,
-    string? MachineName,
-    string? OsVersion,
-    string? UserName);
+    Int32 OffsetX,
+    Int32 OffsetY,
+    String? MachineName,
+    String? OsVersion,
+    String? UserName);
 
 /// <summary>
 /// Der Zustand des Dienstes auf dem Notebook. <see cref="Hosts"/> ist leer, solange <c>client.json</c> fehlt oder
@@ -91,36 +91,36 @@ public sealed record ClientStateInfo(
 /// die Anordnung, die der Host zuletzt geschickt hat; null ohne Verbindung oder bei einem Host, der sie noch nicht schickt.
 /// </summary>
 public sealed record ClientStateMessage(
-    string Version,
+    String Version,
     IReadOnlyList<Config.HostEntry> Hosts,
-    bool CanEdit,
-    bool Connected,
-    string? Host,
-    string? HostAddress,
-    string? HostVersion,
-    string? Problem,
+    Boolean CanEdit,
+    Boolean Connected,
+    String? Host,
+    String? HostAddress,
+    String? HostVersion,
+    String? Problem,
     Protocol.ClientArrangement? Arrangement = null) : SettingsMessage
 {
     /// <summary>Eine Zeile für Tooltip und Statuszeile.</summary>
-    public string Summary() =>
+    public String Summary() =>
         Connected ? $"Verbunden mit {Host} ({HostAddress}), Host-Version {HostVersion}."
         : Hosts.Count == 0 ? $"Nicht eingerichtet. {Problem}".TrimEnd()
         : $"Nicht verbunden mit {HostNames()}. {Problem}".TrimEnd();
 
     /// <summary>Die eingetragenen PCs für Meldungen, etwa „PC-A oder PC-B“.</summary>
-    public string HostNames() =>
+    public String HostNames() =>
         Hosts.Count <= 1 ? Hosts.FirstOrDefault()?.Host ?? "dem PC"
-        : $"{string.Join(", ", Hosts.SkipLast(1).Select(h => h.Host))} oder {Hosts[^1].Host}";
+        : $"{String.Join(", ", Hosts.SkipLast(1).Select(h => h.Host))} oder {Hosts[^1].Host}";
 }
 
 /// <summary>Eine Änderung wurde abgelehnt; geht nur an die Einstellungen, die sie verlangt haben.</summary>
-public sealed record SettingsError(string Message) : SettingsMessage;
+public sealed record SettingsError(String Message) : SettingsMessage;
 
 /// <summary>Tray → Dienst: sofort nach Updates suchen. Der Tray darf es nicht selbst, aktualisieren kann nur der Dienst.</summary>
 public sealed record CheckForUpdatesRequest : SettingsMessage;
 
 /// <summary>Dienst → Tray: Ergebnis der Suche als Satz für die Benachrichtigung; geht nur an den, der gefragt hat.</summary>
-public sealed record UpdateCheckResult(string Message) : SettingsMessage;
+public sealed record UpdateCheckResult(String Message) : SettingsMessage;
 
 /// <summary>
 /// Einstellungen → Agent oder Dienst: den Stand für den Reiter Diagnose. Gefragt wird jede Sekunde, solange er offen ist;
@@ -137,15 +137,15 @@ public sealed record GetDiagnosticsRequest : SettingsMessage;
 /// <param name="Log">Die letzten Zeilen des Protokolls, älteste zuerst.</param>
 /// <param name="LogPath">Die Protokolldatei; null, wenn es keine gibt (Dienst: nur Ereignisprotokoll).</param>
 public sealed record DiagnosticsMessage(
-    bool Connected,
+    Boolean Connected,
     DateTimeOffset? ConnectedSince,
-    double? RoundTripMs,
-    long SentFrames,
-    long ReceivedFrames,
-    string? LastError,
+    Double? RoundTripMs,
+    Int64 SentFrames,
+    Int64 ReceivedFrames,
+    String? LastError,
     DateTimeOffset? LastErrorAt,
-    IReadOnlyList<string> Log,
-    string? LogPath) : SettingsMessage;
+    IReadOnlyList<String> Log,
+    String? LogPath) : SettingsMessage;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(SettingsMessage))]

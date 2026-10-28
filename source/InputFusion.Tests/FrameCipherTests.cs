@@ -7,7 +7,7 @@ namespace InputFusion.Tests;
 
 public class FrameCipherTests
 {
-    private static readonly byte[] _key = RandomNumberGenerator.GetBytes(FrameCipher.KeySize);
+    private static readonly Byte[] _key = RandomNumberGenerator.GetBytes(FrameCipher.KeySize);
 
     [Fact]
     public void SealThenOpen_ReturnsTypeAndPayload_InOrder()
@@ -15,12 +15,12 @@ public class FrameCipherTests
         using FrameCipher sender = new FrameCipher(_key);
         using FrameCipher receiver = new FrameCipher(_key);
 
-        byte[] first = sender.Seal(MessageType.Key, [1, 2, 3]);
-        byte[] second = sender.Seal(MessageType.Heartbeat, []);
+        Byte[] first = sender.Seal(MessageType.Key, [1, 2, 3]);
+        Byte[] second = sender.Seal(MessageType.Heartbeat, []);
 
-        (MessageType type, byte[] payload) = receiver.Open(first);
+        (MessageType type, Byte[] payload) = receiver.Open(first);
         Assert.Equal(MessageType.Key, type);
-        Assert.Equal(new byte[] { 1, 2, 3 }, payload);
+        Assert.Equal(new Byte[] { 1, 2, 3 }, payload);
         (type, payload) = receiver.Open(second);
         Assert.Equal(MessageType.Heartbeat, type);
         Assert.Empty(payload);
@@ -38,7 +38,7 @@ public class FrameCipherTests
     {
         using FrameCipher sender = new FrameCipher(_key);
         using FrameCipher receiver = new FrameCipher(_key);
-        byte[] frame = sender.Seal(MessageType.Key, [1, 2, 3]);
+        Byte[] frame = sender.Seal(MessageType.Key, [1, 2, 3]);
         frame[1] ^= 0x01;
         Assert.Throws<IOException>(() => receiver.Open(frame));
     }
@@ -48,7 +48,7 @@ public class FrameCipherTests
     {
         using FrameCipher sender = new FrameCipher(_key);
         using FrameCipher receiver = new FrameCipher(_key);
-        byte[] frame = sender.Seal(MessageType.Key, [1, 2, 3]);
+        Byte[] frame = sender.Seal(MessageType.Key, [1, 2, 3]);
         receiver.Open(frame);
         Assert.Throws<IOException>(() => receiver.Open(frame));
     }
@@ -59,7 +59,7 @@ public class FrameCipherTests
         using FrameCipher sender = new FrameCipher(_key);
         using FrameCipher receiver = new FrameCipher(_key);
         sender.Seal(MessageType.Key, [1]);
-        byte[] second = sender.Seal(MessageType.Key, [2]);
+        Byte[] second = sender.Seal(MessageType.Key, [2]);
         Assert.Throws<IOException>(() => receiver.Open(second));
     }
 
@@ -76,6 +76,6 @@ public class FrameCipherTests
     public void TooShortFrame_IsRejected()
     {
         using FrameCipher receiver = new FrameCipher(_key);
-        Assert.Throws<IOException>(() => receiver.Open(new byte[FrameCipher.TagSize]));
+        Assert.Throws<IOException>(() => receiver.Open(new Byte[FrameCipher.TagSize]));
     }
 }

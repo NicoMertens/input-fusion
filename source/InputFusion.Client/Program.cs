@@ -4,7 +4,7 @@ using InputFusion.Core.Net;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Logging.EventLog;
 
-if (args is [UpdateApplier.Argument, string source, string target])
+if (args is [UpdateApplier.Argument, String source, String target])
 {
     Environment.Exit(UpdateApplier.Run(source, target));
 }
@@ -31,10 +31,10 @@ if (args is ["--connect", var hostName, "--key", var spikeKey, .. var spikeRest]
 // client.json und dem Injector als Kindprozess statt per CreateProcessAsUser.
 if (args is ["--relay", var relayHost, "--key", var relayKey, .. var relayRest])
 {
-    int relayPort = PortArgument(relayRest);
+    Int32 relayPort = PortArgument(relayRest);
     using CancellationTokenSource cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
-    ClientService.ConfigLoader fixedHost = (out string? error) => { error = null; return new ClientConfig([new HostEntry(relayHost, relayKey, Port: relayPort)]); };
+    ClientService.ConfigLoader fixedHost = (out String? error) => { error = null; return new ClientConfig([new HostEntry(relayHost, relayKey, Port: relayPort)]); };
     await ClientService.RunAsync(fixedHost, saveConfig: null, asService: false, Console.WriteLine, cts.Token);
     return;
 }
@@ -63,12 +63,12 @@ IHost host = builder.Build();
 host.Run();
 
 // Optional hinter den Dev-Einstiegen: --port <nummer>, sonst der Standard.
-static int PortArgument(string[] rest)
+static Int32 PortArgument(String[] rest)
 {
-    if (rest is not ["--port", string text, ..])
+    if (rest is not ["--port", String text, ..])
     {
         return Ports.Input;
     }
 
-    return Ports.Validate(text, out int port) is { } error ? throw new ArgumentException(error) : port;
+    return Ports.Validate(text, out Int32 port) is { } error ? throw new ArgumentException(error) : port;
 }

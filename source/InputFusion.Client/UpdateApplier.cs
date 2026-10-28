@@ -13,14 +13,14 @@ namespace InputFusion.Client;
 /// </summary>
 internal static class UpdateApplier
 {
-    public const string Argument = "--apply-update";
-    public const string ExeName = "InputFusion.Client.exe";
+    public const String Argument = "--apply-update";
+    public const String ExeName = "InputFusion.Client.exe";
 
     private static readonly TimeSpan _serviceTimeout = TimeSpan.FromSeconds(60);
 
-    public static int Run(string source, string target)
+    public static Int32 Run(String source, String target)
     {
-        string backup = target + ".old";
+        String backup = target + ".old";
         try
         {
             Log($"Spiele {source} nach {target} ein.");
@@ -76,9 +76,9 @@ internal static class UpdateApplier
     }
 
     /// <summary>Ein gerade beendeter Prozess gibt seine Dateien nicht immer sofort frei; einige Male nachfassen.</summary>
-    private static void MoveWithRetry(string from, string to)
+    private static void MoveWithRetry(String from, String to)
     {
-        for (int attempt = 1; ; attempt++)
+        for (Int32 attempt = 1; ; attempt++)
         {
             try
             {
@@ -92,20 +92,20 @@ internal static class UpdateApplier
         }
     }
 
-    private static void CopyDirectory(string source, string target)
+    private static void CopyDirectory(String source, String target)
     {
         Directory.CreateDirectory(target);
-        foreach (string file in Directory.GetFiles(source))
+        foreach (String file in Directory.GetFiles(source))
         {
             File.Copy(file, Path.Combine(target, Path.GetFileName(file)));
         }
-        foreach (string directory in Directory.GetDirectories(source))
+        foreach (String directory in Directory.GetDirectories(source))
         {
             CopyDirectory(directory, Path.Combine(target, Path.GetFileName(directory)));
         }
     }
 
-    private static void DeleteIfExists(string directory)
+    private static void DeleteIfExists(String directory)
     {
         if (Directory.Exists(directory))
         {
@@ -113,11 +113,11 @@ internal static class UpdateApplier
         }
     }
 
-    private static void Log(string message)
+    private static void Log(String message)
     {
         try
         {
-            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "InputFusion", "update.log");
+            String path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "InputFusion", "update.log");
             File.AppendAllText(path, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {message}{Environment.NewLine}");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

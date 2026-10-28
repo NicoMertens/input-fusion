@@ -20,12 +20,12 @@ namespace InputFusion.Host;
 /// </summary>
 internal static class ElevatedStartup
 {
-    private const string TaskName = "InputFusion Host";
-    private const string FirewallRuleName = "InputFusion Host";
+    private const String TaskName = "InputFusion Host";
+    private const String FirewallRuleName = "InputFusion Host";
     // ShellExecute meldet so, dass die UAC-Abfrage abgelehnt wurde.
-    private const int ErrorCancelled = 1223;
+    private const Int32 ErrorCancelled = 1223;
 
-    public static bool IsElevated
+    public static Boolean IsElevated
     {
         get
         {
@@ -34,30 +34,30 @@ internal static class ElevatedStartup
         }
     }
 
-    public static bool TaskExists() => Run("schtasks.exe", $"/Query /TN \"{TaskName}\"") == 0;
+    public static Boolean TaskExists() => Run("schtasks.exe", $"/Query /TN \"{TaskName}\"") == 0;
 
-    public static bool StartTask() => Run("schtasks.exe", $"/Run /TN \"{TaskName}\"") == 0;
+    public static Boolean StartTask() => Run("schtasks.exe", $"/Run /TN \"{TaskName}\"") == 0;
 
     /// <summary>Legt Aufgabe und Firewall-Regel an, mit einer UAC-Abfrage. False, wenn abgelehnt oder fehlgeschlagen.</summary>
-    public static bool Install(string exePath, int port)
+    public static Boolean Install(String exePath, Int32 port)
     {
         // Der Benutzer vor der Erhöhung: Meldet sich ein Standardbenutzer mit Admin-Kennwort an, liefe die Aufgabe
         // sonst unter dem Admin-Konto. Als SID, weil der Name bei Microsoft-Konten je nach Zusammenhang anders lautet.
-        string user;
+        String user;
         using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
         {
             user = identity.User?.Value ?? identity.Name;
         }
 
-        string file = Path.Combine(Path.GetTempPath(), "InputFusion.Host.task.xml");
+        String file = Path.Combine(Path.GetTempPath(), "InputFusion.Host.task.xml");
         // schtasks erwartet die Aufgabe als UTF-16 mit BOM, passend zur Kopfzeile.
         File.WriteAllText(file, TaskXml(user, exePath), Encoding.Unicode);
         try
         {
-            string script = $"schtasks /Create /TN \"{TaskName}\" /XML \"{file}\" /F"
+            String script = $"schtasks /Create /TN \"{TaskName}\" /XML \"{file}\" /F"
                 + $" && (netsh advfirewall firewall delete rule name=\"{FirewallRuleName}\" >nul"
                 + $" & netsh {AddFirewallRule(port)})";
-            int exitCode = RunElevated("cmd.exe", $"/c {script}");
+            Int32 exitCode = RunElevated("cmd.exe", $"/c {script}");
             if (exitCode != 0)
             {
                 Log.Write(exitCode == -ErrorCancelled
@@ -79,7 +79,7 @@ internal static class ElevatedStartup
     /// Stellt die Firewall-Regel auf <paramref name="port"/>, legt sie an, falls sie fehlt. Nur erhöht aufrufen, also
     /// aus der Aufgabe gestartet; ein von Hand geänderter Port greift so beim nächsten Start ohne UAC-Abfrage.
     /// </summary>
-    public static void UpdateFirewall(int port)
+    public static void UpdateFirewall(Int32 port)
     {
         if (Run("netsh.exe", $"advfirewall firewall set rule name=\"{FirewallRuleName}\" new localport={port}") == 0)
         {
@@ -96,7 +96,7 @@ internal static class ElevatedStartup
         }
     }
 
-    private static string AddFirewallRule(int port) =>
+    private static String AddFirewallRule(Int32 port) =>
         $"advfirewall firewall add rule name=\"{FirewallRuleName}\" dir=in action=allow protocol=TCP localport={port} profile=any";
 
     /// <summary>
@@ -117,10 +117,10 @@ internal static class ElevatedStartup
     /// 72 Stunden, danach beendet Windows den Host), normale Priorität (Standard ist „unter normal“, schlecht für die
     /// Hooks), kein Abbruch im Akkubetrieb, keine zweite Instanz, und der Auslöser nur für diesen Benutzer.
     /// </summary>
-    private static string TaskXml(string user, string exePath)
+    private static String TaskXml(String user, String exePath)
     {
-        string u = SecurityElement.Escape(user);
-        string exe = SecurityElement.Escape(exePath);
+        String u = SecurityElement.Escape(user);
+        String exe = SecurityElement.Escape(exePath);
         return $"""
             <?xml version="1.0" encoding="UTF-16"?>
             <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
@@ -156,7 +156,7 @@ internal static class ElevatedStartup
             """;
     }
 
-    private static int Run(string file, string arguments)
+    private static Int32 Run(String file, String arguments)
     {
         try
         {
@@ -181,7 +181,7 @@ internal static class ElevatedStartup
     }
 
     /// <summary>Startet erhöht (UAC-Abfrage) und wartet. Bei abgelehnter Abfrage −1223.</summary>
-    private static int RunElevated(string file, string arguments)
+    private static Int32 RunElevated(String file, String arguments)
     {
         try
         {

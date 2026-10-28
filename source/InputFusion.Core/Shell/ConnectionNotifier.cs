@@ -6,17 +6,17 @@ namespace InputFusion.Core.Shell;
 /// geänderten Konfiguration, soll nicht zwei Benachrichtigungen auslösen. Die Wiederverbindung erscheint nur nach einem
 /// gemeldeten Abbruch, sonst käme sie bei jedem Start.
 /// </summary>
-public sealed class ConnectionNotifier(Action<string> show, TimeSpan delay)
+public sealed class ConnectionNotifier(Action<String> show, TimeSpan delay)
 {
     private readonly Lock _lock = new();
-    private int _generation;
-    private bool _announced;
+    private Int32 _generation;
+    private Boolean _announced;
 
     /// <param name="immediately">Ohne Wartezeit, etwa weil die Maus gerade zurückgesprungen ist und das erklärt gehört.</param>
     /// <returns>Erledigt, sobald entschieden ist, ob der Abbruch erscheint.</returns>
-    public Task Lost(string message, bool immediately = false)
+    public Task Lost(String message, Boolean immediately = false)
     {
-        int generation;
+        Int32 generation;
         lock (_lock)
         {
             generation = ++_generation;
@@ -24,9 +24,9 @@ public sealed class ConnectionNotifier(Action<string> show, TimeSpan delay)
         return AnnounceAsync(generation, message, immediately ? TimeSpan.Zero : delay);
     }
 
-    public void Restored(string message)
+    public void Restored(String message)
     {
-        bool announced;
+        Boolean announced;
         lock (_lock)
         {
             _generation++;
@@ -50,7 +50,7 @@ public sealed class ConnectionNotifier(Action<string> show, TimeSpan delay)
         }
     }
 
-    private async Task AnnounceAsync(int generation, string message, TimeSpan wait)
+    private async Task AnnounceAsync(Int32 generation, String message, TimeSpan wait)
     {
         if (wait > TimeSpan.Zero)
         {

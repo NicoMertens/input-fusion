@@ -12,17 +12,17 @@ internal static unsafe class ActiveSession
     /// Im Dienst die aktive Konsolensitzung. Läuft der Dienst-Ablauf beim Entwickeln als Konsole, die eigene Sitzung, die
     /// auch eine RDP-Sitzung sein kann.
     /// </summary>
-    public static uint Id()
+    public static UInt32 Id()
     {
-        int own = Process.GetCurrentProcess().SessionId;
-        return own == 0 ? PInvoke.WTSGetActiveConsoleSessionId() : (uint)own;
+        Int32 own = Process.GetCurrentProcess().SessionId;
+        return own == 0 ? PInvoke.WTSGetActiveConsoleSessionId() : (UInt32)own;
     }
 
     /// <summary>Null, solange niemand angemeldet ist, etwa auf dem Anmeldebildschirm nach dem Hochfahren.</summary>
-    public static string? UserName()
+    public static String? UserName()
     {
         PWSTR buffer;
-        uint bytes;
+        UInt32 bytes;
         if (!PInvoke.WTSQuerySessionInformation(HANDLE.Null, Id(), WTS_INFO_CLASS.WTSUserName, &buffer, &bytes))
         {
             return null;
@@ -30,7 +30,7 @@ internal static unsafe class ActiveSession
 
         try
         {
-            string name = buffer.ToString();
+            String name = buffer.ToString();
             return name.Length == 0 ? null : name;
         }
         finally

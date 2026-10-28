@@ -14,44 +14,44 @@ namespace InputFusion.Core.Net;
 /// </summary>
 public sealed class FrameCipher : IDisposable
 {
-    public const int KeySize = 32;
-    public const int TagSize = 16;
+    public const Int32 KeySize = 32;
+    public const Int32 TagSize = 16;
 
     /// <summary>Größte Nutzlast, die verschlüsselt samt Typ und Prüfsumme noch in einen Frame passt.</summary>
-    public const int MaxPayload = FrameCodec.MaxPayload - 1 - TagSize;
+    public const Int32 MaxPayload = FrameCodec.MaxPayload - 1 - TagSize;
 
-    private const int NonceSize = 12;
+    private const Int32 NonceSize = 12;
 
     private readonly AesGcm _aes;
-    private ulong _counter;
+    private UInt64 _counter;
 
-    public FrameCipher(ReadOnlySpan<byte> key) => _aes = new AesGcm(key, TagSize);
+    public FrameCipher(ReadOnlySpan<Byte> key) => _aes = new AesGcm(key, TagSize);
 
     /// <summary>Typ und Nutzlast verschlüsselt, dahinter die Prüfsumme.</summary>
-    public byte[] Seal(MessageType type, ReadOnlySpan<byte> payload)
+    public Byte[] Seal(MessageType type, ReadOnlySpan<Byte> payload)
     {
         if (payload.Length > MaxPayload)
         {
             throw new ArgumentException($"Nutzlast über {MaxPayload} Bytes", nameof(payload));
         }
 
-        byte[] plain = [(byte)type, .. payload];
-        byte[] sealedFrame = new byte[plain.Length + TagSize];
+        Byte[] plain = [(Byte)type, .. payload];
+        Byte[] sealedFrame = new Byte[plain.Length + TagSize];
         _aes.Encrypt(NextNonce(), plain, sealedFrame.AsSpan(0, plain.Length), sealedFrame.AsSpan(plain.Length));
         return sealedFrame;
     }
 
     /// <summary>Entschlüsselt und prüft. Passt die Prüfsumme nicht, ist die Verbindung nicht mehr zu gebrauchen:
     /// <see cref="IOException"/>, wie bei jedem anderen Abbruch.</summary>
-    public (MessageType Type, byte[] Payload) Open(ReadOnlySpan<byte> sealedFrame)
+    public (MessageType Type, Byte[] Payload) Open(ReadOnlySpan<Byte> sealedFrame)
     {
         if (sealedFrame.Length < 1 + TagSize)
         {
             throw new IOException("Verschlüsselter Frame zu kurz.");
         }
 
-        int length = sealedFrame.Length - TagSize;
-        byte[] plain = new byte[length];
+        Int32 length = sealedFrame.Length - TagSize;
+        Byte[] plain = new Byte[length];
         try
         {
             _aes.Decrypt(NextNonce(), sealedFrame[..length], sealedFrame[length..], plain);
@@ -66,9 +66,9 @@ public sealed class FrameCipher : IDisposable
 
     public void Dispose() => _aes.Dispose();
 
-    private byte[] NextNonce()
+    private Byte[] NextNonce()
     {
-        byte[] nonce = new byte[NonceSize];
+        Byte[] nonce = new Byte[NonceSize];
         BinaryPrimitives.WriteUInt64LittleEndian(nonce, _counter++);
         return nonce;
     }

@@ -32,7 +32,7 @@ public class HostAddressesTests
     [InlineData("::ffff:192.168.1.10", "192.168.1.10")]
     [InlineData("192.168.1.10", "192.168.1.10")]
     [InlineData("fdb8::1", "fdb8::1")]
-    public void Display_ShowsIPv4WithoutMapping(string address, string expected) =>
+    public void Display_ShowsIPv4WithoutMapping(String address, String expected) =>
         Assert.Equal(expected, HostAddresses.Display(new IPEndPoint(IPAddress.Parse(address), 15111)));
 
     [Fact]

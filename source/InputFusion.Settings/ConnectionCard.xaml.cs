@@ -17,14 +17,14 @@ public partial class ConnectionCard : UserControl
     }
 
     /// <summary>Symbol der Gegenseite als Zeichen aus Segoe Fluent Icons.</summary>
-    public string Glyph
+    public String Glyph
     {
         get => Icon.Text;
         set => Icon.Text = value;
     }
 
     /// <summary>Angaben ohne Bezeichnung erscheinen als Hinweis über beide Spalten.</summary>
-    public void Show(bool connected, string title, IEnumerable<(string? Label, string Value)> details)
+    public void Show(Boolean connected, String title, IEnumerable<(String? Label, String Value)> details)
     {
         // Die Karte bleibt neutral; den Zustand zeigen Symbol in Akzentfarbe und grüner Punkt. Ein grün getönter Hintergrund
         // (SystemFillColorSuccessBackgroundBrush) wirkt im dunklen Modus schlammig.
@@ -36,15 +36,15 @@ public partial class ConnectionCard : UserControl
         Title.Text = title;
         Details.Children.Clear();
         Details.RowDefinitions.Clear();
-        foreach ((string? label, string value) in details)
+        foreach ((String? label, String value) in details)
         {
             AddDetail(label, value);
         }
     }
 
-    private void AddDetail(string? label, string value)
+    private void AddDetail(String? label, String value)
     {
-        int row = Details.RowDefinitions.Count;
+        Int32 row = Details.RowDefinitions.Count;
         Details.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         TextBlock text = new TextBlock { Text = value, Margin = new Thickness(0, 2, 0, 2), TextWrapping = TextWrapping.Wrap };
         Grid.SetRow(text, row);

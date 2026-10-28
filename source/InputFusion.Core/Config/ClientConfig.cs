@@ -10,7 +10,7 @@ namespace InputFusion.Core.Config;
 /// Schlüssel aus seinen Einstellungen, siehe <c>Handshake</c>; im Zustand für Nicht-Administratoren leer.
 /// <see cref="Port"/> muss zu dem des Hosts passen.
 /// </summary>
-public sealed record HostEntry(string Host, string Key, string? Ip = null, int Port = Ports.Input);
+public sealed record HostEntry(String Host, String Key, String? Ip = null, Int32 Port = Ports.Input);
 
 /// <summary>
 /// Konfiguration des Dienstes auf dem Notebook (<c>client.json</c>): die PCs, mit denen er sich verbinden darf, etwa
@@ -20,17 +20,17 @@ public sealed record ClientConfig(IReadOnlyList<HostEntry> Hosts)
 {
     // Wertgleich über die Einträge: Der Dienst liest die Datei vor jedem Versuch neu, und nur eine echte Änderung
     // soll an Tray und Einstellungen gehen.
-    public bool Equals(ClientConfig? other) => other is not null && Hosts.SequenceEqual(other.Hosts);
+    public Boolean Equals(ClientConfig? other) => other is not null && Hosts.SequenceEqual(other.Hosts);
 
-    public override int GetHashCode() => Hosts.Count;
+    public override Int32 GetHashCode() => Hosts.Count;
 
-    public byte[] ToJson() => JsonSerializer.SerializeToUtf8Bytes(this, ClientConfigJson.Default.ClientConfig);
+    public Byte[] ToJson() => JsonSerializer.SerializeToUtf8Bytes(this, ClientConfigJson.Default.ClientConfig);
 
     /// <summary>
     /// Liest den Inhalt von <c>client.json</c>. Bis 0.11 stand dort genau ein PC, flach mit <c>host</c>, <c>key</c>,
     /// <c>ip</c> und <c>port</c>; das wird zu einem Eintrag. Bei Fehler null und eine Meldung in <paramref name="error"/>.
     /// </summary>
-    public static ClientConfig? Parse(ReadOnlySpan<byte> json, out string? error)
+    public static ClientConfig? Parse(ReadOnlySpan<Byte> json, out String? error)
     {
         StoredClientConfig? stored;
         try
@@ -51,11 +51,11 @@ public sealed record ClientConfig(IReadOnlyList<HostEntry> Hosts)
             return null;
         }
 
-        for (int i = 0; i < hosts.Count; i++)
+        for (Int32 i = 0; i < hosts.Count; i++)
         {
             HostEntry? entry = hosts[i];
-            error = entry is null || string.IsNullOrWhiteSpace(entry.Host) ? "\"host\" fehlt"
-                : string.IsNullOrEmpty(entry.Key) ? "\"key\" fehlt"
+            error = entry is null || String.IsNullOrWhiteSpace(entry.Host) ? "\"host\" fehlt"
+                : String.IsNullOrEmpty(entry.Key) ? "\"key\" fehlt"
                 : Ports.Validate(entry.Port) is { } portError ? $"\"port\": {portError}"
                 : null;
             if (error is not null)
@@ -72,7 +72,7 @@ public sealed record ClientConfig(IReadOnlyList<HostEntry> Hosts)
 
 /// <summary>Die Datei, wie sie auf der Platte stehen kann: neu mit <c>hosts</c>, bis 0.11 flach mit einem PC.</summary>
 internal sealed record StoredClientConfig(
-    IReadOnlyList<HostEntry?>? Hosts, string? Host = null, string? Key = null, string? Ip = null, int Port = Ports.Input);
+    IReadOnlyList<HostEntry?>? Hosts, String? Host = null, String? Key = null, String? Ip = null, Int32 Port = Ports.Input);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

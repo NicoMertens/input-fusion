@@ -13,28 +13,28 @@ namespace InputFusion.Core.Config;
 /// </summary>
 public sealed class HostConfig
 {
-    public const int MinKeyLength = 16;
-    public const int GeneratedKeyLength = 24;
+    public const Int32 MinKeyLength = 16;
+    public const Int32 GeneratedKeyLength = 24;
 
     // Ohne leicht verwechselbare Zeichen (0/O, 1/l/I), weil der Schlüssel von Hand aufs Notebook übertragen wird.
-    private const string KeyAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+    private const String KeyAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
 
-    public static string FilePath { get; } = Path.Combine(
+    public static String FilePath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InputFusion", "config.json");
 
-    public string Key { get; set; } = "";
+    public String Key { get; set; } = "";
 
     /// <summary>Port, auf dem der Agent lauscht. Zu ändern in den Einstellungen; von Hand in der Datei nur bei beendetem
     /// Agent, weil er beim nächsten Speichern seinen Stand zurückschreibt.</summary>
-    public int Port { get; set; } = Ports.Input;
+    public Int32 Port { get; set; } = Ports.Input;
 
     /// <summary>Gespeicherte Anordnungen je Monitor-Kombination, siehe <c>MonitorLayout.CombinationKey</c>.</summary>
     public List<SavedLayout> Layouts { get; set; } = [];
 
-    public static string GenerateKey() => new(RandomNumberGenerator.GetItems<char>(KeyAlphabet, GeneratedKeyLength));
+    public static String GenerateKey() => new(RandomNumberGenerator.GetItems<Char>(KeyAlphabet, GeneratedKeyLength));
 
     /// <summary>Null, wenn der Schlüssel taugt, sonst der Grund.</summary>
-    public static string? ValidateKey(string key)
+    public static String? ValidateKey(String key)
     {
         if (key.Length < MinKeyLength)
         {
@@ -46,7 +46,7 @@ public sealed class HostConfig
             return "Der Schlüssel darf nicht mit Leerzeichen beginnen oder enden.";
         }
 
-        if (key.Any(char.IsControl))
+        if (key.Any(Char.IsControl))
         {
             return "Der Schlüssel darf keine Steuerzeichen enthalten.";
         }
@@ -74,7 +74,7 @@ public sealed class HostConfig
     public static HostConfig LoadOrCreate()
     {
         HostConfig config = TryLoad() ?? new HostConfig();
-        bool changed = false;
+        Boolean changed = false;
         if (ValidateKey(config.Key) is not null)
         {
             config.Key = GenerateKey();
@@ -98,7 +98,7 @@ public sealed class HostConfig
     {
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
         // Erst in eine Nachbardatei, dann ersetzen: Ein Absturz mitten im Schreiben ließe sonst eine halbe Datei zurück.
-        string temp = FilePath + ".tmp";
+        String temp = FilePath + ".tmp";
         using (FileStream stream = File.Create(temp))
         {
             JsonSerializer.Serialize(stream, this, HostConfigJson.Default.HostConfig);
@@ -108,7 +108,7 @@ public sealed class HostConfig
     }
 }
 
-public sealed record SavedLayout(string Combination, int OffsetX, int OffsetY);
+public sealed record SavedLayout(String Combination, Int32 OffsetX, Int32 OffsetY);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true,
     PropertyNameCaseInsensitive = true, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true)]

@@ -21,16 +21,16 @@ internal sealed class UpdateService
     // Die geplante und eine Suche aus dem Tray-Menü sollen nicht gleichzeitig laden.
     private readonly SemaphoreSlim _checking = new(1, 1);
     private VelopackAsset? _pending;
-    private long _lastCheck;
-    private bool _handedOver;
+    private Int64 _lastCheck;
+    private Boolean _handedOver;
 
     public UpdateService()
     {
         // Der Release-Workflow übergibt -p:RepositoryUrl; die SDK macht daraus dieses Attribut. Lokale Builds haben keins.
-        string? repoUrl = typeof(UpdateService).Assembly
+        String? repoUrl = typeof(UpdateService).Assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()
             .FirstOrDefault(a => a.Key == "RepositoryUrl")?.Value;
-        if (string.IsNullOrWhiteSpace(repoUrl))
+        if (String.IsNullOrWhiteSpace(repoUrl))
         {
             return;
         }
@@ -42,10 +42,10 @@ internal sealed class UpdateService
         }
     }
 
-    public bool IsInstalled => _manager is not null;
+    public Boolean IsInstalled => _manager is not null;
 
     /// <summary>Ein Update ist geladen und wartet aufs Einspielen. Kommt auf einem Threadpool-Thread.</summary>
-    public event Action<string>? UpdateReady;
+    public event Action<String>? UpdateReady;
 
     public async Task RunAsync(CancellationToken ct)
     {
@@ -71,7 +71,7 @@ internal sealed class UpdateService
     /// <summary>Außerplanmäßig prüfen, etwa nach einer abweichenden Protokollversion; höchstens alle zehn Minuten.</summary>
     public void CheckSoon()
     {
-        long last = Interlocked.Read(ref _lastCheck);
+        Int64 last = Interlocked.Read(ref _lastCheck);
         if (last != 0 && Environment.TickCount64 - last < _minimumGap.TotalMilliseconds)
         {
             return;
@@ -87,7 +87,7 @@ internal sealed class UpdateService
     }
 
     /// <summary>Suche aus dem Tray-Menü: sofort, ohne die Untergrenze, mit dem Ergebnis als Satz für die Benachrichtigung.</summary>
-    public async Task<string> CheckNowAsync()
+    public async Task<String> CheckNowAsync()
     {
         if (_manager is null)
         {
@@ -102,7 +102,7 @@ internal sealed class UpdateService
     /// und den Host danach neu startet. Der Aufrufer beendet sich danach regulär, damit das Tray-Symbol verschwindet;
     /// <c>ApplyUpdatesAndRestart</c> beendete den Prozess hart, und das Symbol bliebe als Geist stehen.
     /// </summary>
-    public bool ApplyOnExit()
+    public Boolean ApplyOnExit()
     {
         if (_manager is null || _pending is null || _handedOver)
         {
@@ -114,7 +114,7 @@ internal sealed class UpdateService
         return true;
     }
 
-    private async Task<string> CheckAsync()
+    private async Task<String> CheckAsync()
     {
         await _checking.WaitAsync().ConfigureAwait(false);
         try

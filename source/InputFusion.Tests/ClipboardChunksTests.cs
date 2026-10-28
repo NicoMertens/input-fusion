@@ -11,11 +11,11 @@ public class ClipboardChunksTests
     [InlineData(ClipboardChunks.ChunkSize)]
     [InlineData(ClipboardChunks.ChunkSize + 1)]
     [InlineData(3 * ClipboardChunks.ChunkSize + 17)]
-    public void SplitAndAssemble_RoundTrips(int length)
+    public void SplitAndAssemble_RoundTrips(Int32 length)
     {
-        string text = new string('x', length);
+        String text = new String('x', length);
 
-        List<byte[]> chunks = ClipboardChunks.Split(text)!;
+        List<Byte[]> chunks = ClipboardChunks.Split(text)!;
 
         Assert.Equal(Math.Max(1, (length + ClipboardChunks.ChunkSize - 1) / ClipboardChunks.ChunkSize), chunks.Count);
         Assert.Equal(text, Assemble(new ClipboardAssembler(), chunks));
@@ -25,7 +25,7 @@ public class ClipboardChunksTests
     public void Umlauts_SurviveChunkBoundary()
     {
         // „ä“ hat zwei Bytes in UTF-8; bei ungerader Länge davor fällt eins davon auf die Grenze zwischen zwei Stücken.
-        string text = new string('a', ClipboardChunks.ChunkSize - 1) + "äöü€";
+        String text = new String('a', ClipboardChunks.ChunkSize - 1) + "äöü€";
 
         Assert.Equal(text, Assemble(new ClipboardAssembler(), ClipboardChunks.Split(text)!));
     }
@@ -33,7 +33,7 @@ public class ClipboardChunksTests
     [Fact]
     public void Chunks_FitEncryptedFrame()
     {
-        List<byte[]> chunks = ClipboardChunks.Split(new string('x', 2 * ClipboardChunks.ChunkSize))!;
+        List<Byte[]> chunks = ClipboardChunks.Split(new String('x', 2 * ClipboardChunks.ChunkSize))!;
 
         Assert.All(chunks, c => Assert.True(c.Length <= FrameCipher.MaxPayload));
     }
@@ -41,15 +41,15 @@ public class ClipboardChunksTests
     [Fact]
     public void TooLong_IsNotSplit()
     {
-        Assert.Null(ClipboardChunks.Split(new string('x', ClipboardChunks.MaxBytes + 1)));
-        Assert.NotNull(ClipboardChunks.Split(new string('x', ClipboardChunks.MaxBytes)));
+        Assert.Null(ClipboardChunks.Split(new String('x', ClipboardChunks.MaxBytes + 1)));
+        Assert.NotNull(ClipboardChunks.Split(new String('x', ClipboardChunks.MaxBytes)));
     }
 
     [Fact]
     public void FirstChunk_DiscardsAbortedTransfer()
     {
         ClipboardAssembler assembler = new ClipboardAssembler();
-        List<byte[]> aborted = ClipboardChunks.Split(new string('a', 2 * ClipboardChunks.ChunkSize))!;
+        List<Byte[]> aborted = ClipboardChunks.Split(new String('a', 2 * ClipboardChunks.ChunkSize))!;
         Assert.Null(assembler.Add(aborted[0]));
 
         Assert.Equal("neu", Assemble(assembler, ClipboardChunks.Split("neu")!));
@@ -59,7 +59,7 @@ public class ClipboardChunksTests
     public void ChunkWithoutStart_IsIgnored()
     {
         ClipboardAssembler assembler = new ClipboardAssembler();
-        List<byte[]> chunks = ClipboardChunks.Split(new string('a', 2 * ClipboardChunks.ChunkSize))!;
+        List<Byte[]> chunks = ClipboardChunks.Split(new String('a', 2 * ClipboardChunks.ChunkSize))!;
 
         Assert.Null(assembler.Add(chunks[1]));
         Assert.Null(assembler.Add([]));
@@ -69,14 +69,14 @@ public class ClipboardChunksTests
     public void Assembler_RejectsMoreThanMax()
     {
         ClipboardAssembler assembler = new ClipboardAssembler();
-        byte[] middle = new byte[1 + ClipboardChunks.ChunkSize];
-        byte[] first = (byte[])middle.Clone();
+        Byte[] middle = new Byte[1 + ClipboardChunks.ChunkSize];
+        Byte[] first = (Byte[])middle.Clone();
         first[0] = 1;
-        byte[] last = new byte[2];
+        Byte[] last = new Byte[2];
         last[0] = 2;
 
         Assert.Null(assembler.Add(first));
-        for (int i = 0; i < ClipboardChunks.MaxBytes / ClipboardChunks.ChunkSize; i++)
+        for (Int32 i = 0; i < ClipboardChunks.MaxBytes / ClipboardChunks.ChunkSize; i++)
         {
             Assert.Null(assembler.Add(middle));
         }
@@ -84,10 +84,10 @@ public class ClipboardChunksTests
         Assert.Null(assembler.Add(last));
     }
 
-    private static string? Assemble(ClipboardAssembler assembler, List<byte[]> chunks)
+    private static String? Assemble(ClipboardAssembler assembler, List<Byte[]> chunks)
     {
-        string? text = null;
-        foreach (byte[] chunk in chunks)
+        String? text = null;
+        foreach (Byte[] chunk in chunks)
         {
             Assert.Null(text);
             text = assembler.Add(chunk);

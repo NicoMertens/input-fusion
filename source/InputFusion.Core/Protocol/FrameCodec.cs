@@ -8,33 +8,33 @@ namespace InputFusion.Core.Protocol;
 /// </summary>
 public static class FrameCodec
 {
-    public const int HeaderSize = 3;
-    public const int MaxPayload = ushort.MaxValue;
+    public const Int32 HeaderSize = 3;
+    public const Int32 MaxPayload = UInt16.MaxValue;
 
     /// <summary>Schreibt einen Frame nach <paramref name="destination"/> und gibt die geschriebene Byte-Zahl zurück.</summary>
-    public static int Write(Span<byte> destination, MessageType type, ReadOnlySpan<byte> payload)
+    public static Int32 Write(Span<Byte> destination, MessageType type, ReadOnlySpan<Byte> payload)
     {
         if (payload.Length > MaxPayload)
         {
             throw new ArgumentException($"Nutzlast über {MaxPayload} Bytes", nameof(payload));
         }
 
-        int total = HeaderSize + payload.Length;
+        Int32 total = HeaderSize + payload.Length;
         if (destination.Length < total)
         {
             throw new ArgumentException("Zielpuffer zu klein", nameof(destination));
         }
 
-        BinaryPrimitives.WriteUInt16LittleEndian(destination, (ushort)payload.Length);
-        destination[2] = (byte)type;
+        BinaryPrimitives.WriteUInt16LittleEndian(destination, (UInt16)payload.Length);
+        destination[2] = (Byte)type;
         payload.CopyTo(destination[HeaderSize..]);
         return total;
     }
 
     /// <summary>Allokierende Variante für Tests und selten gesendete Nachrichten.</summary>
-    public static byte[] Write(MessageType type, ReadOnlySpan<byte> payload)
+    public static Byte[] Write(MessageType type, ReadOnlySpan<Byte> payload)
     {
-        byte[] buffer = new byte[HeaderSize + payload.Length];
+        Byte[] buffer = new Byte[HeaderSize + payload.Length];
         Write(buffer, type, payload);
         return buffer;
     }

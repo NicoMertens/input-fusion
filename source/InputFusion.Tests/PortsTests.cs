@@ -9,7 +9,7 @@ public class PortsTests
     [InlineData(1)]
     [InlineData(15111)]
     [InlineData(65535)]
-    public void Validate_AcceptsPortsInRange(int port)
+    public void Validate_AcceptsPortsInRange(Int32 port)
     {
         Assert.Null(Ports.Validate(port));
     }
@@ -18,7 +18,7 @@ public class PortsTests
     [InlineData(0)]
     [InlineData(-1)]
     [InlineData(65536)]
-    public void Validate_RejectsPortsOutOfRange(int port)
+    public void Validate_RejectsPortsOutOfRange(Int32 port)
     {
         Assert.NotNull(Ports.Validate(port));
     }
@@ -26,7 +26,7 @@ public class PortsTests
     [Fact]
     public void ValidateText_ParsesPort()
     {
-        Assert.Null(Ports.Validate("15200", out int port));
+        Assert.Null(Ports.Validate("15200", out Int32 port));
         Assert.Equal(15200, port);
     }
 
@@ -36,7 +36,7 @@ public class PortsTests
     [InlineData("-5")]
     [InlineData(" 15111")]
     [InlineData("70000")]
-    public void ValidateText_RejectsNonPorts(string text)
+    public void ValidateText_RejectsNonPorts(String text)
     {
         Assert.NotNull(Ports.Validate(text, out _));
     }

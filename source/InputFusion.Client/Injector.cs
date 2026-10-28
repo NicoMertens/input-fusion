@@ -15,15 +15,15 @@ namespace InputFusion.Client;
 internal static class Injector
 {
     // Der Dienst startet diesen Modus mit CREATE_NO_WINDOW, weil die exe eine Konsolenanwendung ist.
-    public const string Argument = "--injector";
+    public const String Argument = "--injector";
 
-    public static void Run(string[] rest) => RunAsync(OwnerProcess.Parse(rest)).GetAwaiter().GetResult();
+    public static void Run(String[] rest) => RunAsync(OwnerProcess.Parse(rest)).GetAwaiter().GetResult();
 
-    private static async Task RunAsync(int? ownerPid)
+    private static async Task RunAsync(Int32? ownerPid)
     {
         using CancellationTokenSource cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
-        if (ownerPid is int pid)
+        if (ownerPid is Int32 pid)
         {
             _ = OwnerProcess.WatchAsync(pid, cts);
         }
@@ -51,7 +51,7 @@ internal static class Injector
                 try
                 {
                     // Den Austritt an der Kante meldet der Injector über die Pipe; der Dienst reicht ihn weiter.
-                    await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(cts.Token))
+                    await foreach ((MessageType type, Byte[] payload) in conn.ReceiveAsync(cts.Token))
                     {
                         playback.Post(() =>
                         {

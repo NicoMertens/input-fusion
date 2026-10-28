@@ -10,16 +10,16 @@
 public sealed class MonitorLayout
 {
     /// <summary>So viele Pixel muss ein Client-Monitor mindestens an einem Host-Monitor anliegen.</summary>
-    public const int MinOverlap = 50;
+    public const Int32 MinOverlap = 50;
 
     /// <summary>Innerhalb dieses Abstands rasten Kanten beim Verschieben bündig ein.</summary>
-    public const int SnapDistance = 40;
+    public const Int32 SnapDistance = 40;
 
     /// <summary>So weit innerhalb der Host-Kante landet der Cursor bei der Rückkehr, damit eine kleine
     /// Bewegung zurück nicht sofort wieder wechselt.</summary>
-    public const int ReturnInset = 2;
+    public const Int32 ReturnInset = 2;
 
-    public MonitorLayout(IReadOnlyList<MonitorRect> hostMonitors, IReadOnlyList<MonitorRect> clientMonitors, int offsetX, int offsetY)
+    public MonitorLayout(IReadOnlyList<MonitorRect> hostMonitors, IReadOnlyList<MonitorRect> clientMonitors, Int32 offsetX, Int32 offsetY)
     {
         HostMonitors = hostMonitors;
         ClientMonitors = clientMonitors;
@@ -34,9 +34,9 @@ public sealed class MonitorLayout
     /// <summary>In den eigenen Koordinaten des Clients.</summary>
     public IReadOnlyList<MonitorRect> ClientMonitors { get; }
 
-    public int OffsetX { get; }
+    public Int32 OffsetX { get; }
 
-    public int OffsetY { get; }
+    public Int32 OffsetY { get; }
 
     public IReadOnlyList<EdgeTransition> Transitions { get; }
 
@@ -44,9 +44,9 @@ public sealed class MonitorLayout
     public IReadOnlyList<ReturnEdge> ReturnEdges { get; }
 
     /// <summary>Schlüssel der Monitor-Kombination aus den Geräte-IDs: angedockt und unterwegs sind zwei Layouts.</summary>
-    public static string CombinationKey(IReadOnlyList<MonitorRect> hostMonitors, IReadOnlyList<MonitorRect> clientMonitors) =>
-        string.Join("|", hostMonitors.Select(m => m.DeviceId).Order(StringComparer.Ordinal))
-        + "#" + string.Join("|", clientMonitors.Select(m => m.DeviceId).Order(StringComparer.Ordinal));
+    public static String CombinationKey(IReadOnlyList<MonitorRect> hostMonitors, IReadOnlyList<MonitorRect> clientMonitors) =>
+        String.Join("|", hostMonitors.Select(m => m.DeviceId).Order(StringComparer.Ordinal))
+        + "#" + String.Join("|", clientMonitors.Select(m => m.DeviceId).Order(StringComparer.Ordinal));
 
     public MonitorRect Place(MonitorRect client) => client with { X = client.X + OffsetX, Y = client.Y + OffsetY };
 
@@ -54,10 +54,10 @@ public sealed class MonitorLayout
     /// Gültig ist eine Anordnung, wenn kein Client-Monitor einen Host-Monitor überdeckt und es mindestens
     /// einen Übergang gibt. Eine gespeicherte Anordnung kann ungültig werden, wenn sich eine Auflösung ändert.
     /// </summary>
-    public bool IsValid => Transitions.Count > 0 && !Overlaps(HostMonitors, ClientMonitors, OffsetX, OffsetY);
+    public Boolean IsValid => Transitions.Count > 0 && !Overlaps(HostMonitors, ClientMonitors, OffsetX, OffsetY);
 
     /// <summary>Standard für eine neue Kombination: der Client rechts neben dem rechtesten Host-Monitor, oben bündig.</summary>
-    public static (int X, int Y) DefaultOffset(IReadOnlyList<MonitorRect> hostMonitors, IReadOnlyList<MonitorRect> clientMonitors)
+    public static (Int32 X, Int32 Y) DefaultOffset(IReadOnlyList<MonitorRect> hostMonitors, IReadOnlyList<MonitorRect> clientMonitors)
     {
         MonitorRect host = hostMonitors.MaxBy(m => m.Right);
         MonitorRect client = clientMonitors.MinBy(m => m.Left);
@@ -69,23 +69,23 @@ public sealed class MonitorLayout
     /// liegt: Ein Client-Monitor liegt mit mindestens <see cref="MinOverlap"/> Pixeln an einem Host-Monitor an,
     /// ohne einen zu überdecken. Bündige Kanten rasten innerhalb von <see cref="SnapDistance"/> ein.
     /// </summary>
-    public static (int X, int Y) Snap(IReadOnlyList<MonitorRect> hostMonitors, IReadOnlyList<MonitorRect> clientMonitors, int x, int y)
+    public static (Int32 X, Int32 Y) Snap(IReadOnlyList<MonitorRect> hostMonitors, IReadOnlyList<MonitorRect> clientMonitors, Int32 x, Int32 y)
     {
-        (int X, int Y)? best = null;
-        long bestDistance = long.MaxValue;
+        (Int32 X, Int32 Y)? best = null;
+        Int64 bestDistance = Int64.MaxValue;
         foreach (MonitorRect h in hostMonitors)
         {
             foreach (MonitorRect c in clientMonitors)
             {
-                foreach ((int X, int Y) candidate in Candidates(h, c, x, y))
+                foreach ((Int32 X, Int32 Y) candidate in Candidates(h, c, x, y))
                 {
                     if (Overlaps(hostMonitors, clientMonitors, candidate.X, candidate.Y))
                     {
                         continue;
                     }
 
-                    long dx = candidate.X - x, dy = candidate.Y - y;
-                    long distance = dx * dx + dy * dy;
+                    Int64 dx = candidate.X - x, dy = candidate.Y - y;
+                    Int64 distance = dx * dx + dy * dy;
                     if (distance < bestDistance)
                     {
                         bestDistance = distance;
@@ -102,12 +102,12 @@ public sealed class MonitorLayout
     /// ist das Ziel der Bewegung, wie der Hook es meldet, (<paramref name="dx"/>, <paramref name="dy"/>) die
     /// Bewegung; der Cursor stand also vorher auf (x − dx, y − dy). Liefert den Eintrittspunkt in Client-Koordinaten.
     /// </summary>
-    public bool TryLeaveHost(int x, int y, int dx, int dy, out EdgeTransition transition, out (int X, int Y) clientPoint)
+    public Boolean TryLeaveHost(Int32 x, Int32 y, Int32 dx, Int32 dy, out EdgeTransition transition, out (Int32 X, Int32 Y) clientPoint)
     {
-        int px = x - dx, py = y - dy;
+        Int32 px = x - dx, py = y - dy;
         // Klemmt Windows die Zielposition schon auf den Rand, kommt beim Drücken gegen die Kante ein Ereignis ganz
         // ohne Bewegung an. Das zählt auf dem Randpixel als Drücken nach außen, eine Bewegung entlang der Kante nicht.
-        bool still = dx == 0 && dy == 0;
+        Boolean still = dx == 0 && dy == 0;
         foreach (EdgeTransition t in Transitions)
         {
             MonitorRect h = t.HostMonitor;
@@ -116,7 +116,7 @@ public sealed class MonitorLayout
                 continue;
             }
 
-            bool crossing = t.Side switch
+            Boolean crossing = t.Side switch
             {
                 EdgeSide.Right => (dx > 0 || still) && x >= h.Right - 1 && py >= t.From && py < t.To,
                 EdgeSide.Left => (dx < 0 || still) && x <= h.Left && py >= t.From && py < t.To,
@@ -140,11 +140,11 @@ public sealed class MonitorLayout
 
     /// <summary>Der Eintrittspunkt auf dem Client, wenn die Maus an der Stelle <paramref name="along"/> (Host-Koordinate
     /// entlang der Kante) über den Übergang geht.</summary>
-    public (int X, int Y) EntryPoint(EdgeTransition t, int along)
+    public (Int32 X, Int32 Y) EntryPoint(EdgeTransition t, Int32 along)
     {
-        int a = Math.Clamp(along, t.From, t.To - 1);
+        Int32 a = Math.Clamp(along, t.From, t.To - 1);
         MonitorRect p = t.PlacedClientMonitor;
-        (int lx, int ly) = t.Side switch
+        (Int32 lx, Int32 ly) = t.Side switch
         {
             EdgeSide.Right => (p.Left, a),
             EdgeSide.Left => (p.Right - 1, a),
@@ -158,9 +158,9 @@ public sealed class MonitorLayout
     /// Rechnet den Austritt des Clients an seiner Kante <paramref name="clientSide"/> bei (<paramref name="clientX"/>,
     /// <paramref name="clientY"/>) in Client-Koordinaten auf den Punkt um, an dem der Host-Cursor erscheint.
     /// </summary>
-    public bool TryReturn(EdgeSide clientSide, int clientX, int clientY, out (int X, int Y) hostPoint)
+    public Boolean TryReturn(EdgeSide clientSide, Int32 clientX, Int32 clientY, out (Int32 X, Int32 Y) hostPoint)
     {
-        int lx = clientX + OffsetX, ly = clientY + OffsetY;
+        Int32 lx = clientX + OffsetX, ly = clientY + OffsetY;
         foreach (EdgeTransition t in Transitions)
         {
             if (t.Side.Opposite() != clientSide)
@@ -168,7 +168,7 @@ public sealed class MonitorLayout
                 continue;
             }
 
-            int along = t.Side.IsVertical() ? ly : lx;
+            Int32 along = t.Side.IsVertical() ? ly : lx;
             if (along < t.From || along >= t.To)
             {
                 continue;
@@ -222,10 +222,10 @@ public sealed class MonitorLayout
     }
 
     private static void AddIfOverlapping(List<EdgeTransition> result, EdgeSide side, MonitorRect h, MonitorRect c, MonitorRect p,
-        int hostStart, int hostEnd, int clientStart, int clientEnd)
+        Int32 hostStart, Int32 hostEnd, Int32 clientStart, Int32 clientEnd)
     {
-        int from = Math.Max(hostStart, clientStart);
-        int to = Math.Min(hostEnd, clientEnd);
+        Int32 from = Math.Max(hostStart, clientStart);
+        Int32 to = Math.Min(hostEnd, clientEnd);
         if (to > from)
         {
             result.Add(new EdgeTransition(side, h, c, p, from, to));
@@ -245,29 +245,29 @@ public sealed class MonitorLayout
     }
 
     /// <summary>Die möglichen Lagen, in denen <paramref name="c"/> an einer der vier Kanten von <paramref name="h"/> anliegt.</summary>
-    private static IEnumerable<(int X, int Y)> Candidates(MonitorRect h, MonitorRect c, int x, int y)
+    private static IEnumerable<(Int32 X, Int32 Y)> Candidates(MonitorRect h, MonitorRect c, Int32 x, Int32 y)
     {
         // Entlang der Kante so weit verschieben wie gewünscht, solange mindestens MinOverlap anliegen.
-        int minY = h.Top + MinOverlap - c.Bottom, maxY = h.Bottom - MinOverlap - c.Top;
-        int minX = h.Left + MinOverlap - c.Right, maxX = h.Right - MinOverlap - c.Left;
+        Int32 minY = h.Top + MinOverlap - c.Bottom, maxY = h.Bottom - MinOverlap - c.Top;
+        Int32 minX = h.Left + MinOverlap - c.Right, maxX = h.Right - MinOverlap - c.Left;
         if (minY <= maxY)
         {
-            int alongY = AlignEdges(Math.Clamp(y, minY, maxY), h.Top, h.Bottom, c.Top, c.Bottom, minY, maxY);
+            Int32 alongY = AlignEdges(Math.Clamp(y, minY, maxY), h.Top, h.Bottom, c.Top, c.Bottom, minY, maxY);
             yield return (h.Right - c.Left, alongY);
             yield return (h.Left - c.Right, alongY);
         }
         if (minX <= maxX)
         {
-            int alongX = AlignEdges(Math.Clamp(x, minX, maxX), h.Left, h.Right, c.Left, c.Right, minX, maxX);
+            Int32 alongX = AlignEdges(Math.Clamp(x, minX, maxX), h.Left, h.Right, c.Left, c.Right, minX, maxX);
             yield return (alongX, h.Bottom - c.Top);
             yield return (alongX, h.Top - c.Bottom);
         }
     }
 
     /// <summary>Lässt Anfang oder Ende des Client-Monitors bündig mit dem Host-Monitor einrasten, wenn sie nah dran sind.</summary>
-    private static int AlignEdges(int offset, int hostStart, int hostEnd, int clientStart, int clientEnd, int min, int max)
+    private static Int32 AlignEdges(Int32 offset, Int32 hostStart, Int32 hostEnd, Int32 clientStart, Int32 clientEnd, Int32 min, Int32 max)
     {
-        foreach (int aligned in new[] { hostStart - clientStart, hostEnd - clientEnd })
+        foreach (Int32 aligned in new[] { hostStart - clientStart, hostEnd - clientEnd })
         {
             if (Math.Abs(offset - aligned) <= SnapDistance && aligned >= min && aligned <= max)
             {
@@ -278,13 +278,13 @@ public sealed class MonitorLayout
         return offset;
     }
 
-    private static bool Overlaps(IReadOnlyList<MonitorRect> hostMonitors, IReadOnlyList<MonitorRect> clientMonitors, int offsetX, int offsetY)
+    private static Boolean Overlaps(IReadOnlyList<MonitorRect> hostMonitors, IReadOnlyList<MonitorRect> clientMonitors, Int32 offsetX, Int32 offsetY)
     {
         foreach (MonitorRect h in hostMonitors)
         {
             foreach (MonitorRect c in clientMonitors)
             {
-                int left = c.Left + offsetX, top = c.Top + offsetY;
+                Int32 left = c.Left + offsetX, top = c.Top + offsetY;
                 if (left < h.Right && left + c.Width > h.Left && top < h.Bottom && top + c.Height > h.Top)
                 {
                     return true;

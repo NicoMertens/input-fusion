@@ -28,10 +28,10 @@ public class InputPipeTests
         using MessageConnection clientConn = new MessageConnection(client);
 
         // Nebenläufig lesen wie der Injector, während der Dienst sendet.
-        List<(MessageType Type, byte[] Payload)> received = new List<(MessageType Type, byte[] Payload)>();
+        List<(MessageType Type, Byte[] Payload)> received = new List<(MessageType Type, Byte[] Payload)>();
         Task reading = Task.Run(async () =>
         {
-            await foreach ((MessageType Type, byte[] Payload) frame in clientConn.ReceiveAsync(cts.Token))
+            await foreach ((MessageType Type, Byte[] Payload) frame in clientConn.ReceiveAsync(cts.Token))
             {
                 received.Add(frame);
                 if (received.Count == 3)
@@ -102,7 +102,7 @@ public class InputPipeTests
         ClientStateMessage state = new ClientStateMessage("0.5.0", [], false, false, null, null, null, "Host PC:15111 antwortet nicht.");
         await serverConn.SendAsync(MessageType.Settings, state.ToPayload(), cts.Token);
 
-        await foreach ((MessageType type, byte[] payload) in clientConn.ReceiveAsync(cts.Token))
+        await foreach ((MessageType type, Byte[] payload) in clientConn.ReceiveAsync(cts.Token))
         {
             Assert.Equal(MessageType.Settings, type);
             ClientStateMessage back = Assert.IsType<ClientStateMessage>(SettingsMessage.FromPayload(payload));
@@ -124,7 +124,7 @@ public class InputPipeTests
         await accept;
 
         // Server und Client sind hier derselbe Prozess; ob er erhöht läuft, hängt davon ab, wie die Tests gestartet wurden.
-        bool elevated = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+        Boolean elevated = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
         Assert.Equal(elevated, PipeIdentity.IsClientAdministrator(server));
     }
 }

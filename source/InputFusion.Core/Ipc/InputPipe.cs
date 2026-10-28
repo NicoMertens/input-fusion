@@ -17,7 +17,7 @@ namespace InputFusion.Core.Ipc;
 public static class InputPipe
 {
     /// <summary>Pipe-Name ohne Präfix. Der Server liegt unter <c>\\.\pipe\InputFusion.Input</c>.</summary>
-    public const string Name = "InputFusion.Input";
+    public const String Name = "InputFusion.Input";
 
     /// <summary>Erzeugt den lauschenden Server mit der oben beschriebenen ACL.</summary>
     public static NamedPipeServerStream CreateServer()

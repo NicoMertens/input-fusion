@@ -13,7 +13,7 @@ internal static unsafe class ProcessIdentity
     /// Null, wenn Prozess oder Token nicht zu öffnen sind, etwa ein erhöhter Prozess aus einem nicht erhöhten heraus.
     /// TOKEN_DUPLICATE braucht <see cref="WindowsPrincipal.IsInRole(WindowsBuiltInRole)"/> für die Gruppenprüfung.
     /// </summary>
-    public static WindowsIdentity? Open(uint pid)
+    public static WindowsIdentity? Open(UInt32 pid)
     {
         HANDLE process = PInvoke.OpenProcess(PROCESS_ACCESS_RIGHTS.PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
         if (process.IsNull)

@@ -27,7 +27,7 @@ internal static unsafe class RawMouse
             dwFlags = RAWINPUTDEVICE_FLAGS.RIDEV_INPUTSINK,
             hwndTarget = _window,
         };
-        PInvoke.RegisterRawInputDevices(&device, 1, (uint)sizeof(RAWINPUTDEVICE));
+        PInvoke.RegisterRawInputDevices(&device, 1, (UInt32)sizeof(RAWINPUTDEVICE));
     }
 
     public static void Unregister()
@@ -47,15 +47,15 @@ internal static unsafe class RawMouse
         }
 
         RAWINPUT raw;
-        uint size = (uint)sizeof(RAWINPUT);
+        UInt32 size = (UInt32)sizeof(RAWINPUT);
         if (PInvoke.GetRawInputData(new HRAWINPUT(lParam.Value), RAW_INPUT_DATA_COMMAND_FLAGS.RID_INPUT,
-                &raw, &size, (uint)sizeof(RAWINPUTHEADER)) == unchecked((uint)-1))
+                &raw, &size, (UInt32)sizeof(RAWINPUTHEADER)) == unchecked((UInt32)(-1)))
         {
             return;
         }
 
         // hDevice 0 heißt per SendInput eingespielt; wie im Hook nicht weiterreichen.
-        if (raw.header.dwType != (uint)RID_DEVICE_INFO_TYPE.RIM_TYPEMOUSE || raw.header.hDevice.IsNull)
+        if (raw.header.dwType != (UInt32)RID_DEVICE_INFO_TYPE.RIM_TYPEMOUSE || raw.header.hDevice.IsNull)
         {
             return;
         }

@@ -12,6 +12,10 @@ dotnet_diagnostic.IDE0008.severity = warning
 csharp_prefer_braces = true:warning
 dotnet_diagnostic.IDE0011.severity = warning
 
+dotnet_style_predefined_type_for_locals_parameters_members = false:warning
+dotnet_style_predefined_type_for_member_access = false:warning
+dotnet_diagnostic.IDE0049.severity = warning
+
 dotnet_naming_rule.constants_pascal_case.symbols = constants
 dotnet_naming_rule.constants_pascal_case.style = pascal_case
 dotnet_naming_rule.constants_pascal_case.severity = warning

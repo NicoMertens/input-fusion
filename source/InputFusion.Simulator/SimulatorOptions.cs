@@ -13,27 +13,27 @@ namespace InputFusion.Simulator;
 /// <c>--key &lt;schlüssel&gt;</c> und <c>--port &lt;nummer&gt;</c> (Standard: aus der Konfiguration des Hosts auf
 /// diesem Rechner).
 /// </summary>
-internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> Monitors, int DelayMs, string Key, int Port)
+internal sealed record SimulatorOptions(String Host, IReadOnlyList<MonitorRect> Monitors, Int32 DelayMs, String Key, Int32 Port)
 {
-    private const string DefaultMonitors = "0,0,1920,1200,144;1920,-240,2560,1440,96";
+    private const String DefaultMonitors = "0,0,1920,1200,144;1920,-240,2560,1440,96";
 
-    public static SimulatorOptions Parse(IReadOnlyList<string> args)
+    public static SimulatorOptions Parse(IReadOnlyList<String> args)
     {
-        string host = "localhost";
-        string monitors = DefaultMonitors;
-        int delay = 0;
-        string? key = null;
-        int? port = null;
+        String host = "localhost";
+        String monitors = DefaultMonitors;
+        Int32 delay = 0;
+        String? key = null;
+        Int32? port = null;
 
-        for (int i = 0; i + 1 < args.Count; i += 2)
+        for (Int32 i = 0; i + 1 < args.Count; i += 2)
         {
             switch (args[i])
             {
                 case "--host": host = args[i + 1]; break;
                 case "--monitors": monitors = args[i + 1]; break;
-                case "--delay": delay = int.Parse(args[i + 1], CultureInfo.InvariantCulture); break;
+                case "--delay": delay = Int32.Parse(args[i + 1], CultureInfo.InvariantCulture); break;
                 case "--key": key = args[i + 1]; break;
-                case "--port": port = Ports.Validate(args[i + 1], out int value) is { } error ? throw new ArgumentException(error) : value; break;
+                case "--port": port = Ports.Validate(args[i + 1], out Int32 value) is { } error ? throw new ArgumentException(error) : value; break;
                 default: throw new ArgumentException($"Unbekannter Parameter {args[i]}");
             }
         }
@@ -41,7 +41,7 @@ internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> 
         // Host und Simulator laufen beim Entwickeln meist auf demselben Rechner und unter demselben Benutzer.
         HostConfig? hostConfig = HostConfig.TryLoad();
         key ??= hostConfig?.Key;
-        if (string.IsNullOrEmpty(key))
+        if (String.IsNullOrEmpty(key))
         {
             throw new ArgumentException($"Kein Schlüssel: --key angeben oder den Host auf diesem Rechner einmal starten ({HostConfig.FilePath}).");
         }
@@ -49,12 +49,12 @@ internal sealed record SimulatorOptions(string Host, IReadOnlyList<MonitorRect> 
         return new SimulatorOptions(host, ParseMonitors(monitors), delay, key, port ?? hostConfig?.Port ?? Ports.Input);
     }
 
-    private static List<MonitorRect> ParseMonitors(string spec)
+    private static List<MonitorRect> ParseMonitors(String spec)
     {
         List<MonitorRect> result = new List<MonitorRect>();
-        foreach (string part in spec.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (String part in spec.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            int[] v = part.Split(',').Select(s => int.Parse(s.Trim(), CultureInfo.InvariantCulture)).ToArray();
+            Int32[] v = part.Split(',').Select(s => Int32.Parse(s.Trim(), CultureInfo.InvariantCulture)).ToArray();
             if (v.Length is not (4 or 5))
             {
                 throw new ArgumentException($"Monitor \"{part}\" braucht x,y,breite,höhe[,dpi]");

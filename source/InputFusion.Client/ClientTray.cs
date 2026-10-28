@@ -16,19 +16,19 @@ namespace InputFusion.Client;
 internal static class ClientTray
 {
     // Wie der Injector mit CREATE_NO_WINDOW gestartet; Konsolenausgaben sieht man nur beim Entwickeln.
-    public const string Argument = "--tray";
+    public const String Argument = "--tray";
 
     private static readonly TimeSpan _retryDelay = TimeSpan.FromSeconds(1);
     // So lange darf die Neuverbindung zum PC dauern, ohne dass der Abbruch gemeldet wird.
     private static readonly TimeSpan _notifyDelay = TimeSpan.FromSeconds(5);
 
-    public static void Run(string[] rest) => RunAsync(OwnerProcess.Parse(rest)).GetAwaiter().GetResult();
+    public static void Run(String[] rest) => RunAsync(OwnerProcess.Parse(rest)).GetAwaiter().GetResult();
 
-    private static async Task RunAsync(int? ownerPid)
+    private static async Task RunAsync(Int32? ownerPid)
     {
         using CancellationTokenSource cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
-        if (ownerPid is int pid)
+        if (ownerPid is Int32 pid)
         {
             _ = OwnerProcess.WatchAsync(pid, cts);
         }
@@ -36,9 +36,9 @@ internal static class ClientTray
         ClipboardSync clipboard = new ClipboardSync(Console.WriteLine);
         // Die Verbindung zum Dienst, solange eine steht, und die Suche nach Updates, deren Antwort noch aussteht.
         MessageConnection? current = null;
-        TaskCompletionSource<string>? pendingCheck = null;
+        TaskCompletionSource<String>? pendingCheck = null;
 
-        async Task<string> CheckForUpdatesAsync()
+        async Task<String> CheckForUpdatesAsync()
         {
             MessageConnection? connection = current;
             if (connection is null)
@@ -46,7 +46,7 @@ internal static class ClientTray
                 return "Der InputFusion-Dienst läuft nicht.";
             }
 
-            TaskCompletionSource<string> result = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            TaskCompletionSource<String> result = new TaskCompletionSource<String>(TaskCreationOptions.RunContinuationsAsynchronously);
             pendingCheck = result;
             try
             {
@@ -72,16 +72,16 @@ internal static class ClientTray
                 try
                 {
                     using NamedPipeClientStream pipe = ClientPipe.CreateClient();
-                    await pipe.ConnectAsync((int)_retryDelay.TotalMilliseconds, cts.Token);
+                    await pipe.ConnectAsync((Int32)_retryDelay.TotalMilliseconds, cts.Token);
                     ClientPipe.VerifyServer(pipe);
                     using MessageConnection connection = new MessageConnection(pipe);
-                    await connection.SendAsync(MessageType.ClipboardReceiver, ReadOnlyMemory<byte>.Empty, cts.Token);
+                    await connection.SendAsync(MessageType.ClipboardReceiver, ReadOnlyMemory<Byte>.Empty, cts.Token);
                     current = connection;
                     // Je Verbindung zum Dienst neu: Der erste Zustand ist kein Wechsel.
-                    bool? hostConnected = null;
+                    Boolean? hostConnected = null;
                     // Nach dem Abbruch nennt der Zustand keinen verbundenen PC mehr, die Meldung soll ihn aber nennen.
-                    string? lastHost = null;
-                    await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(cts.Token))
+                    String? lastHost = null;
+                    await foreach ((MessageType type, Byte[] payload) in connection.ReceiveAsync(cts.Token))
                     {
                         SettingsMessage? message = type == MessageType.Settings ? SettingsMessage.FromPayload(payload) : null;
                         if (message is ClientStateMessage state)
@@ -108,7 +108,7 @@ internal static class ClientTray
                         }
                         else if (type == MessageType.ClipboardRequest)
                         {
-                            foreach (byte[] chunk in clipboard.TakeChanged())
+                            foreach (Byte[] chunk in clipboard.TakeChanged())
                             {
                                 await connection.SendAsync(MessageType.ClipboardText, chunk, cts.Token);
                             }

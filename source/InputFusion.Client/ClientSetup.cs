@@ -19,17 +19,17 @@ namespace InputFusion.Client;
 /// </summary>
 internal static class ClientSetup
 {
-    public const string Argument = "--setup";
+    public const String Argument = "--setup";
 
     private static readonly TimeSpan _serviceTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>Doppelklick: kein Argument, kein Dienst, nicht aus dem Installationsordner.</summary>
-    public static bool IsDoubleClick(string[] args, bool asService) =>
+    public static Boolean IsDoubleClick(String[] args, Boolean asService) =>
         args.Length == 0 && !asService
-        && !string.Equals(Path.GetFullPath(AppContext.BaseDirectory).TrimEnd('\\'), ClientUpdater.InstallDirectory, StringComparison.OrdinalIgnoreCase);
+        && !String.Equals(Path.GetFullPath(AppContext.BaseDirectory).TrimEnd('\\'), ClientUpdater.InstallDirectory, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Fragt nach und startet sich dann erhöht mit <see cref="Argument"/> neu.</summary>
-    public static int Start()
+    public static Int32 Start()
     {
         Console.WriteLine($"InputFusion Client {AppVersion.Current}");
         Console.WriteLine();
@@ -59,7 +59,7 @@ internal static class ClientSetup
     }
 
     /// <summary>Der erhöhte Teil: abfragen und installieren. Das Konsolenfenster bleibt am Ende offen.</summary>
-    public static int Run()
+    public static Int32 Run()
     {
         try
         {
@@ -99,19 +99,19 @@ internal static class ClientSetup
 
     private static HostEntry AskHost(HostEntry? existing)
     {
-        string host = Ask("PC-Name des Hosts (in dessen Einstellungen, Reiter Verbindung)", existing?.Host, value => value.Length > 0 ? null : "Bitte einen Namen angeben.");
-        string key = Ask("Schlüssel", existing?.Key, HostConfig.ValidateKey);
-        string ip = Ask("Feste IP des Hosts, optional", existing?.Ip ?? "", _ => null);
-        string portText = Ask("Port (wie beim Host, Reiter Verbindung)", (existing?.Port ?? Ports.Input).ToString(CultureInfo.InvariantCulture),
+        String host = Ask("PC-Name des Hosts (in dessen Einstellungen, Reiter Verbindung)", existing?.Host, value => value.Length > 0 ? null : "Bitte einen Namen angeben.");
+        String key = Ask("Schlüssel", existing?.Key, HostConfig.ValidateKey);
+        String ip = Ask("Feste IP des Hosts, optional", existing?.Ip ?? "", _ => null);
+        String portText = Ask("Port (wie beim Host, Reiter Verbindung)", (existing?.Port ?? Ports.Input).ToString(CultureInfo.InvariantCulture),
             value => Ports.Validate(value, out _));
-        Ports.Validate(portText, out int port);
+        Ports.Validate(portText, out Int32 port);
         return new HostEntry(host, key, ip.Length == 0 ? null : ip, port);
     }
 
     private static void Install(ClientConfig config)
     {
-        string target = ClientUpdater.InstallDirectory;
-        bool exists = ServiceExists();
+        String target = ClientUpdater.InstallDirectory;
+        Boolean exists = ServiceExists();
         using ServiceController service = new ServiceController(ClientService.ServiceName);
         if (exists)
         {
@@ -126,7 +126,7 @@ internal static class ClientSetup
         ClientProcesses.StopOthers();
 
         // Aus dem Installationsordner selbst gestartet, ist nichts zu kopieren; nur neu konfigurieren.
-        if (!string.Equals(Path.GetFullPath(AppContext.BaseDirectory).TrimEnd('\\'), target, StringComparison.OrdinalIgnoreCase))
+        if (!String.Equals(Path.GetFullPath(AppContext.BaseDirectory).TrimEnd('\\'), target, StringComparison.OrdinalIgnoreCase))
         {
             Console.WriteLine($"Kopiere nach {target} …");
             if (Directory.Exists(target))
@@ -145,7 +145,7 @@ internal static class ClientSetup
             throw new IOException(saveError);
         }
 
-        string binary = $"\"{Path.Combine(target, UpdateApplier.ExeName)}\"";
+        String binary = $"\"{Path.Combine(target, UpdateApplier.ExeName)}\"";
         if (exists)
         {
             Sc("config", ClientService.ServiceName, "binPath=", binary, "start=", "auto", "obj=", "LocalSystem");
@@ -166,19 +166,19 @@ internal static class ClientSetup
         service.WaitForStatus(ServiceControllerStatus.Running, _serviceTimeout);
     }
 
-    private static bool ServiceExists() =>
-        ServiceController.GetServices().Any(s => string.Equals(s.ServiceName, ClientService.ServiceName, StringComparison.OrdinalIgnoreCase));
+    private static Boolean ServiceExists() =>
+        ServiceController.GetServices().Any(s => String.Equals(s.ServiceName, ClientService.ServiceName, StringComparison.OrdinalIgnoreCase));
 
-    private static void Sc(params string[] arguments)
+    private static void Sc(params String[] arguments)
     {
         ProcessStartInfo info = new ProcessStartInfo("sc.exe") { UseShellExecute = false, RedirectStandardOutput = true, CreateNoWindow = true };
-        foreach (string argument in arguments)
+        foreach (String argument in arguments)
         {
             info.ArgumentList.Add(argument);
         }
 
         using Process process = Process.Start(info) ?? throw new InvalidOperationException("sc.exe ließ sich nicht starten.");
-        string output = process.StandardOutput.ReadToEnd();
+        String output = process.StandardOutput.ReadToEnd();
         process.WaitForExit();
         if (process.ExitCode != 0)
         {
@@ -186,33 +186,33 @@ internal static class ClientSetup
         }
     }
 
-    private static bool IsElevated()
+    private static Boolean IsElevated()
     {
         using WindowsIdentity identity = WindowsIdentity.GetCurrent();
         return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
     }
 
-    private static bool AskYes(string question, bool defaultYes = true)
+    private static Boolean AskYes(String question, Boolean defaultYes = true)
     {
         Console.Write($"{question} {(defaultYes ? "[J/n]" : "[j/N]")} ");
-        string answer = (Console.ReadLine() ?? "").Trim();
+        String answer = (Console.ReadLine() ?? "").Trim();
         return answer.Length == 0 ? defaultYes
             : answer.StartsWith('j') || answer.StartsWith('J') || answer.StartsWith('y') || answer.StartsWith('Y');
     }
 
     /// <summary>Fragt, bis <paramref name="validate"/> nichts mehr auszusetzen hat. Enter übernimmt den Vorschlag.</summary>
-    private static string Ask(string prompt, string? suggestion, Func<string, string?> validate)
+    private static String Ask(String prompt, String? suggestion, Func<String, String?> validate)
     {
         while (true)
         {
-            Console.Write(string.IsNullOrEmpty(suggestion) ? $"{prompt}: " : $"{prompt} [{suggestion}]: ");
-            string value = (Console.ReadLine() ?? "").Trim();
+            Console.Write(String.IsNullOrEmpty(suggestion) ? $"{prompt}: " : $"{prompt} [{suggestion}]: ");
+            String value = (Console.ReadLine() ?? "").Trim();
             if (value.Length == 0 && suggestion is not null)
             {
                 value = suggestion;
             }
 
-            string? error = validate(value);
+            String? error = validate(value);
             if (error is null)
             {
                 return value;

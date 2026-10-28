@@ -49,7 +49,7 @@ internal sealed class SettingsServer(HostState state)
         try
         {
             await SendAsync(connection, state.Snapshot(), ct);
-            await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(ct))
+            await foreach ((MessageType type, Byte[] payload) in connection.ReceiveAsync(ct))
             {
                 if (type != MessageType.Settings)
                 {
@@ -64,7 +64,7 @@ internal sealed class SettingsServer(HostState state)
                     continue;
                 }
 
-                string? error = message switch
+                String? error = message switch
                 {
                     GetStateRequest => null,
                     SetKeyRequest request => state.SetKey(request.Key),

@@ -14,7 +14,7 @@ namespace InputFusion.Client;
 internal static class ClientInfoReporter
 {
     private static readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(2);
-    private static readonly Lazy<string> _osVersion = new(ReadOsVersion);
+    private static readonly Lazy<String> _osVersion = new(ReadOsVersion);
 
     public static async Task RunAsync(MessageConnection host, CancellationToken ct)
     {
@@ -38,19 +38,19 @@ internal static class ClientInfoReporter
     }
 
     /// <summary>Etwa „Windows 11 Pro 24H2 (Build 26100.4061)“.</summary>
-    private static string ReadOsVersion()
+    private static String ReadOsVersion()
     {
         using RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion");
-        int build = Environment.OSVersion.Version.Build;
-        string product = key?.GetValue("ProductName") as string ?? "Windows";
+        Int32 build = Environment.OSVersion.Version.Build;
+        String product = key?.GetValue("ProductName") as String ?? "Windows";
         // ProductName nennt auch unter Windows 11 noch „Windows 10“; erkennbar ist 11 nur an der Build-Nummer.
         if (build >= 22000)
         {
             product = product.Replace("Windows 10", "Windows 11", StringComparison.Ordinal);
         }
 
-        string display = key?.GetValue("DisplayVersion") is string version ? $" {version}" : "";
-        string revision = key?.GetValue("UBR") is int ubr ? $".{ubr}" : "";
+        String display = key?.GetValue("DisplayVersion") is String version ? $" {version}" : "";
+        String revision = key?.GetValue("UBR") is Int32 ubr ? $".{ubr}" : "";
         return $"{product}{display} (Build {build}{revision})";
     }
 }

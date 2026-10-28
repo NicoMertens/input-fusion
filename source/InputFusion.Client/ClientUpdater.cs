@@ -23,33 +23,33 @@ internal sealed class ClientUpdater
     // Untergrenze für außerplanmäßige Prüfungen: Die GitHub-API erlaubt ohne Anmeldung 60 Anfragen je Stunde.
     private static readonly TimeSpan _minimumGap = TimeSpan.FromMinutes(10);
 
-    private readonly Action<string> _log;
+    private readonly Action<String> _log;
     private readonly Uri? _latestRelease;
     private readonly SemaphoreSlim _soon = new(0, 1);
     // Die geplante und eine Suche aus dem Tray-Menü sollen nicht gleichzeitig laden und einspielen.
     private readonly SemaphoreSlim _checking = new(1, 1);
-    private long _lastCheck;
-    private bool _applying;
+    private Int64 _lastCheck;
+    private Boolean _applying;
 
     /// <summary>Installationsort laut <c>install-client.ps1</c>; nur von dort aktualisiert sich der Dienst.</summary>
-    public static string InstallDirectory { get; } =
+    public static String InstallDirectory { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "InputFusion", "Client");
 
-    public static string StagingRoot { get; } =
+    public static String StagingRoot { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "InputFusion", "Update");
 
     /// <summary>Ob diese exe die installierte ist und nicht etwa ein Build unter <c>_out</c>.</summary>
-    public static bool RunsFromInstallDirectory { get; } =
-        string.Equals(Path.GetFullPath(AppContext.BaseDirectory).TrimEnd('\\'), InstallDirectory, StringComparison.OrdinalIgnoreCase);
+    public static Boolean RunsFromInstallDirectory { get; } =
+        String.Equals(Path.GetFullPath(AppContext.BaseDirectory).TrimEnd('\\'), InstallDirectory, StringComparison.OrdinalIgnoreCase);
 
-    public ClientUpdater(bool asService, Action<string> log)
+    public ClientUpdater(Boolean asService, Action<String> log)
     {
         _log = log;
         // Der Release-Workflow übergibt -p:RepositoryUrl; die SDK macht daraus dieses Attribut. Lokale Builds haben keins.
-        string? repoUrl = typeof(ClientUpdater).Assembly
+        String? repoUrl = typeof(ClientUpdater).Assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()
             .FirstOrDefault(a => a.Key == "RepositoryUrl")?.Value;
-        if (asService && RunsFromInstallDirectory && !string.IsNullOrWhiteSpace(repoUrl))
+        if (asService && RunsFromInstallDirectory && !String.IsNullOrWhiteSpace(repoUrl))
         {
             _latestRelease = ReleaseCheck.LatestReleaseApi(repoUrl);
         }
@@ -81,7 +81,7 @@ internal sealed class ClientUpdater
     /// <summary>Außerplanmäßig prüfen, etwa nach einer abweichenden Protokollversion; höchstens alle zehn Minuten.</summary>
     public void CheckSoon()
     {
-        long last = Interlocked.Read(ref _lastCheck);
+        Int64 last = Interlocked.Read(ref _lastCheck);
         if (last != 0 && Environment.TickCount64 - last < _minimumGap.TotalMilliseconds)
         {
             return;
@@ -97,7 +97,7 @@ internal sealed class ClientUpdater
     }
 
     /// <summary>Suche aus dem Tray-Menü: sofort, ohne die Untergrenze, mit dem Ergebnis als Satz für die Benachrichtigung.</summary>
-    public async Task<string> CheckNowAsync(CancellationToken ct)
+    public async Task<String> CheckNowAsync(CancellationToken ct)
     {
         if (_latestRelease is null)
         {
@@ -107,7 +107,7 @@ internal sealed class ClientUpdater
         return await CheckAsync(ct);
     }
 
-    private async Task<string> CheckAsync(CancellationToken ct)
+    private async Task<String> CheckAsync(CancellationToken ct)
     {
         await _checking.WaitAsync(ct);
         try
@@ -143,15 +143,15 @@ internal sealed class ClientUpdater
                 return $"Release {release.TagName} hat noch kein Client-Paket; der Dienst versucht es später wieder.";
             }
 
-            string? expected = ReleaseCheck.ParseChecksum(await http.GetStringAsync(checksum.DownloadUrl, ct));
-            byte[] data = await http.GetByteArrayAsync(package.DownloadUrl, ct);
+            String? expected = ReleaseCheck.ParseChecksum(await http.GetStringAsync(checksum.DownloadUrl, ct));
+            Byte[] data = await http.GetByteArrayAsync(package.DownloadUrl, ct);
             if (expected is null || !ReleaseCheck.MatchesChecksum(data, expected))
             {
                 _log($"Client-Paket {release.TagName} verworfen: Prüfsumme stimmt nicht.");
                 return $"Client-Paket {release.TagName} verworfen: Prüfsumme stimmt nicht.";
             }
 
-            string staging = Stage(version, data);
+            String staging = Stage(version, data);
             _log($"Update auf {version} geladen, spiele es ein; der Dienst startet dabei neu.");
             StartApplier(staging);
             _applying = true;
@@ -171,9 +171,9 @@ internal sealed class ClientUpdater
     }
 
     /// <summary>Entpackt das Paket nach Program Files\InputFusion\Update\&lt;Version&gt;.</summary>
-    private static string Stage(Version version, byte[] package)
+    private static String Stage(Version version, Byte[] package)
     {
-        string staging = Path.Combine(StagingRoot, version.ToString());
+        String staging = Path.Combine(StagingRoot, version.ToString());
         if (Directory.Exists(staging))
         {
             Directory.Delete(staging, recursive: true);
@@ -194,7 +194,7 @@ internal sealed class ClientUpdater
     }
 
     /// <summary>Startet die neue exe aus dem Staging-Ordner als Helfer; sie stoppt diesen Dienst und tauscht die Dateien.</summary>
-    private static void StartApplier(string staging)
+    private static void StartApplier(String staging)
     {
         ProcessStartInfo info = new ProcessStartInfo(Path.Combine(staging, UpdateApplier.ExeName))
         {

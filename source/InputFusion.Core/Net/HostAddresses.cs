@@ -22,7 +22,7 @@ public static class HostAddresses
     }
 
     /// <summary>Zur Anzeige: Ein Dual-Mode-Socket meldet eine IPv4-Gegenstelle als ::ffff:a.b.c.d.</summary>
-    public static string Display(EndPoint? endPoint) =>
+    public static String Display(EndPoint? endPoint) =>
         endPoint is IPEndPoint ip ? Normalize(ip.Address).ToString() : "?";
 
     private static IPAddress Normalize(IPAddress address) =>

@@ -13,7 +13,7 @@ public class RecentLogTests
         log.Add("zwei");
         log.Add("drei");
 
-        string[] lines = log.Lines();
+        String[] lines = log.Lines();
         Assert.Equal(2, lines.Length);
         Assert.EndsWith("  zwei", lines[0]);
         Assert.EndsWith("  drei", lines[1]);

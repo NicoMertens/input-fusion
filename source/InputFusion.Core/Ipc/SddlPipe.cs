@@ -16,9 +16,9 @@ namespace InputFusion.Core.Ipc;
 /// </summary>
 internal static unsafe class SddlPipe
 {
-    private const uint BufferSize = 4096;
+    private const UInt32 BufferSize = 4096;
 
-    public static NamedPipeServerStream CreateServer(string name, string sddl)
+    public static NamedPipeServerStream CreateServer(String name, String sddl)
     {
         if (!PInvoke.ConvertStringSecurityDescriptorToSecurityDescriptor(sddl, PInvoke.SDDL_REVISION_1, out PSECURITY_DESCRIPTOR descriptor))
         {
@@ -29,11 +29,11 @@ internal static unsafe class SddlPipe
         {
             SECURITY_ATTRIBUTES attributes = new SECURITY_ATTRIBUTES
             {
-                nLength = (uint)sizeof(SECURITY_ATTRIBUTES),
+                nLength = (UInt32)sizeof(SECURITY_ATTRIBUTES),
                 lpSecurityDescriptor = descriptor.Value,
             };
             HANDLE handle;
-            fixed (char* fullName = @"\\.\pipe\" + name)
+            fixed (Char* fullName = @"\\.\pipe\" + name)
             {
                 handle = PInvoke.CreateNamedPipe(
                     fullName,
@@ -46,12 +46,12 @@ internal static unsafe class SddlPipe
                     0,
                     &attributes);
             }
-            if ((nint)handle.Value == -1)
+            if ((IntPtr)handle.Value == -1)
             {
                 throw new Win32Exception();
             }
 
-            return new NamedPipeServerStream(PipeDirection.InOut, isAsync: true, isConnected: false, new SafePipeHandle((nint)handle.Value, ownsHandle: true));
+            return new NamedPipeServerStream(PipeDirection.InOut, isAsync: true, isConnected: false, new SafePipeHandle((IntPtr)handle.Value, ownsHandle: true));
         }
         finally
         {

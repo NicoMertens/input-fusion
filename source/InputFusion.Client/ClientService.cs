@@ -15,7 +15,7 @@ namespace InputFusion.Client;
 /// </summary>
 internal static class ClientService
 {
-    public const string ServiceName = "InputFusionClient";
+    public const String ServiceName = "InputFusionClient";
 
     private static readonly TimeSpan _minRetryDelay = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan _maxRetryDelay = TimeSpan.FromSeconds(15);
@@ -23,19 +23,19 @@ internal static class ClientService
     private static readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan _resolveTimeout = TimeSpan.FromSeconds(5);
 
-    public delegate ClientConfig? ConfigLoader(out string? error);
+    public delegate ClientConfig? ConfigLoader(out String? error);
 
     /// <summary>Speichert eine neue Konfiguration; bei Fehler die Meldung, sonst null.</summary>
-    public delegate string? ConfigSaver(ClientConfig config);
+    public delegate String? ConfigSaver(ClientConfig config);
 
     /// <param name="saveConfig">Null, wenn die Konfiguration feststeht (<c>--relay</c>); dann lehnt der Dienst Änderungen aus den Einstellungen ab.</param>
     /// <param name="protocolMismatch">Wird gerufen, wenn der Host eine andere Protokollversion spricht; der Dienst sucht dann nach einem Update.</param>
-    public static async Task RunAsync(ConfigLoader loadConfig, ConfigSaver? saveConfig, bool asService, Action<string> log, CancellationToken ct,
-        Action? protocolMismatch = null, Func<CancellationToken, Task<string>>? checkForUpdates = null)
+    public static async Task RunAsync(ConfigLoader loadConfig, ConfigSaver? saveConfig, Boolean asService, Action<String> log, CancellationToken ct,
+        Action? protocolMismatch = null, Func<CancellationToken, Task<String>>? checkForUpdates = null)
     {
         ClientStatus status = new ClientStatus();
         // Alles, was der Dienst protokolliert, auch für den Reiter Diagnose der Einstellungen.
-        Action<string> write = log;
+        Action<String> write = log;
         log = message =>
         {
             status.Log.Add(message);
@@ -47,7 +47,7 @@ internal static class ClientService
         CancellationTokenSource? attempt = null;
         ConfigSaver? save = saveConfig is null ? null : config =>
         {
-            string? error = saveConfig(config);
+            String? error = saveConfig(config);
             if (error is null)
             {
                 log($"Konfiguration geändert: {Describe(config)}.");
@@ -59,7 +59,7 @@ internal static class ClientService
 
         // Ein Netzwechsel (WLAN, LAN, VPN) kürzt nur das Warten auf den nächsten Versuch ab. Eine bestehende Verbindung
         // bleibt; ob sie noch lebt, entscheidet der Heartbeat.
-        bool networkChanged = false;
+        Boolean networkChanged = false;
         CancellationTokenSource? waiting = null;
         NetworkAddressChangedEventHandler onNetworkChange = (_, _) =>
         {
@@ -74,17 +74,17 @@ internal static class ClientService
         Task settings = new ClientSettingsServer(status, save, clipboard, checkForUpdates, log).RunAsync(ct);
 
         TimeSpan delay = _minRetryDelay;
-        string? lastProblem = null;
+        String? lastProblem = null;
         while (!ct.IsCancellationRequested)
         {
             using CancellationTokenSource current = CancellationTokenSource.CreateLinkedTokenSource(ct);
             attempt = current;
             // Ein Wechsel während des Versuchs zählt mit: Er kann gerade daran gescheitert sein, dass das Netz noch fehlte.
             Volatile.Write(ref networkChanged, false);
-            ClientConfig? config = loadConfig(out string? error);
+            ClientConfig? config = loadConfig(out String? error);
             status.SetConfig(config);
-            string? problem = error;
-            bool wasConnected = false;
+            String? problem = error;
+            Boolean wasConnected = false;
             try
             {
                 if (config is not null)
@@ -136,8 +136,8 @@ internal static class ClientService
     /// <summary>Wartet bis zum nächsten Versuch, nach einem Netzwechsel nicht länger.</summary>
     /// <param name="setWaiting">Bekommt das Token des Wartens, damit der Netzwechsel es abbrechen kann, danach null.</param>
     /// <returns>Der Abstand für das nächste Warten.</returns>
-    private static async Task<TimeSpan> WaitAsync(TimeSpan delay, Func<bool> networkChanged, Action<CancellationTokenSource?> setWaiting,
-        Action<string> log, CancellationToken ct)
+    private static async Task<TimeSpan> WaitAsync(TimeSpan delay, Func<Boolean> networkChanged, Action<CancellationTokenSource?> setWaiting,
+        Action<String> log, CancellationToken ct)
     {
         using CancellationTokenSource wait = CancellationTokenSource.CreateLinkedTokenSource(ct);
         setWaiting(wait);
@@ -168,10 +168,10 @@ internal static class ClientService
     /// Verbindung endet.
     /// </summary>
     /// <returns>Die Störung, wenn keine Verbindung zustande kam; ob eine Verbindung bestand.</returns>
-    private static async Task<(string? Problem, bool WasConnected)> AttemptAsync(ClientConfig config, ConfigSaver? saveConfig, ClientStatus status,
-        ClipboardBridge clipboard, Action<string> log, Action? protocolMismatch, CancellationToken ct)
+    private static async Task<(String? Problem, Boolean WasConnected)> AttemptAsync(ClientConfig config, ConfigSaver? saveConfig, ClientStatus status,
+        ClipboardBridge clipboard, Action<String> log, Action? protocolMismatch, CancellationToken ct)
     {
-        (Candidate? winner, string? problem, bool mismatch) = await ConnectAnyAsync(config.Hosts, ct);
+        (Candidate? winner, String? problem, Boolean mismatch) = await ConnectAnyAsync(config.Hosts, ct);
         if (winner is null)
         {
             if (mismatch)
@@ -211,10 +211,10 @@ internal static class ClientService
     }
 
     /// <summary>Ein PC, bei dem die Anmeldung gelungen ist; die Verbindung ist verschlüsselt und bereit.</summary>
-    private sealed record Candidate(HostEntry Entry, MessageConnection Connection, string Address, string Version);
+    private sealed record Candidate(HostEntry Entry, MessageConnection Connection, String Address, String Version);
 
     /// <summary>Ausgang des Versuchs bei einem PC: angemeldet oder die Störung; ob er eine andere Protokollversion sprach.</summary>
-    private sealed record HostAttempt(Candidate? Candidate, string? Problem = null, bool Mismatch = false);
+    private sealed record HostAttempt(Candidate? Candidate, String? Problem = null, Boolean Mismatch = false);
 
     /// <summary>
     /// Versucht alle PCs zugleich. Der erste mit gelungener Anmeldung gewinnt, die übrigen Versuche werden abgebrochen.
@@ -222,7 +222,7 @@ internal static class ClientService
     /// </summary>
     /// <returns>Den Gewinner oder die Störungen aller Versuche in der Reihenfolge der Liste, damit dieselbe Lage
     /// dieselbe Meldung ergibt; ob ein PC eine andere Protokollversion sprach.</returns>
-    private static async Task<(Candidate? Winner, string? Problem, bool ProtocolMismatch)> ConnectAnyAsync(IReadOnlyList<HostEntry> hosts,
+    private static async Task<(Candidate? Winner, String? Problem, Boolean ProtocolMismatch)> ConnectAnyAsync(IReadOnlyList<HostEntry> hosts,
         CancellationToken ct)
     {
         (HostAttempt? won, IReadOnlyList<HostAttempt> attempts) = await AttemptRace.FirstAsync(
@@ -240,8 +240,8 @@ internal static class ClientService
             return (winner, null, false);
         }
 
-        string[] problems = attempts.Select(a => a.Problem).OfType<string>().ToArray();
-        return (null, problems.Length == 0 ? null : string.Join(" ", problems), attempts.Any(a => a.Mismatch));
+        String[] problems = attempts.Select(a => a.Problem).OfType<String>().ToArray();
+        return (null, problems.Length == 0 ? null : String.Join(" ", problems), attempts.Any(a => a.Mismatch));
     }
 
     /// <summary>
@@ -253,13 +253,13 @@ internal static class ClientService
         MessageConnection? connection = null;
         try
         {
-            (TcpClient? tcp, string? connectError) = await ConnectAsync(entry, ct);
+            (TcpClient? tcp, String? connectError) = await ConnectAsync(entry, ct);
             if (tcp is null)
             {
                 return new HostAttempt(null, connectError);
             }
 
-            string address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
+            String address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
             connection = MessageConnection.FromTcp(tcp);
             HandshakeResult handshake = await Handshake.ClientAsync(connection, entry.Key, AppVersion.Current, ct);
             if (handshake.Outcome == HandshakeOutcome.Accepted)
@@ -294,12 +294,12 @@ internal static class ClientService
     /// mit <paramref name="saveConfig"/>, nicht über den Weg der Einstellungen: Der bräche die Verbindung ab, und die
     /// neue Anmeldung käme beim Host an, bevor er den Schlüssel selbst gespeichert hat.
     /// </summary>
-    private static string? SaveKey(ClientConfig config, HostEntry entry, string key, ConfigSaver? saveConfig, ClientStatus status, Action<string> log)
+    private static String? SaveKey(ClientConfig config, HostEntry entry, String key, ConfigSaver? saveConfig, ClientStatus status, Action<String> log)
     {
         // Nach dem Eintrag selbst, nicht nach dem Namen: Derselbe PC darf zweimal stehen, etwa mit verschiedenen festen IPs.
-        int index = config.Hosts.ToList().FindIndex(h => ReferenceEquals(h, entry));
+        Int32 index = config.Hosts.ToList().FindIndex(h => ReferenceEquals(h, entry));
         ClientConfig updated = new ClientConfig(config.Hosts.Select((h, i) => i == index ? h with { Key = key } : h).ToArray());
-        string? error = saveConfig is null
+        String? error = saveConfig is null
             ? "Im Entwicklungsmodus mit --relay steht die Konfiguration fest."
             : ClientConfigRules.Validate(updated.Hosts) ?? saveConfig(updated);
         if (error is null)
@@ -315,17 +315,17 @@ internal static class ClientService
     }
 
     /// <summary>Für das Protokoll, ohne Schlüssel.</summary>
-    private static string Describe(ClientConfig config) =>
-        string.Join("; ", config.Hosts.Select(h => $"Host {h.Host}, Port {h.Port}{(h.Ip is null ? "" : $", IP {h.Ip}")}"));
+    private static String Describe(ClientConfig config) =>
+        String.Join("; ", config.Hosts.Select(h => $"Host {h.Host}, Port {h.Port}{(h.Ip is null ? "" : $", IP {h.Ip}")}"));
 
     /// <summary>
     /// Löst den Rechnernamen selbst auf und versucht die Adressen einzeln in der Reihenfolge von
     /// <see cref="HostAddresses.Order"/>, jede mit eigenem Zeitlimit. Mit dem Namen versuchte <c>ConnectAsync</c> sie
     /// nacheinander in einem gemeinsamen Zeitlimit; blieb eine IPv6-Adresse hängen, kam die IPv4-Adresse nie dran.
     /// </summary>
-    private static async Task<(TcpClient? Client, string? Error)> ConnectAsync(HostEntry entry, CancellationToken ct)
+    private static async Task<(TcpClient? Client, String? Error)> ConnectAsync(HostEntry entry, CancellationToken ct)
     {
-        (IPAddress[] resolved, string? error) = await ResolveAsync(entry.Host, ct);
+        (IPAddress[] resolved, String? error) = await ResolveAsync(entry.Host, ct);
         // Ältere Setups ließen in "ip" auch einen Namen zu.
         IPAddress[] fixedIps = entry.Ip is null ? []
             : IPAddress.TryParse(entry.Ip, out IPAddress? parsed) ? [parsed]
@@ -359,7 +359,7 @@ internal static class ClientService
         return (null, error);
     }
 
-    private static async Task<(IPAddress[] Addresses, string? Error)> ResolveAsync(string name, CancellationToken ct)
+    private static async Task<(IPAddress[] Addresses, String? Error)> ResolveAsync(String name, CancellationToken ct)
     {
         using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(_resolveTimeout);

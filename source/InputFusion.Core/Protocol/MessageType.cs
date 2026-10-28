@@ -1,7 +1,7 @@
 ﻿namespace InputFusion.Core.Protocol;
 
 /// <summary>Typ-Byte im Frame-Kopf. Werte sind fest, damit sich das Protokoll über Versionen verträgt.</summary>
-public enum MessageType : byte
+public enum MessageType : Byte
 {
     Heartbeat = 1,
     MouseMoveRelative = 2,

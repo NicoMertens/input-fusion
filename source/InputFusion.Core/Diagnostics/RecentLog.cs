@@ -4,14 +4,14 @@ namespace InputFusion.Core.Diagnostics;
 /// Die letzten Zeilen eines Protokolls im Speicher, für den Reiter Diagnose der Einstellungen. Auf dem Notebook geht das
 /// Protokoll sonst nur ins Ereignisprotokoll, das ein Benutzer erst suchen muss.
 /// </summary>
-public sealed class RecentLog(int capacity = 100)
+public sealed class RecentLog(Int32 capacity = 100)
 {
     private readonly Lock _lock = new();
-    private readonly Queue<string> _lines = new();
+    private readonly Queue<String> _lines = new();
 
-    public void Add(string message)
+    public void Add(String message)
     {
-        string line = $"{DateTime.Now:HH:mm:ss}  {message}";
+        String line = $"{DateTime.Now:HH:mm:ss}  {message}";
         lock (_lock)
         {
             if (_lines.Count == capacity)
@@ -24,7 +24,7 @@ public sealed class RecentLog(int capacity = 100)
     }
 
     /// <summary>Älteste zuerst.</summary>
-    public string[] Lines()
+    public String[] Lines()
     {
         lock (_lock)
         {

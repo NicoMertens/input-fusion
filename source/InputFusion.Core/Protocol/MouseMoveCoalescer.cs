@@ -7,24 +7,24 @@
 /// </summary>
 public sealed class MouseMoveCoalescer
 {
-    private readonly List<(MessageType Type, byte[] Payload)> _pending = [];
+    private readonly List<(MessageType Type, Byte[] Payload)> _pending = [];
 
-    public int PendingCount => _pending.Count;
+    public Int32 PendingCount => _pending.Count;
 
-    public void Enqueue(MessageType type, byte[] payload) => _pending.Add((type, payload));
+    public void Enqueue(MessageType type, Byte[] payload) => _pending.Add((type, payload));
 
     /// <summary>
     /// Leert die Warteschlange und gibt die verdichtete Folge zurück. Summiert dabei je Block
     /// benachbarte <see cref="MessageType.MouseMoveRelative"/>; eine Summe, die den short-Bereich
     /// sprengen würde, wird in mehrere Bewegungen aufgeteilt.
     /// </summary>
-    public List<(MessageType Type, byte[] Payload)> Flush()
+    public List<(MessageType Type, Byte[] Payload)> Flush()
     {
-        List<(MessageType, byte[])> result = new List<(MessageType, byte[])>();
-        int i = 0;
+        List<(MessageType, Byte[])> result = new List<(MessageType, Byte[])>();
+        Int32 i = 0;
         while (i < _pending.Count)
         {
-            (MessageType type, byte[] payload) = _pending[i];
+            (MessageType type, Byte[] payload) = _pending[i];
             if (type != MessageType.MouseMoveRelative)
             {
                 result.Add((type, payload));
@@ -32,7 +32,7 @@ public sealed class MouseMoveCoalescer
                 continue;
             }
 
-            int sumX = 0, sumY = 0;
+            Int32 sumX = 0, sumY = 0;
             while (i < _pending.Count && _pending[i].Type == MessageType.MouseMoveRelative)
             {
                 MouseMoveRelative move = MouseMoveRelative.FromPayload(_pending[i].Payload);
@@ -51,7 +51,7 @@ public sealed class MouseMoveCoalescer
         return result;
     }
 
-    private static IEnumerable<MouseMoveRelative> Split(int x, int y)
+    private static IEnumerable<MouseMoveRelative> Split(Int32 x, Int32 y)
     {
         if (x is 0 && y is 0)
         {
@@ -61,16 +61,16 @@ public sealed class MouseMoveCoalescer
 
         while (x != 0 || y != 0)
         {
-            short dx = Clamp(ref x);
-            short dy = Clamp(ref y);
+            Int16 dx = Clamp(ref x);
+            Int16 dy = Clamp(ref y);
             yield return new MouseMoveRelative(dx, dy);
         }
     }
 
-    private static short Clamp(ref int remaining)
+    private static Int16 Clamp(ref Int32 remaining)
     {
-        int step = Math.Clamp(remaining, short.MinValue, short.MaxValue);
+        Int32 step = Math.Clamp(remaining, Int16.MinValue, Int16.MaxValue);
         remaining -= step;
-        return (short)step;
+        return (Int16)step;
     }
 }

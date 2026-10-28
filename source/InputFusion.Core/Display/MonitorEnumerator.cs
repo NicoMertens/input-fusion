@@ -37,22 +37,22 @@ public static unsafe class MonitorEnumerator
     private static BOOL Collect(HMONITOR monitor, HDC hdc, RECT* clip, LPARAM data)
     {
         MONITORINFOEXW info = new MONITORINFOEXW();
-        info.monitorInfo.cbSize = (uint)sizeof(MONITORINFOEXW);
+        info.monitorInfo.cbSize = (UInt32)sizeof(MONITORINFOEXW);
         if (!PInvoke.GetMonitorInfo(monitor, (MONITORINFO*)&info))
         {
             return true;
         }
 
-        uint dpi = 96;
+        UInt32 dpi = 96;
         if (OperatingSystem.IsWindowsVersionAtLeast(10)
-            && PInvoke.GetDpiForMonitor(monitor, MONITOR_DPI_TYPE.MDT_EFFECTIVE_DPI, out uint dpiX, out _).Succeeded)
+            && PInvoke.GetDpiForMonitor(monitor, MONITOR_DPI_TYPE.MDT_EFFECTIVE_DPI, out UInt32 dpiX, out _).Succeeded)
         {
             dpi = dpiX;
         }
 
         RECT r = info.monitorInfo.rcMonitor;
-        string device = info.szDevice.ToString();
-        _collecting?.Add(new MonitorRect(r.left, r.top, r.right - r.left, r.bottom - r.top, (int)dpi, StableId(device)));
+        String device = info.szDevice.ToString();
+        _collecting?.Add(new MonitorRect(r.left, r.top, r.right - r.left, r.bottom - r.top, (Int32)dpi, StableId(device)));
         return true;
     }
 
@@ -60,12 +60,12 @@ public static unsafe class MonitorEnumerator
     /// Der Pfad des Monitors (Hersteller, Modell, Anschluss) statt des Namens <c>\\.\DISPLAYn</c>: Die Nummer
     /// wechselt beim An- und Abdocken, das Layout soll aber am selben Monitor hängen bleiben.
     /// </summary>
-    private static string StableId(string device)
+    private static String StableId(String device)
     {
-        DISPLAY_DEVICEW display = new DISPLAY_DEVICEW { cb = (uint)sizeof(DISPLAY_DEVICEW) };
+        DISPLAY_DEVICEW display = new DISPLAY_DEVICEW { cb = (UInt32)sizeof(DISPLAY_DEVICEW) };
         if (PInvoke.EnumDisplayDevices(device, 0, ref display, PInvoke.EDD_GET_DEVICE_INTERFACE_NAME))
         {
-            string id = display.DeviceID.ToString();
+            String id = display.DeviceID.ToString();
             if (id.Length > 0)
             {
                 return id;

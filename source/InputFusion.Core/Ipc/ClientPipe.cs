@@ -10,11 +10,11 @@ namespace InputFusion.Core.Ipc;
 /// </summary>
 public static class ClientPipe
 {
-    public const string Name = "InputFusion.Client";
+    public const String Name = "InputFusion.Client";
 
     // Lesen, Schreiben, Attribute, Berechtigungen lesen, Synchronisieren; ohne FILE_CREATE_PIPE_INSTANCE (0x4), das in
     // GENERIC_WRITE steckt. So kann ein Benutzer kein weiteres Exemplar neben dem des Dienstes anlegen.
-    private const string UserRights = "0x120183";
+    private const String UserRights = "0x120183";
 
     private const PipeAccessRights ClientRights = PipeAccessRights.ReadData | PipeAccessRights.WriteData
         | PipeAccessRights.ReadAttributes | PipeAccessRights.WriteAttributes | PipeAccessRights.ReadPermissions
@@ -26,7 +26,7 @@ public static class ClientPipe
     /// </summary>
     public static NamedPipeServerStream CreateServer()
     {
-        string me = PipeIdentity.CurrentUser()?.Value ?? throw new InvalidOperationException("Prozess ohne Benutzer-SID");
+        String me = PipeIdentity.CurrentUser()?.Value ?? throw new InvalidOperationException("Prozess ohne Benutzer-SID");
         // O: eigenes Konto; D: SYSTEM, Administratoren und das eigene Konto alles (beim Entwickeln legt der Benutzer
         // selbst weitere Exemplare an), interaktive Benutzer nur Lesen und Schreiben, ohne Vererbung;
         // S: Mandatory Label Mittel, No-Write-Up.

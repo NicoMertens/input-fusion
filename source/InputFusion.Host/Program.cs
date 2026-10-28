@@ -12,12 +12,12 @@ namespace InputFusion.Host;
 
 internal static class Program
 {
-    private const string InstanceMutexName = @"Local\InputFusion.Host";
+    private const String InstanceMutexName = @"Local\InputFusion.Host";
 
     // So lange darf das Notebook für eine Neuverbindung brauchen, ohne dass der Abbruch gemeldet wird.
     private static readonly TimeSpan _notifyDelay = TimeSpan.FromSeconds(5);
 
-    private static async Task Main(string[] args)
+    private static async Task Main(String[] args)
     {
         // Vor allem anderen: Setup und Updater starten die exe mit Hook-Argumenten und erwarten ein sofortiges Ende.
         VelopackApp.Build()
@@ -27,7 +27,7 @@ internal static class Program
         // Ein Agent je Sitzung; ein zweiter Start öffnet nur die Einstellungen. Läuft der Agent erhöht, darf ein
         // nicht erhöhter Prozess dessen Mutex nicht öffnen; auch das heißt: läuft schon.
         Mutex instance;
-        bool first;
+        Boolean first;
         try
         {
             instance = new Mutex(initiallyOwned: true, InstanceMutexName, out first);
@@ -65,13 +65,13 @@ internal static class Program
             }
         }
 
-        bool absolute = args.Contains("--absolute");
+        Boolean absolute = args.Contains("--absolute");
         // In einer RDP-Sitzung lässt sich die Maus nicht kapern, deshalb dort automatisch nur beobachten.
         // --observe erzwingt das auch lokal, --capture erzwingt das Kapern trotz RDP (zum Ausprobieren).
-        bool remoteSession = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_REMOTESESSION) != 0;
+        Boolean remoteSession = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_REMOTESESSION) != 0;
         // Die Diagnose misst das Kapern, braucht es also; sie schaltet die Beobachtung ab.
-        bool diag = args.Contains("--diag");
-        bool observe = !diag && (args.Contains("--observe") || (remoteSession && !args.Contains("--capture")));
+        Boolean diag = args.Contains("--diag");
+        Boolean observe = !diag && (args.Contains("--observe") || (remoteSession && !args.Contains("--capture")));
         if (diag || args.Contains("--console"))
         {
             PInvoke.AllocConsole();
@@ -123,7 +123,7 @@ internal static class Program
     /// Spielt ein geladenes Update ein, sobald die Maus nicht gerade auf dem Notebook ist: Der Host beendet sich, der
     /// Updater von Velopack tauscht die Dateien und startet ihn neu. Das Notebook verbindet sich danach von selbst neu.
     /// </summary>
-    private static async Task ApplyWhenIdleAsync(UpdateService updates, HostState state, string version, CancellationTokenSource cts)
+    private static async Task ApplyWhenIdleAsync(UpdateService updates, HostState state, String version, CancellationTokenSource cts)
     {
         try
         {
@@ -148,19 +148,19 @@ internal static class Program
     /// Ein Client zur Zeit. Nach jedem Abbruch wieder lauschen; sonst verbraucht schon ein Verbindungstest
     /// (Test-NetConnection) den einzigen Platz. Ein neuer Port bricht das Warten ab, damit gleich auf ihm gelauscht wird.
     /// </summary>
-    private static async Task ListenAsync(HostState state, ConnectionNotifier notifier, bool absolute, bool observe, bool diag, CancellationToken ct)
+    private static async Task ListenAsync(HostState state, ConnectionNotifier notifier, Boolean absolute, Boolean observe, Boolean diag, CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {
             using CancellationTokenSource portChanged = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            Action<int> restart = _ =>
+            Action<Int32> restart = _ =>
             {
                 try { portChanged.Cancel(); }
                 catch (ObjectDisposedException) { }
             };
             // Vor dem Lesen des Ports anmelden, sonst ginge eine Änderung dazwischen verloren.
             state.PortChanged += restart;
-            int port = state.Port;
+            Int32 port = state.Port;
             TcpClient tcp;
             // Je Durchgang neu: Stop verwirft den Socket, ein neu angelegter wäre nicht mehr Dual-Mode.
             TcpListener listener = CreateListener(port);
@@ -194,7 +194,7 @@ internal static class Program
         }
     }
 
-    private static void ReportError(HostState state, string message)
+    private static void ReportError(HostState state, String message)
     {
         Log.Write(message);
         state.ReportError(message);
@@ -204,7 +204,7 @@ internal static class Program
     /// Lauscht auf IPv4 und IPv6. Löst das Notebook den Rechnernamen zuerst in IPv6-Adressen auf, gelingt die Verbindung
     /// so schon dort; nur auf IPv4 blieben solche Versuche je nach Firewall hängen. Ohne IPv6 im System nur IPv4.
     /// </summary>
-    internal static TcpListener CreateListener(int port)
+    internal static TcpListener CreateListener(Int32 port)
     {
         if (!Socket.OSSupportsIPv6)
         {
@@ -216,12 +216,12 @@ internal static class Program
         return listener;
     }
 
-    private static async Task ServeAsync(TcpClient tcp, HostState state, ConnectionNotifier notifier, bool absolute, bool observe, bool diag,
+    private static async Task ServeAsync(TcpClient tcp, HostState state, ConnectionNotifier notifier, Boolean absolute, Boolean observe, Boolean diag,
         CancellationToken ct)
     {
         using TcpClient owned = tcp;
         using MessageConnection conn = MessageConnection.FromTcp(tcp);
-        string address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
+        String address = HostAddresses.Display(tcp.Client.RemoteEndPoint);
         HandshakeResult handshake;
         try
         {
@@ -267,13 +267,13 @@ internal static class Program
         {
             LowLevelHooks.Swallow = false;
             hooks.Stop();
-            string peer = state.Snapshot().Client?.MachineName is { } name ? $"zu {name}" : "zum Notebook";
+            String peer = state.Snapshot().Client?.MachineName is { } name ? $"zu {name}" : "zum Notebook";
             state.ClientDisconnected();
             Log.Write("Verbindung beendet, Remote-Modus aus.");
             // Beim Beenden des Hosts, auch für ein Update, ist der Abbruch gewollt.
             if (!ct.IsCancellationRequested)
             {
-                string reason = controller.EndReason ?? "Die Verbindung ist abgebrochen.";
+                String reason = controller.EndReason ?? "Die Verbindung ist abgebrochen.";
                 state.ReportError(reason);
                 _ = notifier.Lost($"Verbindung {peer} beendet. {reason}{(controller.MouseReturned ? " Die Maus ist zurück auf dem PC." : "")}",
                     immediately: controller.MouseReturned);

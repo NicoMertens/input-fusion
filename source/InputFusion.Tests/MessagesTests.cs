@@ -8,26 +8,26 @@ public class MessagesTests
     [Theory]
     [InlineData(0, 0)]
     [InlineData(5, -7)]
-    [InlineData(short.MaxValue, short.MinValue)]
-    public void MouseMoveRelative_RoundTrips(short dx, short dy)
+    [InlineData(Int16.MaxValue, Int16.MinValue)]
+    public void MouseMoveRelative_RoundTrips(Int16 dx, Int16 dy)
     {
         MouseMoveRelative move = new MouseMoveRelative(dx, dy);
         Assert.Equal(move, MouseMoveRelative.FromPayload(move.ToPayload()));
     }
 
     [Theory]
-    [InlineData((ushort)0, (ushort)0)]
-    [InlineData((ushort)65535, (ushort)32768)]
-    public void MouseMoveAbsolute_RoundTrips(ushort x, ushort y)
+    [InlineData((UInt16)0, (UInt16)0)]
+    [InlineData((UInt16)65535, (UInt16)32768)]
+    public void MouseMoveAbsolute_RoundTrips(UInt16 x, UInt16 y)
     {
         MouseMoveAbsolute move = new MouseMoveAbsolute(x, y);
         Assert.Equal(move, MouseMoveAbsolute.FromPayload(move.ToPayload()));
     }
 
     [Theory]
-    [InlineData((short)120, false)]
-    [InlineData((short)-240, true)]
-    public void MouseWheel_RoundTrips(short delta, bool horizontal)
+    [InlineData((Int16)120, false)]
+    [InlineData((Int16)(-240), true)]
+    public void MouseWheel_RoundTrips(Int16 delta, Boolean horizontal)
     {
         MouseWheel wheel = new MouseWheel(delta, horizontal);
         Assert.Equal(wheel, MouseWheel.FromPayload(wheel.ToPayload()));

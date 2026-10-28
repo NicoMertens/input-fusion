@@ -7,7 +7,7 @@ namespace InputFusion.Client;
 /// <summary>Beendet vor dem Kopieren alles, was Dateien im Installationsordner sperren könnte.</summary>
 internal static class ClientProcesses
 {
-    private const string SettingsName = "InputFusion.Settings";
+    private const String SettingsName = "InputFusion.Settings";
 
     /// <summary>
     /// Injector, Tray, Durchstich-Client und offene Einstellungen aus dem Installationsordner, außer dem eigenen
@@ -38,12 +38,12 @@ internal static class ClientProcesses
         }
     }
 
-    private static bool IsInInstallDirectory(Process process)
+    private static Boolean IsInInstallDirectory(Process process)
     {
         try
         {
-            string? path = process.MainModule?.FileName;
-            return path is not null && string.Equals(Path.GetDirectoryName(path), ClientUpdater.InstallDirectory, StringComparison.OrdinalIgnoreCase);
+            String? path = process.MainModule?.FileName;
+            return path is not null && String.Equals(Path.GetDirectoryName(path), ClientUpdater.InstallDirectory, StringComparison.OrdinalIgnoreCase);
         }
         catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
         {

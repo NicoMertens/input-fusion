@@ -9,16 +9,16 @@ namespace InputFusion.Core.Net;
 public static class Ports
 {
     /// <summary>Standard für Nachrichten, Maus und Tastatur, wenn die Konfiguration keinen Port nennt.</summary>
-    public const int Input = 15111;
+    public const Int32 Input = 15111;
 
     /// <summary>Null, wenn der Port taugt, sonst der Grund.</summary>
-    public static string? Validate(int port) =>
+    public static String? Validate(Int32 port) =>
         port is >= 1 and <= 65535 ? null : $"Der Port muss zwischen 1 und 65535 liegen, nicht {port}.";
 
     /// <summary>Für Eingaben als Text, etwa im Setup oder auf der Kommandozeile.</summary>
-    public static string? Validate(string text, out int port)
+    public static String? Validate(String text, out Int32 port)
     {
-        if (!int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out port))
+        if (!Int32.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out port))
         {
             return $"„{text}“ ist keine Portnummer.";
         }

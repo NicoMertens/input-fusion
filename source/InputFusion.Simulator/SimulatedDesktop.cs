@@ -11,21 +11,21 @@ namespace InputFusion.Simulator;
 /// </summary>
 internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
 {
-    private static readonly string[] _buttonNames = ["Links", "Rechts", "Mitte", "X1", "X2"];
+    private static readonly String[] _buttonNames = ["Links", "Rechts", "Mitte", "X1", "X2"];
 
     private readonly Lock _lock = new();
-    private readonly SortedSet<string> _pressed = [];
-    private int _x, _y;
+    private readonly SortedSet<String> _pressed = [];
+    private Int32 _x, _y;
     private ReturnEdge[] _returnEdges = [];
     private SwitchBackRequest? _exitRequest;
 
     public IReadOnlyList<MonitorRect> Monitors => monitors;
 
-    public bool Active { get; private set; }
+    public Boolean Active { get; private set; }
 
-    public long MoveCount { get; private set; }
+    public Int64 MoveCount { get; private set; }
 
-    public event Action<string>? Logged;
+    public event Action<String>? Logged;
 
     /// <summary>Liefert einmal den Austritt, nachdem der Cursor eine Rückkehrkante erreicht hat: der Host soll zurück übernehmen.</summary>
     public SwitchBackRequest? TryTakeExitRequest()
@@ -38,7 +38,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
         }
     }
 
-    public (int X, int Y, bool Active, string[] Pressed, long Moves) Snapshot()
+    public (Int32 X, Int32 Y, Boolean Active, String[] Pressed, Int64 Moves) Snapshot()
     {
         lock (_lock)
         {
@@ -46,9 +46,9 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
         }
     }
 
-    public void Apply(MessageType type, byte[] payload)
+    public void Apply(MessageType type, Byte[] payload)
     {
-        string? log = null;
+        String? log = null;
         lock (_lock)
         {
             switch (type)
@@ -64,7 +64,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
                     _returnEdges = ReturnEdgeList.FromPayload(payload);
                     log = _returnEdges.Length == 0
                         ? "Keine Rückkehrkanten"
-                        : "Rückkehrkanten: " + string.Join(", ", _returnEdges.Select(e => $"{e.Side} {e.Edge} [{e.From}, {e.To})"));
+                        : "Rückkehrkanten: " + String.Join(", ", _returnEdges.Select(e => $"{e.Side} {e.Edge} [{e.From}, {e.To})"));
                     break;
 
                 case MessageType.Heartbeat:
@@ -80,7 +80,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
                     Active = false;
                     log = _pressed.Count == 0
                         ? "Steuerung an den Host zurückgegeben"
-                        : $"Steuerung zurück, aber noch gedrückt: {string.Join(", ", _pressed)}";
+                        : $"Steuerung zurück, aber noch gedrückt: {String.Join(", ", _pressed)}";
                     break;
 
                 case MessageType.MouseMoveRelative:
@@ -92,8 +92,8 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
 
                 case MessageType.MouseMoveAbsolute:
                     MouseMoveAbsolute abs = MouseMoveAbsolute.FromPayload(payload);
-                    (int ax, int ay) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, abs.X, abs.Y);
-                    (int bx, int by) = (_x, _y);
+                    (Int32 ax, Int32 ay) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, abs.X, abs.Y);
+                    (Int32 bx, Int32 by) = (_x, _y);
                     MoveTo(ax, ay);
                     MoveCount++;
                     log = CheckExit(_x - bx, _y - by);
@@ -101,7 +101,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
 
                 case MessageType.MouseButton:
                     MouseButton button = MouseButton.FromPayload(payload);
-                    string name = $"Maus {(button.Button < _buttonNames.Length ? _buttonNames[button.Button] : button.Button.ToString())}";
+                    String name = $"Maus {(button.Button < _buttonNames.Length ? _buttonNames[button.Button] : button.Button.ToString())}";
                     Toggle(name, button.State == ButtonState.Down);
                     log = $"{name} {(button.State == ButtonState.Down ? "gedrückt" : "losgelassen")} bei ({_x}, {_y})";
                     break;
@@ -113,7 +113,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
 
                 case MessageType.Key:
                     KeyEvent key = KeyEvent.FromPayload(payload);
-                    string keyName = KeyInterop.KeyFromVirtualKey(key.VirtualKey).ToString();
+                    String keyName = KeyInterop.KeyFromVirtualKey(key.VirtualKey).ToString();
                     Toggle(keyName, key.State == ButtonState.Down);
                     log = $"Taste {keyName} {(key.State == ButtonState.Down ? "unten" : "oben")}"
                         + $" (VK 0x{key.VirtualKey:X2}, Scan 0x{key.ScanCode:X2}{(key.Extended ? ", erweitert" : "")})";
@@ -156,7 +156,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
         }
     }
 
-    private string? CheckExit(int dx, int dy)
+    private String? CheckExit(Int32 dx, Int32 dy)
     {
         if (!Active || ReturnEdge.Find(_returnEdges, _x, _y, dx, dy) is not { } edge)
         {
@@ -172,7 +172,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
     /// Liegt das Ziel auf einem Monitor, dorthin. Sonst an die Kante des aktuellen Monitors klemmen,
     /// damit der Cursor die Kante wirklich erreicht (sonst löst der Austritt links nie aus).
     /// </summary>
-    private void MoveTo(int x, int y)
+    private void MoveTo(Int32 x, Int32 y)
     {
         if (LayoutGeometry.MonitorAt(monitors, x, y) is not null)
         {
@@ -185,7 +185,7 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
         _y = Math.Clamp(y, current.Top, current.Bottom - 1);
     }
 
-    private void Toggle(string name, bool down)
+    private void Toggle(String name, Boolean down)
     {
         if (down)
         {

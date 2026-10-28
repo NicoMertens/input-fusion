@@ -14,17 +14,17 @@ namespace InputFusion.Client;
 internal static unsafe class InputDesktop
 {
     // Ein Wechsel ist selten; öfter als alle 200 ms nachzusehen kostete bei schneller Mausbewegung nur Rechenzeit.
-    private const long CheckIntervalMs = 200;
+    private const Int64 CheckIntervalMs = 200;
     // Volle Rechte auf den Desktop; ein Teil davon fehlt sonst beim Abspielen oder beim Setzen des Cursors.
-    private const uint MaximumAllowed = 0x02000000;
+    private const UInt32 MaximumAllowed = 0x02000000;
 
     private static HDESK _owned;
-    private static long _lastCheck;
+    private static Int64 _lastCheck;
 
     /// <summary>Gibt den Namen des Desktops zurück, wenn gewechselt wurde, sonst null.</summary>
-    public static string? Follow()
+    public static String? Follow()
     {
-        long now = Environment.TickCount64;
+        Int64 now = Environment.TickCount64;
         if (now - _lastCheck < CheckIntervalMs)
         {
             return null;
@@ -37,7 +37,7 @@ internal static unsafe class InputDesktop
             return null;
         }
 
-        string inputName = Name(input);
+        String inputName = Name(input);
         if (inputName == Name(PInvoke.GetThreadDesktop(PInvoke.GetCurrentThreadId())) || !PInvoke.SetThreadDesktop(input))
         {
             PInvoke.CloseDesktop(input);
@@ -54,12 +54,12 @@ internal static unsafe class InputDesktop
         return inputName;
     }
 
-    private static string Name(HDESK desktop)
+    private static String Name(HDESK desktop)
     {
-        char* buffer = stackalloc char[128];
-        uint needed;
-        return PInvoke.GetUserObjectInformation((HANDLE)desktop.Value, USER_OBJECT_INFORMATION_INDEX.UOI_NAME, buffer, 128 * sizeof(char), &needed)
-            ? new string(buffer)
+        Char* buffer = stackalloc Char[128];
+        UInt32 needed;
+        return PInvoke.GetUserObjectInformation((HANDLE)desktop.Value, USER_OBJECT_INFORMATION_INDEX.UOI_NAME, buffer, 128 * sizeof(Char), &needed)
+            ? new String(buffer)
             : "";
     }
 }

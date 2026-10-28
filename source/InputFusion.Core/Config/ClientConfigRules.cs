@@ -11,20 +11,20 @@ namespace InputFusion.Core.Config;
 public static class ClientConfigRules
 {
     /// <returns>Die erste Beanstandung oder null.</returns>
-    public static string? Validate(string host, string? ip, int port, string key)
+    public static String? Validate(String host, String? ip, Int32 port, String key)
     {
-        if (string.IsNullOrWhiteSpace(host))
+        if (String.IsNullOrWhiteSpace(host))
         {
             return "Bitte den PC-Namen des Hosts angeben.";
         }
 
-        if (host.Trim() != host || host.Any(char.IsWhiteSpace))
+        if (host.Trim() != host || host.Any(Char.IsWhiteSpace))
         {
             return "Der PC-Name darf keine Leerzeichen enthalten.";
         }
 
         // TryParse nimmt auch Kurzformen wie 192.168.1 (= 192.168.0.1); bei IPv4 deshalb vier Teile verlangen.
-        if (!string.IsNullOrEmpty(ip)
+        if (!String.IsNullOrEmpty(ip)
             && (!IPAddress.TryParse(ip, out IPAddress? parsed)
                 || (parsed.AddressFamily == AddressFamily.InterNetwork && ip.Count(c => c == '.') != 3)))
         {
@@ -35,14 +35,14 @@ public static class ClientConfigRules
     }
 
     /// <returns>Die erste Beanstandung, bei mehreren PCs mit dessen Nummer, oder null.</returns>
-    public static string? Validate(IReadOnlyList<HostEntry> hosts)
+    public static String? Validate(IReadOnlyList<HostEntry> hosts)
     {
         if (hosts.Count == 0)
         {
             return "Bitte mindestens einen PC eintragen.";
         }
 
-        for (int i = 0; i < hosts.Count; i++)
+        for (Int32 i = 0; i < hosts.Count; i++)
         {
             HostEntry entry = hosts[i];
             if (Validate(entry.Host, entry.Ip, entry.Port, entry.Key) is { } error)

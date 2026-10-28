@@ -11,29 +11,29 @@ namespace InputFusion.Core.Protocol;
 public static class ClipboardChunks
 {
     /// <summary>Größter übertragener Text in UTF-8-Bytes. Längerer wird nicht übertragen, weil er die Eingaben aufhielte.</summary>
-    public const int MaxBytes = 1024 * 1024;
+    public const Int32 MaxBytes = 1024 * 1024;
 
-    public const int ChunkSize = 32 * 1024;
+    public const Int32 ChunkSize = 32 * 1024;
 
-    internal const byte First = 1;
-    internal const byte Last = 2;
+    internal const Byte First = 1;
+    internal const Byte Last = 2;
 
     /// <summary>Null, wenn der Text länger als <see cref="MaxBytes"/> ist.</summary>
-    public static List<byte[]>? Split(string text)
+    public static List<Byte[]>? Split(String text)
     {
-        byte[] bytes = Encoding.UTF8.GetBytes(text);
+        Byte[] bytes = Encoding.UTF8.GetBytes(text);
         if (bytes.Length > MaxBytes)
         {
             return null;
         }
 
-        List<byte[]> chunks = [];
-        int offset = 0;
+        List<Byte[]> chunks = [];
+        Int32 offset = 0;
         do
         {
-            int length = Math.Min(ChunkSize, bytes.Length - offset);
-            byte[] chunk = new byte[1 + length];
-            chunk[0] = (byte)((offset == 0 ? First : 0) | (offset + length == bytes.Length ? Last : 0));
+            Int32 length = Math.Min(ChunkSize, bytes.Length - offset);
+            Byte[] chunk = new Byte[1 + length];
+            chunk[0] = (Byte)((offset == 0 ? First : 0) | (offset + length == bytes.Length ? Last : 0));
             bytes.AsSpan(offset, length).CopyTo(chunk.AsSpan(1));
             chunks.Add(chunk);
             offset += length;
@@ -47,17 +47,17 @@ public static class ClipboardChunks
 public sealed class ClipboardAssembler
 {
     private readonly MemoryStream _buffer = new();
-    private bool _receiving;
+    private Boolean _receiving;
 
     /// <summary>Der ganze Text, sobald das letzte Stück da ist, sonst null.</summary>
-    public string? Add(ReadOnlySpan<byte> chunk)
+    public String? Add(ReadOnlySpan<Byte> chunk)
     {
         if (chunk.IsEmpty)
         {
             return null;
         }
 
-        byte flags = chunk[0];
+        Byte flags = chunk[0];
         // Ein erstes Stück beginnt immer neu: Eine abgebrochene Übertragung darf die nächste nicht verderben.
         if ((flags & ClipboardChunks.First) != 0)
         {
@@ -84,7 +84,7 @@ public sealed class ClipboardAssembler
         }
 
         _receiving = false;
-        string text = Encoding.UTF8.GetString(_buffer.GetBuffer(), 0, (int)_buffer.Length);
+        String text = Encoding.UTF8.GetString(_buffer.GetBuffer(), 0, (Int32)_buffer.Length);
         _buffer.SetLength(0);
         return text;
     }

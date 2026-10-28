@@ -10,11 +10,11 @@ namespace InputFusion.Settings;
 internal static class MonitorBox
 {
     /// <summary>Nummer von links nach rechts, Hauptmonitor und Auflösung; die Nummern von Windows sind hier nicht bekannt.</summary>
-    public static IEnumerable<(MonitorRect Monitor, string Label)> Numbered(IEnumerable<MonitorRect> monitors) =>
+    public static IEnumerable<(MonitorRect Monitor, String Label)> Numbered(IEnumerable<MonitorRect> monitors) =>
         monitors.OrderBy(m => m.Left).ThenBy(m => m.Top)
             .Select((m, i) => (m, $"{i + 1}{(m.X == 0 && m.Y == 0 ? " · Hauptmonitor" : "")}\n{m.Width} × {m.Height}"));
 
-    public static Border Create(MonitorRect m, string label, string fill, string border, double unit)
+    public static Border Create(MonitorRect m, String label, String fill, String border, Double unit)
     {
         return new Border
         {
@@ -40,10 +40,10 @@ internal static class MonitorBox
     }
 
     /// <summary>Ein Übergang als orange Linie auf der Kante des Host-Monitors, verschoben um den Ursprung der Zeichenfläche.</summary>
-    public static Line CreateTransition(EdgeTransition t, double unit, double originX, double originY)
+    public static Line CreateTransition(EdgeTransition t, Double unit, Double originX, Double originY)
     {
         MonitorRect h = t.HostMonitor;
-        (int x1, int y1, int x2, int y2) = t.Side switch
+        (Int32 x1, Int32 y1, Int32 x2, Int32 y2) = t.Side switch
         {
             EdgeSide.Right => (h.Right, t.From, h.Right, t.To),
             EdgeSide.Left => (h.Left, t.From, h.Left, t.To),

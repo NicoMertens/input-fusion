@@ -14,10 +14,10 @@ namespace InputFusion.Client;
 internal sealed class ClipboardBridge
 {
     private readonly Lock _lock = new();
-    private readonly Dictionary<MessageConnection, uint> _trays = new();
+    private readonly Dictionary<MessageConnection, UInt32> _trays = new();
     private MessageConnection? _host;
 
-    public void AddTray(MessageConnection tray, uint session)
+    public void AddTray(MessageConnection tray, UInt32 session)
     {
         lock (_lock)
         {
@@ -54,18 +54,18 @@ internal sealed class ClipboardBridge
     }
 
     /// <summary>Ein Stück Text vom Host an die Trays der aktiven Sitzung.</summary>
-    public Task FromHostAsync(byte[] chunk, CancellationToken ct) => SendToTraysAsync(MessageType.ClipboardText, chunk, ct);
+    public Task FromHostAsync(Byte[] chunk, CancellationToken ct) => SendToTraysAsync(MessageType.ClipboardText, chunk, ct);
 
     /// <summary>Die Maus geht zurück zum Host: Die Trays schicken ihren Text, wenn er sich geändert hat.</summary>
     public Task RequestAsync(CancellationToken ct) => SendToTraysAsync(MessageType.ClipboardRequest, [], ct);
 
     /// <summary>Ein Stück Text von einem Tray zum Host, nur von einem angemeldeten Tray der aktiven Sitzung.</summary>
-    public async Task FromTrayAsync(MessageConnection tray, byte[] chunk, CancellationToken ct)
+    public async Task FromTrayAsync(MessageConnection tray, Byte[] chunk, CancellationToken ct)
     {
         MessageConnection? host;
         lock (_lock)
         {
-            if (!_trays.TryGetValue(tray, out uint session) || session != ActiveSession.Id())
+            if (!_trays.TryGetValue(tray, out UInt32 session) || session != ActiveSession.Id())
             {
                 return;
             }
@@ -88,12 +88,12 @@ internal sealed class ClipboardBridge
         }
     }
 
-    private async Task SendToTraysAsync(MessageType type, byte[] payload, CancellationToken ct)
+    private async Task SendToTraysAsync(MessageType type, Byte[] payload, CancellationToken ct)
     {
         MessageConnection[] targets;
         lock (_lock)
         {
-            uint allowed = ActiveSession.Id();
+            UInt32 allowed = ActiveSession.Id();
             targets = _trays.Where(t => t.Value == allowed).Select(t => t.Key).ToArray();
         }
 

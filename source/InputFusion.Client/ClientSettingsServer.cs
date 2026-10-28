@@ -17,7 +17,7 @@ namespace InputFusion.Client;
 /// <param name="save">Null, wenn die Konfiguration feststeht (<c>--relay</c>).</param>
 /// <param name="checkForUpdates">Null, wenn sich dieser Ablauf nicht aktualisiert (<c>--relay</c>).</param>
 internal sealed class ClientSettingsServer(ClientStatus status, ClientService.ConfigSaver? save, ClipboardBridge clipboard,
-    Func<CancellationToken, Task<string>>? checkForUpdates, Action<string> log)
+    Func<CancellationToken, Task<String>>? checkForUpdates, Action<String> log)
 {
     public async Task RunAsync(CancellationToken ct)
     {
@@ -50,17 +50,17 @@ internal sealed class ClientSettingsServer(ClientStatus status, ClientService.Co
     private async Task ServeAsync(NamedPipeServerStream pipe, CancellationToken ct)
     {
         // Einmal je Verbindung: Ein Prozess wechselt seine Erhöhung nicht, die Einstellungen starten dafür neu.
-        bool administrator = PipeIdentity.IsClientAdministrator(pipe);
-        bool canEdit = administrator && save is not null;
+        Boolean administrator = PipeIdentity.IsClientAdministrator(pipe);
+        Boolean canEdit = administrator && save is not null;
         using MessageConnection connection = new MessageConnection(pipe);
         Action push = () => _ = SendAsync(connection, status.Snapshot(administrator, canEdit), ct);
         status.Changed += push;
         try
         {
             await SendAsync(connection, status.Snapshot(administrator, canEdit), ct);
-            await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(ct))
+            await foreach ((MessageType type, Byte[] payload) in connection.ReceiveAsync(ct))
             {
-                if (type == MessageType.ClipboardReceiver && PipeIdentity.ClientSessionId(pipe) is uint session)
+                if (type == MessageType.ClipboardReceiver && PipeIdentity.ClientSessionId(pipe) is UInt32 session)
                 {
                     clipboard.AddTray(connection, session);
                     continue;
@@ -92,7 +92,7 @@ internal sealed class ClientSettingsServer(ClientStatus status, ClientService.Co
                     continue;
                 }
 
-                string? error = message switch
+                String? error = message switch
                 {
                     GetStateRequest => null,
                     SetClientConfigRequest request => Apply(request, administrator),
@@ -120,7 +120,7 @@ internal sealed class ClientSettingsServer(ClientStatus status, ClientService.Co
     /// <summary>Jeder Benutzer darf suchen lassen: Eingespielt wird nur ein Release aus dem eigenen Repo mit passender Prüfsumme.</summary>
     private async Task ReportUpdateCheckAsync(MessageConnection connection, CancellationToken ct)
     {
-        string result;
+        String result;
         try
         {
             result = checkForUpdates is null ? "Im Entwicklungsmodus mit --relay sucht der Dienst nicht nach Updates." : await checkForUpdates(ct);
@@ -139,7 +139,7 @@ internal sealed class ClientSettingsServer(ClientStatus status, ClientService.Co
         await SendAsync(connection, new UpdateCheckResult(result), ct);
     }
 
-    private string? Apply(SetClientConfigRequest request, bool administrator)
+    private String? Apply(SetClientConfigRequest request, Boolean administrator)
     {
         if (!administrator)
         {
@@ -158,7 +158,7 @@ internal sealed class ClientSettingsServer(ClientStatus status, ClientService.Co
         }
 
         ClientConfig config = new ClientConfig(request.Hosts
-            .Select(h => h with { Ip = string.IsNullOrWhiteSpace(h.Ip) ? null : h.Ip.Trim() }).ToArray());
+            .Select(h => h with { Ip = String.IsNullOrWhiteSpace(h.Ip) ? null : h.Ip.Trim() }).ToArray());
         return ClientConfigRules.Validate(config.Hosts) ?? save(config);
     }
 

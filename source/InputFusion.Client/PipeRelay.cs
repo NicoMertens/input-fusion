@@ -20,16 +20,16 @@ namespace InputFusion.Client;
 /// muss als abspielen.
 /// </summary>
 /// <param name="saveKey">Speichert einen neuen Schlüssel vom Host; null bei Erfolg, sonst der Grund.</param>
-internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboard, ClientStatus status, Func<string, string?> saveKey, Action<string> log)
+internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboard, ClientStatus status, Func<String, String?> saveKey, Action<String> log)
 {
     private volatile MessageConnection? _injector;
     // Die zuletzt vom Host geschickten Rückkehrkanten. Ein neu verbundener Injector bekommt sie sofort, weil der
     // Host sie nur bei einer Änderung des Layouts schickt.
-    private volatile byte[]? _returnEdges;
-    private string? _endReason;
+    private volatile Byte[]? _returnEdges;
+    private String? _endReason;
 
     /// <summary>Warum die Verbindung endete, als Satz für Tray und Einstellungen; null bei Abbruch von außen.</summary>
-    public string? EndReason => Volatile.Read(ref _endReason);
+    public String? EndReason => Volatile.Read(ref _endReason);
 
     public async Task RunAsync(CancellationToken ct)
     {
@@ -40,7 +40,7 @@ internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboar
         clipboard.SetHost(host);
         try
         {
-            await foreach ((MessageType type, byte[] payload) in host.ReceiveAsync(linked.Token))
+            await foreach ((MessageType type, Byte[] payload) in host.ReceiveAsync(linked.Token))
             {
                 // Heartbeats sind Sache der Verbindung, nicht des Injectors.
                 if (type == MessageType.Heartbeat)
@@ -67,7 +67,7 @@ internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboar
                 // Geht nie zum Injector: Der Schlüssel gehört nur in client.json.
                 if (type == MessageType.KeyChange)
                 {
-                    string? error = saveKey(Encoding.UTF8.GetString(payload));
+                    String? error = saveKey(Encoding.UTF8.GetString(payload));
                     await host.SendAsync(MessageType.KeyChangeResult, error is null ? [] : Encoding.UTF8.GetBytes(error), linked.Token);
                     continue;
                 }
@@ -133,7 +133,7 @@ internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboar
     }
 
     /// <summary>Der erste Grund zählt; was danach scheitert, ist nur die Folge.</summary>
-    private void SetEndReason(string reason) => Interlocked.CompareExchange(ref _endReason, reason, null);
+    private void SetEndReason(String reason) => Interlocked.CompareExchange(ref _endReason, reason, null);
 
     /// <summary>Nimmt nacheinander Injector-Verbindungen an der Pipe an und reicht deren Meldungen zum Host.</summary>
     private async Task AcceptInjectorsAsync(CancellationTokenSource linked)
@@ -161,7 +161,7 @@ internal sealed class PipeRelay(MessageConnection host, ClipboardBridge clipboar
                     await conn.SendAsync(MessageType.ReturnEdges, edges, ct);
                 }
 
-                await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(ct))
+                await foreach ((MessageType type, Byte[] payload) in conn.ReceiveAsync(ct))
                 {
                     await host.SendAsync(type, payload, ct);
                     if (type == MessageType.SwitchBackRequest)

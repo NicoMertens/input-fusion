@@ -11,7 +11,7 @@ namespace InputFusion.Host;
 internal sealed class HookListener
 {
     private Thread? _thread;
-    private uint _threadId;
+    private UInt32 _threadId;
 
     public void Start()
     {

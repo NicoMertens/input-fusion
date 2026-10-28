@@ -22,12 +22,12 @@ public sealed class MessageConnection : IDisposable
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     private FrameCipher? _sendCipher;
     private FrameCipher? _receiveCipher;
-    private long _lastReceived = Environment.TickCount64;
-    private long _sentFrames, _receivedFrames;
+    private Int64 _lastReceived = Environment.TickCount64;
+    private Int64 _sentFrames, _receivedFrames;
     // Stopwatch-Ticks der letzten Laufzeit eines Heartbeats hin und zurück; -1, solange keine Antwort kam.
-    private long _roundTrip = -1;
-    private volatile bool _monitoring;
-    private bool _disposed;
+    private Int64 _roundTrip = -1;
+    private volatile Boolean _monitoring;
+    private Boolean _disposed;
 
     /// <summary>Abstand, in dem <see cref="MonitorAsync"/> einen Heartbeat schickt.</summary>
     public static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(1);
@@ -36,16 +36,16 @@ public sealed class MessageConnection : IDisposable
     public static readonly TimeSpan HeartbeatTimeout = TimeSpan.FromSeconds(3);
 
     // Nutzlast eines Heartbeats: leer bei älteren Gegenseiten, sonst Kennung und Stopwatch-Zeitstempel des Absenders.
-    private const byte HeartbeatRequest = 0;
-    private const byte HeartbeatEcho = 1;
-    private const int HeartbeatPayloadLength = 1 + sizeof(long);
+    private const Byte HeartbeatRequest = 0;
+    private const Byte HeartbeatEcho = 1;
+    private const Int32 HeartbeatPayloadLength = 1 + sizeof(Int64);
 
     /// <summary>Zähler für die Diagnose: Frames in beide Richtungen und die letzte Laufzeit hin und zurück.</summary>
     public ConnectionStats Stats
     {
         get
         {
-            long roundTrip = Interlocked.Read(ref _roundTrip);
+            Int64 roundTrip = Interlocked.Read(ref _roundTrip);
             return new ConnectionStats(Interlocked.Read(ref _sentFrames), Interlocked.Read(ref _receivedFrames),
                 roundTrip < 0 ? null : Stopwatch.GetElapsedTime(0, roundTrip));
         }
@@ -81,19 +81,19 @@ public sealed class MessageConnection : IDisposable
     /// Empfangspuffer liegen, werden erst beim Ausliefern entschlüsselt; deshalb darf die Gegenseite direkt nach
     /// ihrem letzten Anmeldeschritt verschlüsselt senden. Die Schlüssel kommen aus der <see cref="Handshake"/>.
     /// </summary>
-    public void EnableEncryption(ReadOnlySpan<byte> sendKey, ReadOnlySpan<byte> receiveKey)
+    public void EnableEncryption(ReadOnlySpan<Byte> sendKey, ReadOnlySpan<Byte> receiveKey)
     {
         _sendCipher = new FrameCipher(sendKey);
         _receiveCipher = new FrameCipher(receiveKey);
     }
 
-    public async Task SendAsync(MessageType type, ReadOnlyMemory<byte> payload, CancellationToken ct = default)
+    public async Task SendAsync(MessageType type, ReadOnlyMemory<Byte> payload, CancellationToken ct = default)
     {
         await _sendLock.WaitAsync(ct);
         try
         {
             // Unter dem Lock, weil der Zähler der Nonce in derselben Reihenfolge laufen muss wie die Frames.
-            byte[] frame = _sendCipher is null
+            Byte[] frame = _sendCipher is null
                 ? FrameCodec.Write(type, payload.Span)
                 : FrameCodec.Write(MessageType.Encrypted, _sendCipher.Seal(type, payload.Span));
             await _stream.WriteAsync(frame, ct);
@@ -105,19 +105,19 @@ public sealed class MessageConnection : IDisposable
         }
     }
 
-    public async IAsyncEnumerable<(MessageType Type, byte[] Payload)> ReceiveAsync(
+    public async IAsyncEnumerable<(MessageType Type, Byte[] Payload)> ReceiveAsync(
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         // Frames, die beim vorigen Lesen schon mitkamen (etwa direkt nach der Anmeldung), zuerst ausliefern.
-        while (_reader.TryRead(out MessageType bufferedType, out byte[] bufferedPayload))
+        while (_reader.TryRead(out MessageType bufferedType, out Byte[] bufferedPayload))
         {
             yield return Received(Open(bufferedType, bufferedPayload), ct);
         }
 
-        byte[] buffer = new byte[4096];
+        Byte[] buffer = new Byte[4096];
         while (!ct.IsCancellationRequested)
         {
-            int n = await _stream.ReadAsync(buffer, ct);
+            Int32 n = await _stream.ReadAsync(buffer, ct);
             if (n == 0)
             {
                 yield break;
@@ -126,7 +126,7 @@ public sealed class MessageConnection : IDisposable
             Volatile.Write(ref _lastReceived, Environment.TickCount64);
 
             _reader.Append(buffer.AsSpan(0, n));
-            while (_reader.TryRead(out MessageType type, out byte[] payload))
+            while (_reader.TryRead(out MessageType type, out Byte[] payload))
             {
                 yield return Received(Open(type, payload), ct);
             }
@@ -146,7 +146,7 @@ public sealed class MessageConnection : IDisposable
     /// <para>Jeder Heartbeat trägt einen Zeitstempel; läuft auf der Gegenseite ebenfalls <see cref="MonitorAsync"/>,
     /// schickt sie ihn zurück, und daraus ergibt sich die Laufzeit in <see cref="Stats"/>.</para>
     /// </summary>
-    public async Task<bool> MonitorAsync(CancellationToken ct)
+    public async Task<Boolean> MonitorAsync(CancellationToken ct)
     {
         _monitoring = true;
         Volatile.Write(ref _lastReceived, Environment.TickCount64);
@@ -176,12 +176,12 @@ public sealed class MessageConnection : IDisposable
     /// Laufzeit. Der Heartbeat selbst kommt trotzdem beim Aufrufer an. Nur wer selbst überwacht, antwortet; eine Seite,
     /// die bloß liest, soll für die Gegenseite weiter schweigen.
     /// </summary>
-    private (MessageType Type, byte[] Payload) Received((MessageType Type, byte[] Payload) frame, CancellationToken ct)
+    private (MessageType Type, Byte[] Payload) Received((MessageType Type, Byte[] Payload) frame, CancellationToken ct)
     {
         Interlocked.Increment(ref _receivedFrames);
         if (frame.Type == MessageType.Heartbeat && frame.Payload.Length == HeartbeatPayloadLength)
         {
-            long sent = BinaryPrimitives.ReadInt64LittleEndian(frame.Payload.AsSpan(1));
+            Int64 sent = BinaryPrimitives.ReadInt64LittleEndian(frame.Payload.AsSpan(1));
             if (frame.Payload[0] == HeartbeatRequest && _monitoring)
             {
                 _ = SendHeartbeatAsync(HeartbeatEcho, sent, ct);
@@ -195,7 +195,7 @@ public sealed class MessageConnection : IDisposable
     }
 
     /// <summary>Ohne Verschlüsselung unverändert; mit ihr wird ein Klartext-Frame nicht angenommen.</summary>
-    private (MessageType Type, byte[] Payload) Open(MessageType type, byte[] payload)
+    private (MessageType Type, Byte[] Payload) Open(MessageType type, Byte[] payload)
     {
         if (_receiveCipher is null)
         {
@@ -210,9 +210,9 @@ public sealed class MessageConnection : IDisposable
         return _receiveCipher.Open(payload);
     }
 
-    private async Task SendHeartbeatAsync(byte kind, long timestamp, CancellationToken ct)
+    private async Task SendHeartbeatAsync(Byte kind, Int64 timestamp, CancellationToken ct)
     {
-        byte[] payload = new byte[HeartbeatPayloadLength];
+        Byte[] payload = new Byte[HeartbeatPayloadLength];
         payload[0] = kind;
         BinaryPrimitives.WriteInt64LittleEndian(payload.AsSpan(1), timestamp);
         try

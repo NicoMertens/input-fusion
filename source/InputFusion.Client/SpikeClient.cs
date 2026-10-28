@@ -11,7 +11,7 @@ namespace InputFusion.Client;
 /// </summary>
 internal static class SpikeClient
 {
-    public static async Task RunAsync(string host, string key, int port)
+    public static async Task RunAsync(String host, String key, Int32 port)
     {
         using CancellationTokenSource cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
@@ -46,7 +46,7 @@ internal static class SpikeClient
         });
         try
         {
-            await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(cts.Token))
+            await foreach ((MessageType type, Byte[] payload) in conn.ReceiveAsync(cts.Token))
             {
                 if (dispatcher.Dispatch(type, payload) is { } exit)
                 {

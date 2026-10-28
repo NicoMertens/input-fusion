@@ -31,37 +31,37 @@ namespace InputFusion.Core.Net;
 /// </summary>
 public static class Handshake
 {
-    public const int NonceSize = 32;
-    private const int MacSize = 32;
+    public const Int32 NonceSize = 32;
+    private const Int32 MacSize = 32;
 
     /// <summary>Ab dieser Protokollversion steht hinter der Protokollversion der öffentliche ECDH-Schlüssel.</summary>
-    private const ushort FirstEncryptedProtocol = 2;
+    private const UInt16 FirstEncryptedProtocol = 2;
 
     /// <summary>So lange darf die Anmeldung insgesamt dauern.</summary>
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
     /// <summary>Hostseite. Bei <see cref="HandshakeOutcome.Accepted"/> ist auch der Nachweis des Hosts verschickt und
     /// die Verbindung verschlüsselt.</summary>
-    public static async Task<HandshakeResult> HostAsync(MessageConnection connection, string key, string appVersion, CancellationToken ct)
+    public static async Task<HandshakeResult> HostAsync(MessageConnection connection, String key, String appVersion, CancellationToken ct)
     {
         using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(Timeout);
         try
         {
             using ECDiffieHellman ecdh = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
-            byte[] hostPublic = ecdh.ExportSubjectPublicKeyInfo();
-            byte[] hostNonce = RandomNumberGenerator.GetBytes(NonceSize);
-            byte[] hello = [.. hostNonce, .. Versions(appVersion, hostPublic)];
+            Byte[] hostPublic = ecdh.ExportSubjectPublicKeyInfo();
+            Byte[] hostNonce = RandomNumberGenerator.GetBytes(NonceSize);
+            Byte[] hello = [.. hostNonce, .. Versions(appVersion, hostPublic)];
             await connection.SendAsync(MessageType.Hello, hello, timeout.Token);
 
-            byte[]? response = await ReceiveAsync(connection, MessageType.HelloResponse, NonceSize + MacSize + 2, timeout.Token);
+            Byte[]? response = await ReceiveAsync(connection, MessageType.HelloResponse, NonceSize + MacSize + 2, timeout.Token);
             if (response is null || ReadVersions(response.AsSpan(NonceSize + MacSize)) is not { } peer)
             {
                 return HandshakeResult.Failed;
             }
 
-            byte[] clientNonce = response[..NonceSize];
-            byte[] clientMac = response[NonceSize..(NonceSize + MacSize)];
+            Byte[] clientNonce = response[..NonceSize];
+            Byte[] clientMac = response[NonceSize..(NonceSize + MacSize)];
             if (peer.Protocol != ProtocolVersion.Current)
             {
                 // Erst der Nachweis, dann die Version: Ein Fremder darf keine Suche nach Updates auslösen.
@@ -75,7 +75,7 @@ public static class Handshake
                 return HandshakeResult.Rejected;
             }
 
-            (byte[] hostToClient, byte[] clientToHost) = SessionKeys(ecdh, peer.PublicKey, key, hostNonce, clientNonce);
+            (Byte[] hostToClient, Byte[] clientToHost) = SessionKeys(ecdh, peer.PublicKey, key, hostNonce, clientNonce);
             await connection.SendAsync(MessageType.HelloAccept, Mac(key, "host", hostNonce, clientNonce, hostPublic, peer.PublicKey), timeout.Token);
             connection.EnableEncryption(hostToClient, clientToHost);
             return new HandshakeResult(HandshakeOutcome.Accepted, peer.Protocol, peer.Version);
@@ -91,43 +91,43 @@ public static class Handshake
     /// den Schlüssel kennt; die Verbindung ist dann verschlüsselt. Bei abweichender Protokollversion antwortet der
     /// Client trotzdem, damit der Host im Protokoll sieht, welche Version anklopft, und wartet dann nicht mehr auf
     /// die Annahme.</summary>
-    public static async Task<HandshakeResult> ClientAsync(MessageConnection connection, string key, string appVersion, CancellationToken ct)
+    public static async Task<HandshakeResult> ClientAsync(MessageConnection connection, String key, String appVersion, CancellationToken ct)
     {
         using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(Timeout);
         try
         {
-            byte[]? hello = await ReceiveAsync(connection, MessageType.Hello, NonceSize + 2, timeout.Token);
+            Byte[]? hello = await ReceiveAsync(connection, MessageType.Hello, NonceSize + 2, timeout.Token);
             if (hello is null || ReadVersions(hello.AsSpan(NonceSize)) is not { } peer)
             {
                 return HandshakeResult.Failed;
             }
 
-            byte[] hostNonce = hello[..NonceSize];
-            byte[] clientNonce = RandomNumberGenerator.GetBytes(NonceSize);
+            Byte[] hostNonce = hello[..NonceSize];
+            Byte[] clientNonce = RandomNumberGenerator.GetBytes(NonceSize);
             if (peer.Protocol != ProtocolVersion.Current)
             {
                 // In der Form, die der Host versteht: Nachweis nur über die Zufallswerte; ein Host mit Protokoll 1
                 // kennt auch das Feld für den öffentlichen Schlüssel nicht.
-                byte[] versions = peer.Protocol >= FirstEncryptedProtocol ? Versions(appVersion, []) : LegacyVersions(appVersion);
-                byte[] mismatch = [.. clientNonce, .. Mac(key, "client", hostNonce, clientNonce, [], []), .. versions];
+                Byte[] versions = peer.Protocol >= FirstEncryptedProtocol ? Versions(appVersion, []) : LegacyVersions(appVersion);
+                Byte[] mismatch = [.. clientNonce, .. Mac(key, "client", hostNonce, clientNonce, [], []), .. versions];
                 await connection.SendAsync(MessageType.HelloResponse, mismatch, timeout.Token);
                 return new HandshakeResult(HandshakeOutcome.ProtocolMismatch, peer.Protocol, peer.Version);
             }
 
             using ECDiffieHellman ecdh = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
-            byte[] clientPublic = ecdh.ExportSubjectPublicKeyInfo();
-            byte[] response = [.. clientNonce, .. Mac(key, "client", hostNonce, clientNonce, peer.PublicKey, clientPublic), .. Versions(appVersion, clientPublic)];
+            Byte[] clientPublic = ecdh.ExportSubjectPublicKeyInfo();
+            Byte[] response = [.. clientNonce, .. Mac(key, "client", hostNonce, clientNonce, peer.PublicKey, clientPublic), .. Versions(appVersion, clientPublic)];
             await connection.SendAsync(MessageType.HelloResponse, response, timeout.Token);
 
-            byte[]? accept = await ReceiveAsync(connection, MessageType.HelloAccept, MacSize, timeout.Token);
+            Byte[]? accept = await ReceiveAsync(connection, MessageType.HelloAccept, MacSize, timeout.Token);
             if (accept is null || accept.Length != MacSize
                 || !CryptographicOperations.FixedTimeEquals(accept, Mac(key, "host", hostNonce, clientNonce, peer.PublicKey, clientPublic)))
             {
                 return HandshakeResult.Rejected;
             }
 
-            (byte[] hostToClient, byte[] clientToHost) = SessionKeys(ecdh, peer.PublicKey, key, hostNonce, clientNonce);
+            (Byte[] hostToClient, Byte[] clientToHost) = SessionKeys(ecdh, peer.PublicKey, key, hostNonce, clientNonce);
             connection.EnableEncryption(clientToHost, hostToClient);
             return new HandshakeResult(HandshakeOutcome.Accepted, peer.Protocol, peer.Version);
         }
@@ -141,23 +141,23 @@ public static class Handshake
     /// <summary>Die Rolle steht mit im HMAC, damit ein Nachweis der einen Seite nicht als der der anderen durchgeht;
     /// die öffentlichen Schlüssel, damit niemand sie austauschen kann. Ohne Schlüssel ist es der Nachweis von
     /// Protokoll 1.</summary>
-    private static byte[] Mac(string key, string role, byte[] hostNonce, byte[] clientNonce, byte[] hostPublic, byte[] clientPublic)
+    private static Byte[] Mac(String key, String role, Byte[] hostNonce, Byte[] clientNonce, Byte[] hostPublic, Byte[] clientPublic)
     {
-        byte[] message = [.. Encoding.ASCII.GetBytes("InputFusion-" + role), .. hostNonce, .. clientNonce, .. hostPublic, .. clientPublic];
+        Byte[] message = [.. Encoding.ASCII.GetBytes("InputFusion-" + role), .. hostNonce, .. clientNonce, .. hostPublic, .. clientPublic];
         return HMACSHA256.HashData(Encoding.UTF8.GetBytes(key), message);
     }
 
     /// <summary>Je Richtung ein eigener Schlüssel per HKDF aus dem ECDH-Geheimnis. Der gemeinsame Schlüssel steckt
     /// über das Salz mit darin, damit die Sitzungsschlüssel nicht allein am ECDH hängen.</summary>
-    private static (byte[] HostToClient, byte[] ClientToHost) SessionKeys(ECDiffieHellman own, byte[] peerPublic, string key, byte[] hostNonce, byte[] clientNonce)
+    private static (Byte[] HostToClient, Byte[] ClientToHost) SessionKeys(ECDiffieHellman own, Byte[] peerPublic, String key, Byte[] hostNonce, Byte[] clientNonce)
     {
         using ECDiffieHellman peer = ECDiffieHellman.Create();
         peer.ImportSubjectPublicKeyInfo(peerPublic, out _);
-        byte[] secret = own.DeriveRawSecretAgreement(peer.PublicKey);
+        Byte[] secret = own.DeriveRawSecretAgreement(peer.PublicKey);
         try
         {
-            byte[] context = [.. Encoding.ASCII.GetBytes("InputFusion-session"), .. hostNonce, .. clientNonce];
-            byte[] salt = HMACSHA256.HashData(Encoding.UTF8.GetBytes(key), context);
+            Byte[] context = [.. Encoding.ASCII.GetBytes("InputFusion-session"), .. hostNonce, .. clientNonce];
+            Byte[] salt = HMACSHA256.HashData(Encoding.UTF8.GetBytes(key), context);
             return (
                 HKDF.DeriveKey(HashAlgorithmName.SHA256, secret, FrameCipher.KeySize, salt, Encoding.ASCII.GetBytes("InputFusion-h2c")),
                 HKDF.DeriveKey(HashAlgorithmName.SHA256, secret, FrameCipher.KeySize, salt, Encoding.ASCII.GetBytes("InputFusion-c2h")));
@@ -170,26 +170,26 @@ public static class Handshake
 
     /// <summary>Protokollversion (2 Byte), Länge (1 Byte) und öffentlicher Schlüssel, danach die App-Version als
     /// UTF-8 bis zum Ende der Nachricht.</summary>
-    private static byte[] Versions(string appVersion, byte[] publicKey) =>
-        [.. Protocol(), (byte)publicKey.Length, .. publicKey, .. Encoding.UTF8.GetBytes(appVersion)];
+    private static Byte[] Versions(String appVersion, Byte[] publicKey) =>
+        [.. Protocol(), (Byte)publicKey.Length, .. publicKey, .. Encoding.UTF8.GetBytes(appVersion)];
 
     /// <summary>Wie in Protokoll 1: ohne Feld für den öffentlichen Schlüssel.</summary>
-    private static byte[] LegacyVersions(string appVersion) => [.. Protocol(), .. Encoding.UTF8.GetBytes(appVersion)];
+    private static Byte[] LegacyVersions(String appVersion) => [.. Protocol(), .. Encoding.UTF8.GetBytes(appVersion)];
 
-    private static byte[] Protocol()
+    private static Byte[] Protocol()
     {
-        byte[] protocol = new byte[2];
+        Byte[] protocol = new Byte[2];
         BinaryPrimitives.WriteUInt16LittleEndian(protocol, ProtocolVersion.Current);
         return protocol;
     }
 
     /// <summary>Die Versionen und, ab <see cref="FirstEncryptedProtocol"/>, der öffentliche Schlüssel; null, wenn
     /// die Länge nicht passt.</summary>
-    private static PeerInfo? ReadVersions(ReadOnlySpan<byte> data)
+    private static PeerInfo? ReadVersions(ReadOnlySpan<Byte> data)
     {
-        ushort protocol = BinaryPrimitives.ReadUInt16LittleEndian(data);
-        ReadOnlySpan<byte> rest = data[2..];
-        byte[] publicKey = [];
+        UInt16 protocol = BinaryPrimitives.ReadUInt16LittleEndian(data);
+        ReadOnlySpan<Byte> rest = data[2..];
+        Byte[] publicKey = [];
         if (protocol >= FirstEncryptedProtocol)
         {
             if (rest.IsEmpty || rest.Length < 1 + rest[0])
@@ -205,9 +205,9 @@ public static class Handshake
     }
 
     /// <summary>Die nächste Nachricht, wenn sie den erwarteten Typ und mindestens die erwartete Länge hat, sonst null.</summary>
-    private static async Task<byte[]?> ReceiveAsync(MessageConnection connection, MessageType expected, int minLength, CancellationToken ct)
+    private static async Task<Byte[]?> ReceiveAsync(MessageConnection connection, MessageType expected, Int32 minLength, CancellationToken ct)
     {
-        await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(ct))
+        await foreach ((MessageType type, Byte[] payload) in connection.ReceiveAsync(ct))
         {
             return type == expected && payload.Length >= minLength ? payload : null;
         }
@@ -215,7 +215,7 @@ public static class Handshake
         return null;
     }
 
-    private sealed record PeerInfo(ushort Protocol, byte[] PublicKey, string Version);
+    private sealed record PeerInfo(UInt16 Protocol, Byte[] PublicKey, String Version);
 }
 
 public enum HandshakeOutcome
@@ -233,7 +233,7 @@ public enum HandshakeOutcome
 }
 
 /// <summary>Ergebnis der Anmeldung mit den Versionen der Gegenseite, soweit sie übermittelt wurden.</summary>
-public sealed record HandshakeResult(HandshakeOutcome Outcome, ushort PeerProtocol, string PeerVersion)
+public sealed record HandshakeResult(HandshakeOutcome Outcome, UInt16 PeerProtocol, String PeerVersion)
 {
     public static HandshakeResult Rejected { get; } = new(HandshakeOutcome.Rejected, 0, "");
 

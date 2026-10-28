@@ -9,17 +9,17 @@ namespace InputFusion.Settings;
 /// </summary>
 internal static class ThemeBrushes
 {
-    public const string Hint = "TextFillColorSecondaryBrush";
-    public const string Error = "SystemFillColorCriticalBrush";
-    public const string Success = "SystemFillColorSuccessBrush";
-    public const string Idle = "TextFillColorTertiaryBrush";
-    public const string AccentFill = "AccentFillColorDefaultBrush";
-    public const string TextOnAccent = "TextOnAccentFillColorPrimaryBrush";
-    public const string SubtleFill = "SubtleFillColorSecondaryBrush";
-    public const string CardBackground = "CardBackgroundFillColorDefaultBrush";
-    public const string CardStroke = "CardStrokeColorDefaultBrush";
+    public const String Hint = "TextFillColorSecondaryBrush";
+    public const String Error = "SystemFillColorCriticalBrush";
+    public const String Success = "SystemFillColorSuccessBrush";
+    public const String Idle = "TextFillColorTertiaryBrush";
+    public const String AccentFill = "AccentFillColorDefaultBrush";
+    public const String TextOnAccent = "TextOnAccentFillColorPrimaryBrush";
+    public const String SubtleFill = "SubtleFillColorSecondaryBrush";
+    public const String CardBackground = "CardBackgroundFillColorDefaultBrush";
+    public const String CardStroke = "CardStrokeColorDefaultBrush";
 
     /// <summary>Meldung unter einem Feld: Fehler rot, sonst als Hinweis.</summary>
-    public static void SetMessageColor(TextBlock text, bool error) =>
+    public static void SetMessageColor(TextBlock text, Boolean error) =>
         text.SetResourceReference(TextBlock.ForegroundProperty, error ? Error : Hint);
 }

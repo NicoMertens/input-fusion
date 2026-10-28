@@ -26,15 +26,15 @@ public partial class ClientWindow : Window
     private ClientStateMessage? _state;
     // Die Liste in Bearbeitung, je PC die Felder als Text; ein halb getippter Port ist noch keine Zahl.
     private List<HostDraft> _drafts = [];
-    private bool _updatingFields;
+    private Boolean _updatingFields;
 
-    private sealed record HostDraft(string Host, string Ip, string Port, string Key)
+    private sealed record HostDraft(String Host, String Ip, String Port, String Key)
     {
         public static HostDraft From(HostEntry entry) =>
             new(entry.Host, entry.Ip ?? "", entry.Port.ToString(CultureInfo.InvariantCulture), entry.Key);
 
         public HostEntry? ToEntry() =>
-            int.TryParse(Port, NumberStyles.None, CultureInfo.InvariantCulture, out int port)
+            Int32.TryParse(Port, NumberStyles.None, CultureInfo.InvariantCulture, out Int32 port)
                 ? new HostEntry(Host, Key, Ip.Length == 0 ? null : Ip, port)
                 : null;
     }
@@ -69,7 +69,7 @@ public partial class ClientWindow : Window
     }
 
     // Kommt auf dem Thread von SystemEvents an, nicht auf dem der Oberfläche.
-    private void OnDisplaySettingsChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(RenderMonitors);
+    private void OnDisplaySettingsChanged(Object? sender, EventArgs e) => Dispatcher.BeginInvoke(RenderMonitors);
 
     /// <summary>
     /// Mit Verbindung die Anordnung, die der Host schickt, wie im Reiter Anordnung des PCs, nur ohne Verschieben.
@@ -87,7 +87,7 @@ public partial class ClientWindow : Window
             : "Die Anordnung, mit der der PC rechnet: seine Monitore grau, die dieses Notebooks blau. Orange markiert "
               + "die Übergänge. Ändern lässt sie sich nur auf dem PC, in dessen Einstellungen im Reiter Anordnung.";
 
-        List<(MonitorRect Monitor, string Label, bool Own)> boxes = layout is null
+        List<(MonitorRect Monitor, String Label, Boolean Own)> boxes = layout is null
             ? MonitorBox.Numbered(MonitorEnumerator.GetMonitors()).Select(b => (b.Monitor, b.Label, true)).ToList()
             : [
                 .. MonitorBox.Numbered(layout.HostMonitors).Select(b => (b.Monitor, $"PC {b.Label}", false)),
@@ -98,12 +98,12 @@ public partial class ClientWindow : Window
             return;
         }
 
-        int originX = boxes.Min(b => b.Monitor.Left);
-        int originY = boxes.Min(b => b.Monitor.Top);
+        Int32 originX = boxes.Min(b => b.Monitor.Left);
+        Int32 originY = boxes.Min(b => b.Monitor.Top);
         Monitors.Width = boxes.Max(b => b.Monitor.Right) - originX;
         Monitors.Height = boxes.Max(b => b.Monitor.Bottom) - originY;
-        double unit = Math.Max(Monitors.Width, Monitors.Height) / 100.0;
-        foreach ((MonitorRect m, string label, bool own) in boxes)
+        Double unit = Math.Max(Monitors.Width, Monitors.Height) / 100.0;
+        foreach ((MonitorRect m, String label, Boolean own) in boxes)
         {
             Border box = own
                 ? MonitorBox.Create(m, label, "ClientMonitorBrush", "ClientMonitorBorderBrush", unit)
@@ -119,7 +119,7 @@ public partial class ClientWindow : Window
         }
     }
 
-    private void OnConnectedChanged(bool connected)
+    private void OnConnectedChanged(Boolean connected)
     {
         if (!connected)
         {
@@ -162,21 +162,21 @@ public partial class ClientWindow : Window
             return;
         }
 
-        string title = state.Hosts.Count == 0 ? "Kein PC eingetragen" : $"Nicht mit {state.HostNames()} verbunden";
-        string hint = state.Problem ?? (state.Hosts.Count == 0
+        String title = state.Hosts.Count == 0 ? "Kein PC eingetragen" : $"Nicht mit {state.HostNames()} verbunden";
+        String hint = state.Problem ?? (state.Hosts.Count == 0
             ? "Unten mit „PC hinzufügen“ PC-Name, Port und Schlüssel eintragen."
             : "Der Dienst versucht es weiter, sobald der PC erreichbar ist.");
         HostCard.Show(false, title, [(null, hint)]);
     }
 
-    private void OnError(string message)
+    private void OnError(String message)
     {
         Message.Text = message;
         ThemeBrushes.SetMessageColor(Message, error: true);
     }
 
     /// <summary>Füllt die Liste neu und zeigt den Eintrag an <paramref name="select"/> in den Feldern.</summary>
-    private void ShowDrafts(int select)
+    private void ShowDrafts(Int32 select)
     {
         _updatingFields = true;
         HostList.Items.Clear();
@@ -190,9 +190,9 @@ public partial class ClientWindow : Window
         ShowSelected();
     }
 
-    private string Label(HostDraft draft)
+    private String Label(HostDraft draft)
     {
-        string name = draft.Host.Length == 0 ? "(neuer PC)" : draft.Host;
+        String name = draft.Host.Length == 0 ? "(neuer PC)" : draft.Host;
         return _state is { Connected: true } && _state.Host == draft.Host ? $"{name}  –  verbunden" : name;
     }
 
@@ -206,7 +206,7 @@ public partial class ClientWindow : Window
         Key.Text = draft?.Key ?? "";
         _updatingFields = false;
 
-        bool editable = draft is not null && _state is { CanEdit: true };
+        Boolean editable = draft is not null && _state is { CanEdit: true };
         foreach (TextBox box in new[] { HostName, Ip, Port, Key })
         {
             box.IsReadOnly = !editable;
@@ -217,7 +217,7 @@ public partial class ClientWindow : Window
         UpdateMessage();
     }
 
-    private void OnHostSelected(object sender, SelectionChangedEventArgs e)
+    private void OnHostSelected(Object sender, SelectionChangedEventArgs e)
     {
         if (!_updatingFields)
         {
@@ -225,16 +225,16 @@ public partial class ClientWindow : Window
         }
     }
 
-    private void OnAddHost(object sender, RoutedEventArgs e)
+    private void OnAddHost(Object sender, RoutedEventArgs e)
     {
         _drafts.Add(new HostDraft("", "", Ports.Input.ToString(CultureInfo.InvariantCulture), ""));
         ShowDrafts(_drafts.Count - 1);
         HostName.Focus();
     }
 
-    private void OnRemoveHost(object sender, RoutedEventArgs e)
+    private void OnRemoveHost(Object sender, RoutedEventArgs e)
     {
-        int index = HostList.SelectedIndex;
+        Int32 index = HostList.SelectedIndex;
         if (index >= 0)
         {
             _drafts.RemoveAt(index);
@@ -242,9 +242,9 @@ public partial class ClientWindow : Window
         }
     }
 
-    private void OnInputChanged(object sender, TextChangedEventArgs e)
+    private void OnInputChanged(Object sender, TextChangedEventArgs e)
     {
-        int index = HostList.SelectedIndex;
+        Int32 index = HostList.SelectedIndex;
         if (_updatingFields || index < 0)
         {
             return;
@@ -274,17 +274,17 @@ public partial class ClientWindow : Window
             return;
         }
 
-        string? error = Validate();
-        bool changed = IsChanged();
+        String? error = Validate();
+        Boolean changed = IsChanged();
         Apply.IsEnabled = error is null && changed;
         Message.Text = error ?? (changed ? "Noch nicht übernommen." : "");
         ThemeBrushes.SetMessageColor(Message, error is not null);
     }
 
-    private string? Validate()
+    private String? Validate()
     {
         List<HostEntry> entries = [];
-        for (int i = 0; i < _drafts.Count; i++)
+        for (Int32 i = 0; i < _drafts.Count; i++)
         {
             if (_drafts[i].ToEntry() is not { } entry)
             {
@@ -295,10 +295,10 @@ public partial class ClientWindow : Window
         return ClientConfigRules.Validate(entries);
     }
 
-    private bool IsChanged() =>
+    private Boolean IsChanged() =>
         _state is not null && !_drafts.SequenceEqual(_state.Hosts.Select(HostDraft.From));
 
-    private async void OnApply(object sender, RoutedEventArgs e)
+    private async void OnApply(Object sender, RoutedEventArgs e)
     {
         if (Validate() is not null)
         {
@@ -310,7 +310,7 @@ public partial class ClientWindow : Window
         Keyboard.ClearFocus();
     }
 
-    private void OnElevate(object sender, RoutedEventArgs e)
+    private void OnElevate(Object sender, RoutedEventArgs e)
     {
         if (((App)Application.Current).RestartElevated(SettingsLauncher.ClientArgument))
         {

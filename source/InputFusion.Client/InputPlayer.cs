@@ -11,28 +11,28 @@ namespace InputFusion.Client;
 /// </summary>
 public sealed class InputPlayer
 {
-    private static readonly int _inputSize = Marshal.SizeOf<INPUT>();
+    private static readonly Int32 _inputSize = Marshal.SizeOf<INPUT>();
 
     // Was gerade gedrückt ist, damit sich beim Verbindungsabbruch alles lösen lässt (keine hängenden
     // Tasten). Einfädrig genutzt: ein Abspiel-Thread je Player.
-    private readonly Dictionary<ushort, KeyEvent> _keysDown = new();
-    private readonly HashSet<byte> _buttonsDown = new();
+    private readonly Dictionary<UInt16, KeyEvent> _keysDown = new();
+    private readonly HashSet<Byte> _buttonsDown = new();
 
-    public void MoveRelative(short dx, short dy) =>
+    public void MoveRelative(Int16 dx, Int16 dy) =>
         SendMouse(dx, dy, 0, MOUSE_EVENT_FLAGS.MOUSEEVENTF_MOVE);
 
     /// <summary>Setzt den Cursor genau auf den Eintrittspunkt. Über <c>SendInput</c> absolut ginge das nur auf
     /// 0…65535 normiert und damit um einen Pixel ungenau, womöglich auf den Nachbarmonitor.</summary>
-    public void SetCursor(int x, int y) => PInvoke.SetCursorPos(x, y);
+    public void SetCursor(Int32 x, Int32 y) => PInvoke.SetCursorPos(x, y);
 
-    public void MoveAbsolute(ushort x, ushort y) =>
+    public void MoveAbsolute(UInt16 x, UInt16 y) =>
         SendMouse(x, y, 0, MOUSE_EVENT_FLAGS.MOUSEEVENTF_MOVE
             | MOUSE_EVENT_FLAGS.MOUSEEVENTF_ABSOLUTE
             | MOUSE_EVENT_FLAGS.MOUSEEVENTF_VIRTUALDESK);
 
     public void Button(MouseButton button)
     {
-        bool down = button.State == ButtonState.Down;
+        Boolean down = button.State == ButtonState.Down;
         if (down)
         {
             _buttonsDown.Add(button.Button);
@@ -42,7 +42,7 @@ public sealed class InputPlayer
             _buttonsDown.Remove(button.Button);
         }
 
-        (MOUSE_EVENT_FLAGS flags, uint data) = button.Button switch
+        (MOUSE_EVENT_FLAGS flags, UInt32 data) = button.Button switch
         {
             0 => (down ? MOUSE_EVENT_FLAGS.MOUSEEVENTF_LEFTDOWN : MOUSE_EVENT_FLAGS.MOUSEEVENTF_LEFTUP, 0u),
             1 => (down ? MOUSE_EVENT_FLAGS.MOUSEEVENTF_RIGHTDOWN : MOUSE_EVENT_FLAGS.MOUSEEVENTF_RIGHTUP, 0u),
@@ -54,7 +54,7 @@ public sealed class InputPlayer
     }
 
     public void Wheel(MouseWheel wheel) =>
-        SendMouse(0, 0, (uint)wheel.Delta,
+        SendMouse(0, 0, (UInt32)wheel.Delta,
             wheel.Horizontal ? MOUSE_EVENT_FLAGS.MOUSEEVENTF_HWHEEL : MOUSE_EVENT_FLAGS.MOUSEEVENTF_WHEEL);
 
     public void Key(KeyEvent key)
@@ -98,13 +98,13 @@ public sealed class InputPlayer
             Key(key with { State = ButtonState.Up });
         }
 
-        foreach (byte button in _buttonsDown.ToArray())
+        foreach (Byte button in _buttonsDown.ToArray())
         {
             Button(new MouseButton(button, ButtonState.Up));
         }
     }
 
-    private void SendMouse(int dx, int dy, uint data, MOUSE_EVENT_FLAGS flags)
+    private void SendMouse(Int32 dx, Int32 dy, UInt32 data, MOUSE_EVENT_FLAGS flags)
     {
         INPUT input = new INPUT { type = INPUT_TYPE.INPUT_MOUSE };
         input.Anonymous.mi = new MOUSEINPUT { dx = dx, dy = dy, mouseData = data, dwFlags = flags };

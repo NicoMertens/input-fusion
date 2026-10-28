@@ -12,7 +12,7 @@ namespace InputFusion.Client;
 /// </summary>
 internal static class ClientConfigFile
 {
-    public static string FilePath { get; } = Path.Combine(
+    public static String FilePath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "InputFusion", "client.json");
 
     /// <summary>
@@ -20,7 +20,7 @@ internal static class ClientConfigFile
     /// nachträglich gesetzt wäre sie kurz für alle Benutzer lesbar, weil ProgramData Lesen erbt. Sie enthält die Schlüssel.
     /// Bei Fehler die Meldung, sonst null.
     /// </summary>
-    public static string? Save(ClientConfig config)
+    public static String? Save(ClientConfig config)
     {
         try
         {
@@ -46,7 +46,7 @@ internal static class ClientConfigFile
 
     /// <summary>Liest die Datei. Der Dienst ruft das vor jedem Verbindungsversuch auf, damit eine Änderung
     /// ohne Neustart greift. Bei Fehler null und eine Meldung in <paramref name="error"/>.</summary>
-    public static ClientConfig? Load(out string? error)
+    public static ClientConfig? Load(out String? error)
     {
         try
         {

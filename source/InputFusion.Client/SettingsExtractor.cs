@@ -9,9 +9,9 @@ namespace InputFusion.Client;
 /// </summary>
 internal static class SettingsExtractor
 {
-    private const string FileName = "InputFusion.Settings.exe";
+    private const String FileName = "InputFusion.Settings.exe";
 
-    public static void Run(Action<string> log)
+    public static void Run(Action<String> log)
     {
         using Stream? embedded = typeof(SettingsExtractor).Assembly.GetManifestResourceStream(FileName);
         if (embedded is null)
@@ -20,10 +20,10 @@ internal static class SettingsExtractor
             return;
         }
 
-        string target = Path.Combine(AppContext.BaseDirectory, FileName);
+        String target = Path.Combine(AppContext.BaseDirectory, FileName);
         using MemoryStream buffer = new MemoryStream();
         embedded.CopyTo(buffer);
-        byte[] bytes = buffer.ToArray();
+        Byte[] bytes = buffer.ToArray();
         try
         {
             if (File.Exists(target) && File.ReadAllBytes(target).AsSpan().SequenceEqual(bytes))

@@ -10,7 +10,7 @@ namespace InputFusion.Core.Protocol;
 /// Listen heißen: kein Layout.
 /// </summary>
 public sealed record ClientArrangement(IReadOnlyList<MonitorRect> HostMonitors, IReadOnlyList<MonitorRect> ClientMonitors,
-    int OffsetX, int OffsetY)
+    Int32 OffsetX, Int32 OffsetY)
 {
     public static ClientArrangement From(MonitorLayout? layout) =>
         layout is null ? new([], [], 0, 0) : new(layout.HostMonitors, layout.ClientMonitors, layout.OffsetX, layout.OffsetY);
@@ -19,10 +19,10 @@ public sealed record ClientArrangement(IReadOnlyList<MonitorRect> HostMonitors, 
     public MonitorLayout? ToLayout() =>
         HostMonitors.Count == 0 || ClientMonitors.Count == 0 ? null : new MonitorLayout(HostMonitors, ClientMonitors, OffsetX, OffsetY);
 
-    public byte[] ToPayload() => JsonSerializer.SerializeToUtf8Bytes(this, ClientArrangementJson.Default.ClientArrangement);
+    public Byte[] ToPayload() => JsonSerializer.SerializeToUtf8Bytes(this, ClientArrangementJson.Default.ClientArrangement);
 
     /// <summary>Null bei unlesbarer Nutzlast.</summary>
-    public static ClientArrangement? FromPayload(byte[] payload)
+    public static ClientArrangement? FromPayload(Byte[] payload)
     {
         try
         {

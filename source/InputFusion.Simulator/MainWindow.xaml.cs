@@ -13,15 +13,15 @@ namespace InputFusion.Simulator;
 
 public partial class MainWindow : Window
 {
-    private const int MaxLogLines = 300;
+    private const Int32 MaxLogLines = 300;
 
     private readonly CancellationTokenSource _cts = new();
-    private readonly ConcurrentQueue<string> _pendingLog = new();
+    private readonly ConcurrentQueue<String> _pendingLog = new();
     private readonly SimulatorOptions _options;
     private readonly SimulatedDesktop _desktop;
     private readonly Ellipse _cursor;
-    private readonly int _minX, _minY;
-    private string _connection = "Nicht verbunden";
+    private readonly Int32 _minX, _minY;
+    private String _connection = "Nicht verbunden";
 
     public MainWindow()
     {
@@ -55,13 +55,13 @@ public partial class MainWindow : Window
 
     private Ellipse DrawDesktop()
     {
-        int width = _options.Monitors.Max(m => m.Right) - _minX;
-        int height = _options.Monitors.Max(m => m.Bottom) - _minY;
+        Int32 width = _options.Monitors.Max(m => m.Right) - _minX;
+        Int32 height = _options.Monitors.Max(m => m.Bottom) - _minY;
         Desktop.Width = width;
         Desktop.Height = height;
-        double unit = Math.Max(width, height) / 100.0;
+        Double unit = Math.Max(width, height) / 100.0;
 
-        foreach ((Core.Layout.MonitorRect m, int i) in _options.Monitors.Select((m, i) => (m, i)))
+        foreach ((Core.Layout.MonitorRect m, Int32 i) in _options.Monitors.Select((m, i) => (m, i)))
         {
             TextBlock label = new TextBlock
             {
@@ -139,7 +139,7 @@ public partial class MainWindow : Window
                     }
                     else
                     {
-                        await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(session.Token))
+                        await foreach ((MessageType type, Byte[] payload) in conn.ReceiveAsync(session.Token))
                         {
                             _desktop.Apply(type, payload);
                             if (_desktop.TryTakeExitRequest() is { } exit)
@@ -177,10 +177,10 @@ public partial class MainWindow : Window
     /// <summary>Hält jede Nachricht um die eingestellte Latenz zurück, ohne den Durchsatz zu drosseln.</summary>
     private async Task ReceiveDelayedAsync(MessageConnection conn, CancellationToken ct)
     {
-        Channel<(DateTime Due, MessageType Type, byte[] Payload)> delayed = Channel.CreateUnbounded<(DateTime Due, MessageType Type, byte[] Payload)>();
+        Channel<(DateTime Due, MessageType Type, Byte[] Payload)> delayed = Channel.CreateUnbounded<(DateTime Due, MessageType Type, Byte[] Payload)>();
         Task apply = Task.Run(async () =>
         {
-            await foreach ((DateTime due, MessageType type, byte[] payload) in delayed.Reader.ReadAllAsync(ct))
+            await foreach ((DateTime due, MessageType type, Byte[] payload) in delayed.Reader.ReadAllAsync(ct))
             {
                 TimeSpan wait = due - DateTime.UtcNow;
                 if (wait > TimeSpan.Zero)
@@ -196,7 +196,7 @@ public partial class MainWindow : Window
             }
         }, ct);
 
-        await foreach ((MessageType type, byte[] payload) in conn.ReceiveAsync(ct))
+        await foreach ((MessageType type, Byte[] payload) in conn.ReceiveAsync(ct))
         {
             delayed.Writer.TryWrite((DateTime.UtcNow.AddMilliseconds(_options.DelayMs), type, payload));
         }
@@ -207,7 +207,7 @@ public partial class MainWindow : Window
 
     private void Refresh()
     {
-        (int x, int y, bool active, string[] pressed, long moves) = _desktop.Snapshot();
+        (Int32 x, Int32 y, Boolean active, String[] pressed, Int64 moves) = _desktop.Snapshot();
 
         _cursor.Visibility = active ? Visibility.Visible : Visibility.Hidden;
         Canvas.SetLeft(_cursor, x - _minX - _cursor.Width / 2);
@@ -216,9 +216,9 @@ public partial class MainWindow : Window
         Status.Text = active ? "Simulator hat die Steuerung" : "Host hat die Steuerung";
         Details.Text = $"{_connection}\nCursor ({x}, {y}) · {moves} Bewegungen"
             + (_options.DelayMs > 0 ? $" · Latenz {_options.DelayMs} ms" : "");
-        Pressed.Text = pressed.Length == 0 ? "–" : string.Join(", ", pressed);
+        Pressed.Text = pressed.Length == 0 ? "–" : String.Join(", ", pressed);
 
-        while (_pendingLog.TryDequeue(out string? line))
+        while (_pendingLog.TryDequeue(out String? line))
         {
             Log.Items.Insert(0, line);
             if (Log.Items.Count > MaxLogLines)

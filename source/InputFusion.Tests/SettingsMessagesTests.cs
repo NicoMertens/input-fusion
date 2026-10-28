@@ -92,7 +92,7 @@ public class SettingsMessagesTests
     [InlineData(false, "PC,BUERO", null, "Nicht verbunden mit PC oder BUERO.")]
     [InlineData(false, "PC,BUERO,LABOR", null, "Nicht verbunden mit PC, BUERO oder LABOR.")]
     [InlineData(false, "", null, "Nicht eingerichtet.")]
-    public void ClientState_Summary(bool connected, string hosts, string? problem, string expected)
+    public void ClientState_Summary(Boolean connected, String hosts, String? problem, String expected)
     {
         HostEntry[] entries = hosts.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(h => new HostEntry(h, "")).ToArray();
         ClientStateMessage state = new ClientStateMessage("0.5.0", entries, false, connected,
@@ -104,7 +104,7 @@ public class SettingsMessagesTests
     [Fact]
     public void Requests_CarryTypeDiscriminator()
     {
-        string json = Encoding.UTF8.GetString(new SetKeyRequest("abcdefghijkmnpqr").ToPayload());
+        String json = Encoding.UTF8.GetString(new SetKeyRequest("abcdefghijkmnpqr").ToPayload());
         Assert.Contains("\"type\":\"setKey\"", json);
         Assert.Equal(new SetPortRequest(15112), SettingsMessage.FromPayload(new SetPortRequest(15112).ToPayload()));
         Assert.IsType<SetClientOffsetRequest>(SettingsMessage.FromPayload(new SetClientOffsetRequest(1, 2).ToPayload()));

@@ -18,7 +18,7 @@ internal static unsafe class SessionLauncher
     /// SeTcbPrivilege, das nur SYSTEM hat) und damit gestartet. Als SYSTEM greift UIPI nicht, der Injector erreicht
     /// auch erhöhte Fenster.
     /// </summary>
-    public static Process StartAsSystem(uint sessionId, string exePath, string arguments)
+    public static Process StartAsSystem(UInt32 sessionId, String exePath, String arguments)
     {
         HANDLE own, primary;
         if (!PInvoke.OpenProcessToken(PInvoke.GetCurrentProcess(),
@@ -37,7 +37,7 @@ internal static unsafe class SessionLauncher
 
             try
             {
-                if (!PInvoke.SetTokenInformation(primary, TOKEN_INFORMATION_CLASS.TokenSessionId, &sessionId, sizeof(uint)))
+                if (!PInvoke.SetTokenInformation(primary, TOKEN_INFORMATION_CLASS.TokenSessionId, &sessionId, sizeof(UInt32)))
                 {
                     throw new Win32Exception();
                 }
@@ -59,7 +59,7 @@ internal static unsafe class SessionLauncher
     /// Als der angemeldete Benutzer der Sitzung, für das Tray-Symbol. Schlägt fehl, solange niemand angemeldet ist.
     /// Die Umgebung kommt aus dem Profil des Benutzers, sonst erbte der Prozess die von SYSTEM (TEMP, APPDATA).
     /// </summary>
-    public static Process StartAsUser(uint sessionId, string exePath, string arguments)
+    public static Process StartAsUser(UInt32 sessionId, String exePath, String arguments)
     {
         HANDLE token;
         if (!PInvoke.WTSQueryUserToken(sessionId, &token))
@@ -90,14 +90,14 @@ internal static unsafe class SessionLauncher
         }
     }
 
-    private static Process CreateProcess(HANDLE token, string exePath, string arguments, void* environment)
+    private static Process CreateProcess(HANDLE token, String exePath, String arguments, void* environment)
     {
         // CreateProcessAsUser darf die Befehlszeile verändern, deshalb ein eigener, beschreibbarer Puffer.
-        char[] commandLine = $"\"{exePath}\" {arguments}\0".ToCharArray();
-        fixed (char* desktop = "winsta0\\default")
-        fixed (char* cmd = commandLine)
+        Char[] commandLine = $"\"{exePath}\" {arguments}\0".ToCharArray();
+        fixed (Char* desktop = "winsta0\\default")
+        fixed (Char* cmd = commandLine)
         {
-            STARTUPINFOW startup = new STARTUPINFOW { cb = (uint)sizeof(STARTUPINFOW), lpDesktop = desktop };
+            STARTUPINFOW startup = new STARTUPINFOW { cb = (UInt32)sizeof(STARTUPINFOW), lpDesktop = desktop };
             PROCESS_INFORMATION info;
             // CREATE_NO_WINDOW: Die exe ist eine Konsolenanwendung, sonst öffnet sich beim Benutzer ein Fenster.
             PROCESS_CREATION_FLAGS flags = PROCESS_CREATION_FLAGS.CREATE_NO_WINDOW;
@@ -114,7 +114,7 @@ internal static unsafe class SessionLauncher
             PInvoke.CloseHandle(info.hThread);
             try
             {
-                return Process.GetProcessById((int)info.dwProcessId);
+                return Process.GetProcessById((Int32)info.dwProcessId);
             }
             finally
             {

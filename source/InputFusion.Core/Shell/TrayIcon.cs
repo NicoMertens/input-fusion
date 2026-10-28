@@ -9,7 +9,7 @@ using Windows.Win32.UI.WindowsAndMessaging;
 namespace InputFusion.Core.Shell;
 
 /// <summary>Ein Eintrag im Kontextmenü des Tray-Symbols. Der erste ist zugleich die Aktion beim Doppelklick.</summary>
-public sealed record TrayCommand(string Text, Action Action);
+public sealed record TrayCommand(String Text, Action Action);
 
 /// <summary>
 /// Das Tray-Symbol, direkt über <c>Shell_NotifyIcon</c> ohne WinForms und WPF (AOT-fähig). Läuft auf einem eigenen
@@ -22,34 +22,34 @@ public sealed record TrayCommand(string Text, Action Action);
 /// Sucht nach Updates und liefert das Ergebnis als Satz; steht im Menü unter der Version, das Ergebnis erscheint als
 /// Benachrichtigung am Symbol.
 /// </param>
-public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayCommand> commands, Action<string> log, Action? displayChanged = null,
-    Func<Task<string>>? checkForUpdates = null)
+public sealed unsafe class TrayIcon(String versionLabel, IReadOnlyList<TrayCommand> commands, Action<String> log, Action? displayChanged = null,
+    Func<Task<String>>? checkForUpdates = null)
 {
-    private readonly string _versionLabel = versionLabel;
+    private readonly String _versionLabel = versionLabel;
     private readonly IReadOnlyList<TrayCommand> _commands = commands;
-    private readonly Action<string> _log = log;
+    private readonly Action<String> _log = log;
     private readonly Action? _displayChanged = displayChanged;
-    private readonly Func<Task<string>>? _checkForUpdates = checkForUpdates;
+    private readonly Func<Task<String>>? _checkForUpdates = checkForUpdates;
 
-    private const uint CallbackMessage = PInvoke.WM_APP + 1;
-    private const uint UpdateMessage = PInvoke.WM_APP + 2;
-    private const uint BalloonMessage = PInvoke.WM_APP + 3;
+    private const UInt32 CallbackMessage = PInvoke.WM_APP + 1;
+    private const UInt32 UpdateMessage = PInvoke.WM_APP + 2;
+    private const UInt32 BalloonMessage = PInvoke.WM_APP + 3;
     // Menü-IDs der Befehle sind ihr Index plus eins; 0 heißt im Menü „kein Befehl“.
-    private const uint FirstCommandId = 1;
-    private const uint CheckForUpdatesId = 0x1000;
+    private const UInt32 FirstCommandId = 1;
+    private const UInt32 CheckForUpdatesId = 0x1000;
     // Die .NET-SDK legt das ApplicationIcon unter dieser Ressourcen-ID ab.
-    private const int ApplicationIconId = 32512;
+    private const Int32 ApplicationIconId = 32512;
 
     private static TrayIcon? _instance;
 
     private Thread? _thread;
     private HWND _window;
     private HICON _icon;
-    private uint _taskbarCreated;
-    private volatile string _tooltip = "InputFusion";
-    private volatile string _balloon = "";
+    private UInt32 _taskbarCreated;
+    private volatile String _tooltip = "InputFusion";
+    private volatile String _balloon = "";
     // Solange gesucht wird, ist der Menüeintrag gesperrt; ein zweiter Klick brächte nur eine zweite Anfrage an GitHub.
-    private volatile bool _checking;
+    private volatile Boolean _checking;
 
     public void Start()
     {
@@ -72,14 +72,14 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
     }
 
     /// <summary>Darf von jedem Thread aus gerufen werden; das Symbol selbst ändert der Tray-Thread.</summary>
-    public void SetTooltip(string text)
+    public void SetTooltip(String text)
     {
         _tooltip = text.Length > 127 ? text[..127] : text;
         PInvoke.PostMessage(_window, UpdateMessage, default, default);
     }
 
     /// <summary>Eine Benachrichtigung am Symbol; darf von jedem Thread aus gerufen werden.</summary>
-    public void ShowBalloon(string text)
+    public void ShowBalloon(String text)
     {
         _balloon = text.Length > 255 ? text[..255] : text;
         PInvoke.PostMessage(_window, BalloonMessage, default, default);
@@ -93,12 +93,12 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
 
     private void CreateWindow()
     {
-        FreeLibrarySafeHandle module = PInvoke.GetModuleHandle((string?)null);
-        fixed (char* className = "InputFusion.Tray")
+        FreeLibrarySafeHandle module = PInvoke.GetModuleHandle((String?)null);
+        fixed (Char* className = "InputFusion.Tray")
         {
             WNDCLASSEXW windowClass = new WNDCLASSEXW
             {
-                cbSize = (uint)sizeof(WNDCLASSEXW),
+                cbSize = (UInt32)sizeof(WNDCLASSEXW),
                 lpfnWndProc = &WndProc,
                 hInstance = (HINSTANCE)module.DangerousGetHandle(),
                 lpszClassName = className,
@@ -111,18 +111,18 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
         Notify(NOTIFY_ICON_MESSAGE.NIM_ADD, balloon: false);
     }
 
-    private static HICON LoadIcon(nint module)
+    private static HICON LoadIcon(IntPtr module)
     {
-        int size = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXSMICON);
-        HANDLE handle = PInvoke.LoadImage((HINSTANCE)module, (char*)ApplicationIconId, GDI_IMAGE_TYPE.IMAGE_ICON, size, size, 0);
+        Int32 size = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXSMICON);
+        HANDLE handle = PInvoke.LoadImage((HINSTANCE)module, (Char*)ApplicationIconId, GDI_IMAGE_TYPE.IMAGE_ICON, size, size, 0);
         return handle.IsNull ? PInvoke.LoadIcon(HINSTANCE.Null, PInvoke.IDI_APPLICATION) : (HICON)handle.Value;
     }
 
-    private void Notify(NOTIFY_ICON_MESSAGE message, bool balloon)
+    private void Notify(NOTIFY_ICON_MESSAGE message, Boolean balloon)
     {
         NOTIFYICONDATAW data = new NOTIFYICONDATAW
         {
-            cbSize = (uint)sizeof(NOTIFYICONDATAW),
+            cbSize = (UInt32)sizeof(NOTIFYICONDATAW),
             hWnd = _window,
             uID = 1,
             uFlags = NOTIFY_ICON_DATA_FLAGS.NIF_MESSAGE | NOTIFY_ICON_DATA_FLAGS.NIF_ICON | NOTIFY_ICON_DATA_FLAGS.NIF_TIP,
@@ -143,23 +143,23 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
     private void ShowMenu()
     {
         HMENU menu = PInvoke.CreatePopupMenu();
-        fixed (char* version = _versionLabel)
+        fixed (Char* version = _versionLabel)
         {
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING | MENU_ITEM_FLAGS.MF_GRAYED, 0, version);
         }
         if (_checkForUpdates is not null)
         {
-            fixed (char* text = _checking ? "Suche nach Updates …" : "Nach Updates suchen")
+            fixed (Char* text = _checking ? "Suche nach Updates …" : "Nach Updates suchen")
             {
                 PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING | (_checking ? MENU_ITEM_FLAGS.MF_GRAYED : 0), CheckForUpdatesId, text);
             }
         }
-        for (int i = 0; i < _commands.Count; i++)
+        for (Int32 i = 0; i < _commands.Count; i++)
         {
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_SEPARATOR, 0, default(PCWSTR));
-            fixed (char* text = _commands[i].Text)
+            fixed (Char* text = _commands[i].Text)
             {
-                PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, FirstCommandId + (uint)i, text);
+                PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, FirstCommandId + (UInt32)i, text);
             }
         }
         PInvoke.GetCursorPos(out Point cursor);
@@ -170,7 +170,7 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static LRESULT WndProc(HWND hwnd, uint message, WPARAM wParam, LPARAM lParam)
+    private static LRESULT WndProc(HWND hwnd, UInt32 message, WPARAM wParam, LPARAM lParam)
     {
         TrayIcon? tray = _instance;
         if (tray is null)
@@ -182,14 +182,14 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
         {
             switch (message)
             {
-                case CallbackMessage when (uint)lParam.Value == PInvoke.WM_LBUTTONDBLCLK:
+                case CallbackMessage when (UInt32)lParam.Value == PInvoke.WM_LBUTTONDBLCLK:
                     tray.Run(FirstCommandId);
                     return default;
-                case CallbackMessage when (uint)lParam.Value == PInvoke.WM_RBUTTONUP:
+                case CallbackMessage when (UInt32)lParam.Value == PInvoke.WM_RBUTTONUP:
                     tray.ShowMenu();
                     return default;
                 case PInvoke.WM_COMMAND:
-                    tray.Run((uint)(wParam.Value & 0xFFFF));
+                    tray.Run((UInt32)(wParam.Value & 0xFFFF));
                     return default;
                 case UpdateMessage:
                     tray.Notify(NOTIFY_ICON_MESSAGE.NIM_MODIFY, balloon: false);
@@ -222,7 +222,7 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
         return PInvoke.DefWindowProc(hwnd, message, wParam, lParam);
     }
 
-    private void Run(uint commandId)
+    private void Run(UInt32 commandId)
     {
         if (commandId == CheckForUpdatesId)
         {
@@ -230,7 +230,7 @@ public sealed unsafe class TrayIcon(string versionLabel, IReadOnlyList<TrayComma
             return;
         }
 
-        int index = (int)(commandId - FirstCommandId);
+        Int32 index = (Int32)(commandId - FirstCommandId);
         if (index >= 0 && index < _commands.Count)
         {
             _commands[index].Action();

@@ -10,7 +10,7 @@ namespace InputFusion.Tests;
 
 public class HandshakeTests
 {
-    private const string Key = "abcdefghijkmnpqrstuvwxyz";
+    private const String Key = "abcdefghijkmnpqrstuvwxyz";
 
     [Fact]
     public async Task SameKey_BothSidesAccept_AndLearnTheOtherVersion()
@@ -40,14 +40,14 @@ public class HandshakeTests
         Assert.Equal(HandshakeOutcome.Accepted, (await host).Outcome);
         Assert.Equal(HandshakeOutcome.Accepted, (await client).Outcome);
 
-        byte[] key = new KeyEvent(0x41, 0x1E, ButtonState.Down, false).ToPayload();
+        Byte[] key = new KeyEvent(0x41, 0x1E, ButtonState.Down, false).ToPayload();
         Task sent = pair.Host.SendAsync(MessageType.Key, key);
-        (MessageType type, byte[] payload) = await ReceiveOneAsync(pair.Client);
+        (MessageType type, Byte[] payload) = await ReceiveOneAsync(pair.Client);
         await sent;
         Assert.Equal(MessageType.Key, type);
         Assert.Equal(key, payload);
 
-        sent = pair.Client.SendAsync(MessageType.Heartbeat, ReadOnlyMemory<byte>.Empty);
+        sent = pair.Client.SendAsync(MessageType.Heartbeat, ReadOnlyMemory<Byte>.Empty);
         (type, payload) = await ReceiveOneAsync(pair.Host);
         await sent;
         Assert.Equal(MessageType.Heartbeat, type);
@@ -61,16 +61,16 @@ public class HandshakeTests
         await using Pair pair = await Pair.ConnectAsync();
         Task<HandshakeResult> client = Handshake.ClientAsync(pair.Client, Key, "1.0.0", CancellationToken.None);
 
-        byte[] hostNonce = RandomNumberGenerator.GetBytes(Handshake.NonceSize);
-        byte[] hello = [.. hostNonce, .. LegacyVersions(1, "0.3.0")];
+        Byte[] hostNonce = RandomNumberGenerator.GetBytes(Handshake.NonceSize);
+        Byte[] hello = [.. hostNonce, .. LegacyVersions(1, "0.3.0")];
         await pair.Host.SendAsync(MessageType.Hello, hello);
 
         // Der Client antwortet trotz abweichender Version; die Pipe puffert nicht, also abholen.
-        (MessageType type, byte[] response) = await ReceiveOneAsync(pair.Host);
+        (MessageType type, Byte[] response) = await ReceiveOneAsync(pair.Host);
         Assert.Equal(MessageType.HelloResponse, type);
 
         // Der alte Host muss den Nachweis prüfen und die Protokollversion an alter Stelle lesen können.
-        byte[] clientNonce = response[..Handshake.NonceSize];
+        Byte[] clientNonce = response[..Handshake.NonceSize];
         Assert.Equal(LegacyMac("client", hostNonce, clientNonce), response[Handshake.NonceSize..(Handshake.NonceSize + 32)]);
         Assert.Equal(LegacyVersions(ProtocolVersion.Current, "1.0.0"), response[(Handshake.NonceSize + 32)..]);
 
@@ -87,10 +87,10 @@ public class HandshakeTests
         Task<HandshakeResult> host = Handshake.HostAsync(pair.Host, Key, "1.0.0", CancellationToken.None);
 
         // Ein Client aus 0.3.0 mit richtigem Schlüssel: Nachweis und Versionen wie in Protokoll 1.
-        (MessageType _, byte[] hello) = await ReceiveOneAsync(pair.Client);
-        byte[] hostNonce = hello[..Handshake.NonceSize];
-        byte[] clientNonce = new byte[Handshake.NonceSize];
-        byte[] response = [.. clientNonce, .. LegacyMac("client", hostNonce, clientNonce), .. LegacyVersions(1, "0.3.0")];
+        (MessageType _, Byte[] hello) = await ReceiveOneAsync(pair.Client);
+        Byte[] hostNonce = hello[..Handshake.NonceSize];
+        Byte[] clientNonce = new Byte[Handshake.NonceSize];
+        Byte[] response = [.. clientNonce, .. LegacyMac("client", hostNonce, clientNonce), .. LegacyVersions(1, "0.3.0")];
         await pair.Client.SendAsync(MessageType.HelloResponse, response);
 
         HandshakeResult result = await host;
@@ -105,8 +105,8 @@ public class HandshakeTests
         await using Pair pair = await Pair.ConnectAsync();
         Task<HandshakeResult> host = Handshake.HostAsync(pair.Host, Key, "1.0.0", CancellationToken.None);
 
-        (MessageType _, byte[] _) = await ReceiveOneAsync(pair.Client);
-        byte[] response = [.. new byte[Handshake.NonceSize], .. new byte[32], .. LegacyVersions(1, "0.3.0")];
+        (MessageType _, Byte[] _) = await ReceiveOneAsync(pair.Client);
+        Byte[] response = [.. new Byte[Handshake.NonceSize], .. new Byte[32], .. LegacyVersions(1, "0.3.0")];
         await pair.Client.SendAsync(MessageType.HelloResponse, response);
 
         Assert.Equal(HandshakeOutcome.Rejected, (await host).Outcome);
@@ -121,15 +121,15 @@ public class HandshakeTests
         using MessageConnection incoming = new MessageConnection(reader);
 
         // Zwei Frames in einem Rutsch: Der erste wird einzeln gelesen, der zweite muss beim nächsten Lesen kommen.
-        await outgoing.SendAsync(MessageType.Hello, new byte[Handshake.NonceSize]);
+        await outgoing.SendAsync(MessageType.Hello, new Byte[Handshake.NonceSize]);
         await outgoing.SendAsync(MessageType.Key, new KeyEvent(0x41, 0x1E, ButtonState.Down, false).ToPayload());
 
-        await foreach ((MessageType type, byte[] _) in incoming.ReceiveAsync())
+        await foreach ((MessageType type, Byte[] _) in incoming.ReceiveAsync())
         {
             Assert.Equal(MessageType.Hello, type);
             break;
         }
-        await foreach ((MessageType type, byte[] _) in incoming.ReceiveAsync())
+        await foreach ((MessageType type, Byte[] _) in incoming.ReceiveAsync())
         {
             Assert.Equal(MessageType.Key, type);
             break;
@@ -139,7 +139,7 @@ public class HandshakeTests
     [Fact]
     public void GeneratedKey_IsValid()
     {
-        string key = HostConfig.GenerateKey();
+        String key = HostConfig.GenerateKey();
         Assert.Equal(HostConfig.GeneratedKeyLength, key.Length);
         Assert.Null(HostConfig.ValidateKey(key));
         Assert.NotEqual(key, HostConfig.GenerateKey());
@@ -148,29 +148,29 @@ public class HandshakeTests
     [Theory]
     [InlineData("kurz")]
     [InlineData(" mit Leerzeichen vorne")]
-    public void ValidateKey_RejectsBadKeys(string key)
+    public void ValidateKey_RejectsBadKeys(String key)
     {
         Assert.NotNull(HostConfig.ValidateKey(key));
     }
 
     /// <summary>Versionen wie in Protokoll 1: ohne Feld für den öffentlichen Schlüssel.</summary>
-    private static byte[] LegacyVersions(ushort protocol, string version)
+    private static Byte[] LegacyVersions(UInt16 protocol, String version)
     {
-        byte[] p = new byte[2];
+        Byte[] p = new Byte[2];
         BinaryPrimitives.WriteUInt16LittleEndian(p, protocol);
         return [.. p, .. Encoding.UTF8.GetBytes(version)];
     }
 
     /// <summary>Nachweis wie in Protokoll 1, nur über die beiden Zufallswerte.</summary>
-    private static byte[] LegacyMac(string role, byte[] hostNonce, byte[] clientNonce)
+    private static Byte[] LegacyMac(String role, Byte[] hostNonce, Byte[] clientNonce)
     {
-        byte[] signed = [.. Encoding.ASCII.GetBytes("InputFusion-" + role), .. hostNonce, .. clientNonce];
+        Byte[] signed = [.. Encoding.ASCII.GetBytes("InputFusion-" + role), .. hostNonce, .. clientNonce];
         return HMACSHA256.HashData(Encoding.UTF8.GetBytes(Key), signed);
     }
 
-    private static async Task<(MessageType Type, byte[] Payload)> ReceiveOneAsync(MessageConnection connection)
+    private static async Task<(MessageType Type, Byte[] Payload)> ReceiveOneAsync(MessageConnection connection)
     {
-        await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync())
+        await foreach ((MessageType type, Byte[] payload) in connection.ReceiveAsync())
         {
             return (type, payload);
         }
@@ -178,7 +178,7 @@ public class HandshakeTests
         throw new InvalidOperationException("Verbindung ohne Nachricht beendet.");
     }
 
-    private static async Task<(HandshakeResult Host, HandshakeResult Client)> RunAsync(string hostKey, string clientKey)
+    private static async Task<(HandshakeResult Host, HandshakeResult Client)> RunAsync(String hostKey, String clientKey)
     {
         await using Pair pair = await Pair.ConnectAsync();
         Task<HandshakeResult> host = Handshake.HostAsync(pair.Host, hostKey, "1.2.3-host", CancellationToken.None);
@@ -210,7 +210,7 @@ public class HandshakeTests
 
         public static async Task<Pair> ConnectAsync()
         {
-            string name = "InputFusion.Test." + Guid.NewGuid().ToString("N");
+            String name = "InputFusion.Test." + Guid.NewGuid().ToString("N");
             NamedPipeServerStream serverPipe = new NamedPipeServerStream(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
             NamedPipeClientStream clientPipe = new NamedPipeClientStream(".", name, PipeDirection.InOut, PipeOptions.Asynchronous);
             Task accept = serverPipe.WaitForConnectionAsync();

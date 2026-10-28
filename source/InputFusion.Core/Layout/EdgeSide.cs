@@ -1,7 +1,7 @@
 ﻿namespace InputFusion.Core.Layout;
 
 /// <summary>Eine Kante eines Monitors. Die Werte gehen als Byte über das Netz und bleiben deshalb fest.</summary>
-public enum EdgeSide : byte
+public enum EdgeSide : Byte
 {
     Left = 0,
     Top = 1,
@@ -20,5 +20,5 @@ public static class EdgeSideExtensions
         _ => EdgeSide.Top,
     };
 
-    public static bool IsVertical(this EdgeSide side) => side is EdgeSide.Left or EdgeSide.Right;
+    public static Boolean IsVertical(this EdgeSide side) => side is EdgeSide.Left or EdgeSide.Right;
 }

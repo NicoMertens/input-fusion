@@ -9,20 +9,20 @@ namespace InputFusion.Host;
 /// </summary>
 internal static class Log
 {
-    private const long MaxFileSize = 1024 * 1024;
+    private const Int64 MaxFileSize = 1024 * 1024;
 
     private static readonly Lock _lock = new();
 
-    public static string FilePath { get; } = Path.Combine(
+    public static String FilePath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InputFusion", "host.log");
 
     /// <summary>Die letzten Meldungen für den Reiter Diagnose der Einstellungen.</summary>
     public static RecentLog Recent { get; } = new();
 
-    public static void Write(string message)
+    public static void Write(String message)
     {
         Recent.Add(message);
-        string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {message}";
+        String line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {message}";
         Console.WriteLine(line);
         lock (_lock)
         {

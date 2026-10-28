@@ -23,13 +23,13 @@ public class HeartbeatTests
         // Die Gegenseite liest zwar (nimmt die Heartbeats ab), schickt aber selbst nichts.
         Task draining = Task.Run(async () =>
         {
-            try { await foreach ((MessageType Type, byte[] Payload) _ in silent.ReceiveAsync(cts.Token)) { } }
+            try { await foreach ((MessageType Type, Byte[] Payload) _ in silent.ReceiveAsync(cts.Token)) { } }
             catch (OperationCanceledException) { }
         });
         Task receiving = ReceiveAllAsync(monitored, cts.Token);
 
         DateTime started = DateTime.UtcNow;
-        bool lost = await monitored.MonitorAsync(cts.Token);
+        Boolean lost = await monitored.MonitorAsync(cts.Token);
         TimeSpan elapsed = DateTime.UtcNow - started;
 
         Assert.True(lost);
@@ -50,8 +50,8 @@ public class HeartbeatTests
 
         Task receivingLeft = ReceiveAllAsync(left, cts.Token);
         Task receivingRight = ReceiveAllAsync(right, cts.Token);
-        Task<bool> leftMonitor = left.MonitorAsync(cts.Token);
-        Task<bool> rightMonitor = right.MonitorAsync(cts.Token);
+        Task<Boolean> leftMonitor = left.MonitorAsync(cts.Token);
+        Task<Boolean> rightMonitor = right.MonitorAsync(cts.Token);
 
         // Deutlich länger als der Timeout; keine Seite darf die andere für verloren halten.
         await Task.Delay(MessageConnection.HeartbeatTimeout + TimeSpan.FromSeconds(2));
@@ -89,7 +89,7 @@ public class HeartbeatTests
     /// <summary>Liest wie im Betrieb nebenher mit; erst das setzt die Zeit des letzten Empfangs.</summary>
     private static Task ReceiveAllAsync(MessageConnection connection, CancellationToken ct) => Task.Run(async () =>
     {
-        try { await foreach ((MessageType Type, byte[] Payload) _ in connection.ReceiveAsync(ct)) { } }
+        try { await foreach ((MessageType Type, Byte[] Payload) _ in connection.ReceiveAsync(ct)) { } }
         catch (Exception ex) when (ex is OperationCanceledException or IOException or SocketException) { }
     });
 }

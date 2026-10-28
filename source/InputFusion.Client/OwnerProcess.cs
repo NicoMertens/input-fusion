@@ -14,25 +14,25 @@ internal static class OwnerProcess
     private static readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(1);
 
     /// <summary>Die Argumente für den Start durch den Dienst: der Modus und dessen PID.</summary>
-    public static string Arguments(string mode) => $"{mode} {Environment.ProcessId}";
+    public static String Arguments(String mode) => $"{mode} {Environment.ProcessId}";
 
     /// <summary>Die PID aus den Argumenten hinter dem Modus; null, wenn der Prozess von Hand gestartet wurde.</summary>
-    public static int? Parse(string[] rest) =>
-        rest is [string text] && int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int pid) ? pid : null;
+    public static Int32? Parse(String[] rest) =>
+        rest is [String text] && Int32.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out Int32 pid) ? pid : null;
 
     /// <summary>
     /// Bricht <paramref name="cts"/> ab, sobald der Prozess weg ist. Abgefragt über die Prozessliste, weil das Tray als
     /// Benutzer kein Handle auf den SYSTEM-Dienst bekommt; der Name schützt vor einer neu vergebenen PID.
     /// </summary>
-    public static async Task WatchAsync(int pid, CancellationTokenSource cts)
+    public static async Task WatchAsync(Int32 pid, CancellationTokenSource cts)
     {
-        string name = Path.GetFileNameWithoutExtension(Environment.ProcessPath) ?? "";
+        String name = Path.GetFileNameWithoutExtension(Environment.ProcessPath) ?? "";
         while (!cts.IsCancellationRequested)
         {
             try
             {
                 using Process owner = Process.GetProcessById(pid);
-                if (!string.Equals(owner.ProcessName, name, StringComparison.OrdinalIgnoreCase))
+                if (!String.Equals(owner.ProcessName, name, StringComparison.OrdinalIgnoreCase))
                 {
                     break;
                 }

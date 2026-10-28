@@ -20,8 +20,8 @@ internal sealed class SettingsConnection(Dispatcher dispatcher, Func<NamedPipeCl
     private volatile MessageConnection? _connection;
 
     public event Action<SettingsMessage>? StateReceived;
-    public event Action<string>? ErrorReceived;
-    public event Action<bool>? ConnectedChanged;
+    public event Action<String>? ErrorReceived;
+    public event Action<Boolean>? ConnectedChanged;
 
     public async Task RunAsync(CancellationToken ct)
     {
@@ -30,13 +30,13 @@ internal sealed class SettingsConnection(Dispatcher dispatcher, Func<NamedPipeCl
             try
             {
                 using NamedPipeClientStream pipe = createClient();
-                await pipe.ConnectAsync((int)_retryDelay.TotalMilliseconds, ct);
+                await pipe.ConnectAsync((Int32)_retryDelay.TotalMilliseconds, ct);
                 verifyServer?.Invoke(pipe);
                 using MessageConnection connection = new MessageConnection(pipe);
                 _connection = connection;
                 Post(() => ConnectedChanged?.Invoke(true));
 
-                await foreach ((MessageType type, byte[] payload) in connection.ReceiveAsync(ct))
+                await foreach ((MessageType type, Byte[] payload) in connection.ReceiveAsync(ct))
                 {
                     if (type != MessageType.Settings)
                     {

@@ -39,7 +39,7 @@ public class LayoutGeometryTests
     public void MapAcrossRightEdge_ScalesForDifferentHeights()
     {
         // Austritt in der Mitte der PC-Höhe (540 von 1080) -> Mitte der Notebook-Höhe (720 von 1440)
-        (int x, int y) = LayoutGeometry.MapAcrossRightEdge(_pc, _notebook, 540);
+        (Int32 x, Int32 y) = LayoutGeometry.MapAcrossRightEdge(_pc, _notebook, 540);
         Assert.Equal(_notebook.Left, x);
         Assert.Equal(720, y);
     }
@@ -47,7 +47,7 @@ public class LayoutGeometryTests
     [Fact]
     public void MapAcrossRightEdge_TopStaysTop()
     {
-        (int _, int y) = LayoutGeometry.MapAcrossRightEdge(_pc, _notebook, _pc.Top);
+        (Int32 _, Int32 y) = LayoutGeometry.MapAcrossRightEdge(_pc, _notebook, _pc.Top);
         Assert.Equal(_notebook.Top, y);
     }
 
@@ -55,20 +55,20 @@ public class LayoutGeometryTests
     public void NormalizeToVirtualDesktop_CornersMapToBounds()
     {
         MonitorRect[] monitors = new[] { _pc, _notebook };
-        Assert.Equal((ushort)0, LayoutGeometry.NormalizeToVirtualDesktop(monitors, 0, 0).X);
-        (ushort x, ushort _) = LayoutGeometry.NormalizeToVirtualDesktop(monitors, _notebook.Right, 0);
-        Assert.Equal((ushort)65535, x);
+        Assert.Equal((UInt16)0, LayoutGeometry.NormalizeToVirtualDesktop(monitors, 0, 0).X);
+        (UInt16 x, UInt16 _) = LayoutGeometry.NormalizeToVirtualDesktop(monitors, _notebook.Right, 0);
+        Assert.Equal((UInt16)65535, x);
     }
 
     [Theory]
     [InlineData(0, 0)]
     [InlineData(2240, 720)]
     [InlineData(4480, 1440)]
-    public void DenormalizeFromVirtualDesktop_InvertsNormalize(int x, int y)
+    public void DenormalizeFromVirtualDesktop_InvertsNormalize(Int32 x, Int32 y)
     {
         MonitorRect[] monitors = new[] { _pc, _notebook };
-        (ushort nx, ushort ny) = LayoutGeometry.NormalizeToVirtualDesktop(monitors, x, y);
-        (int rx, int ry) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, nx, ny);
+        (UInt16 nx, UInt16 ny) = LayoutGeometry.NormalizeToVirtualDesktop(monitors, x, y);
+        (Int32 rx, Int32 ry) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, nx, ny);
 
         // Normierung auf 16 Bit kostet höchstens einen Pixel Genauigkeit
         Assert.InRange(rx, x - 1, x + 1);
@@ -78,6 +78,6 @@ public class LayoutGeometryTests
     [Fact]
     public void NormalizeToVirtualDesktop_EmptyList_ReturnsZero()
     {
-        Assert.Equal(((ushort)0, (ushort)0), LayoutGeometry.NormalizeToVirtualDesktop([], 10, 10));
+        Assert.Equal(((UInt16)0, (UInt16)0), LayoutGeometry.NormalizeToVirtualDesktop([], 10, 10));
     }
 }
