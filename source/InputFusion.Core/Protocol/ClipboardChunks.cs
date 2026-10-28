@@ -1,7 +1,7 @@
 using System.IO;
 using System.Text;
 
-namespace InputFusion.Core.Protocol;
+namespace NC2.InputFusion.Core.Protocol;
 
 /// <summary>
 /// Text der Zwischenablage als Folge von <see cref="MessageType.ClipboardText"/>-Frames. Ein Frame fasst verschlüsselt

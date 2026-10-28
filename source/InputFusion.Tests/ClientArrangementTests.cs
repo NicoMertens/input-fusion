@@ -1,7 +1,7 @@
-using InputFusion.Core.Layout;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Layout;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Tests;
+namespace NC2.InputFusion.Tests;
 
 public class ClientArrangementTests
 {

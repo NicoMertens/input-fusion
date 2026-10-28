@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Sockets;
-using InputFusion.Core.Net;
+using NC2.InputFusion.Core.Net;
 
-namespace InputFusion.Core.Config;
+namespace NC2.InputFusion.Core.Config;
 
 /// <summary>
 /// Regeln für die Verbindungsdaten des Notebooks. Die Einstellungen prüfen damit schon bei der Eingabe, der Dienst

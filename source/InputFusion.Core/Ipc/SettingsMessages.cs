@@ -1,8 +1,8 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
-using InputFusion.Core.Layout;
+using NC2.InputFusion.Core.Layout;
 
-namespace InputFusion.Core.Ipc;
+namespace NC2.InputFusion.Core.Ipc;
 
 /// <summary>
 /// Nachrichten zwischen den Einstellungen und dem Agent bzw. Tray und Dienst, als JSON im Frame-Typ

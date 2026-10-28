@@ -1,10 +1,10 @@
 ﻿using System.IO.Pipes;
 using System.Security.Principal;
-using InputFusion.Core.Ipc;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Ipc;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Tests;
+namespace NC2.InputFusion.Tests;
 
 /// <summary>
 /// Prüft die IPC-Schicht zwischen Dienst und Injector: Der Server (Dienst) reicht Frames über die Named

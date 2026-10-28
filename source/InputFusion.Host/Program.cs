@@ -2,13 +2,13 @@
 using System.Net.Sockets;
 using Windows.Win32;
 using Windows.Win32.UI.WindowsAndMessaging;
-using InputFusion.Core.Config;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
-using InputFusion.Core.Shell;
+using NC2.InputFusion.Core.Config;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Shell;
 using Velopack;
 
-namespace InputFusion.Host;
+namespace NC2.InputFusion.Host;
 
 internal static class Program
 {

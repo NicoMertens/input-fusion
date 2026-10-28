@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace InputFusion.Core.Protocol;
+namespace NC2.InputFusion.Core.Protocol;
 
 /// <summary>
 /// Angaben zum Notebook, die der Host nur anzeigt, als JSON im Frame-Typ <see cref="MessageType.ClientInfo"/>. Alle

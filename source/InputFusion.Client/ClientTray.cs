@@ -1,11 +1,11 @@
 ﻿using System.IO;
 using System.IO.Pipes;
-using InputFusion.Core.Ipc;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
-using InputFusion.Core.Shell;
+using NC2.InputFusion.Core.Ipc;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Shell;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Das Tray-Symbol auf dem Notebook. Läuft als angemeldeter Benutzer, weil weder der Dienst (Session 0) noch der

@@ -3,12 +3,12 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using InputFusion.Core.Config;
-using InputFusion.Core.Ipc;
-using InputFusion.Core.Layout;
-using InputFusion.Core.Net;
+using NC2.InputFusion.Core.Config;
+using NC2.InputFusion.Core.Ipc;
+using NC2.InputFusion.Core.Layout;
+using NC2.InputFusion.Core.Net;
 
-namespace InputFusion.Settings;
+namespace NC2.InputFusion.Settings;
 
 public partial class MainWindow : Window
 {

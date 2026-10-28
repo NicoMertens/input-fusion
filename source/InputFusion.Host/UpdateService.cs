@@ -1,9 +1,9 @@
 ﻿using System.Reflection;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Protocol;
 using Velopack;
 using Velopack.Sources;
 
-namespace InputFusion.Host;
+namespace NC2.InputFusion.Host;
 
 /// <summary>
 /// Holt neue Versionen über Velopack aus den GitHub-Releases: beim Start, danach alle sechs Stunden und sofort,

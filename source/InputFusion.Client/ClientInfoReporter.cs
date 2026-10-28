@@ -1,10 +1,10 @@
 ﻿using System.IO;
 using System.Net.Sockets;
 using Microsoft.Win32;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Meldet dem Host Name, Windows-Version und angemeldeten Benutzer des Notebooks: sofort nach der Anmeldung und danach

@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Lässt Injector und Tray mit dem Dienst enden, der sie gestartet hat. Sonst liefen sie nach einem Absturz des

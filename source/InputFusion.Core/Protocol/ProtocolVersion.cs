@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace InputFusion.Core.Protocol;
+namespace NC2.InputFusion.Core.Protocol;
 
 /// <summary>
 /// Version des Netzwerkprotokolls zwischen Host und Client. Bei jeder Änderung, die eine ältere Gegenseite nicht

@@ -1,9 +1,9 @@
 ﻿using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Spielt empfangene Eingaben lokal ab. Phase 1: direkt per <c>SendInput</c> aus dem Konsolenmodus.

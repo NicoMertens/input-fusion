@@ -1,4 +1,4 @@
-﻿namespace InputFusion.Core.Protocol;
+﻿namespace NC2.InputFusion.Core.Protocol;
 
 /// <summary>
 /// Fasst bei Stau aufeinanderfolgende relative Mausbewegungen zu einer zusammen, damit sich

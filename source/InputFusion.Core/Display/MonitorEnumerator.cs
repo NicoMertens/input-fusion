@@ -4,9 +4,9 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.UI.HiDpi;
-using InputFusion.Core.Layout;
+using NC2.InputFusion.Core.Layout;
 
-namespace InputFusion.Core.Display;
+namespace NC2.InputFusion.Core.Display;
 
 /// <summary>
 /// Misst die Monitore der eigenen Sitzung: Rechteck in physischen Pixeln (der Prozess ist per Manifest

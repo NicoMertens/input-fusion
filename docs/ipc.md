@@ -17,7 +17,7 @@ Der Wechsel läuft über `SwitchToClient`, `SwitchToHost`, `ReturnEdges` und `Lo
 
 ## Stand Einstellungen ↔ Agent
 
-Umgesetzt in `InputFusion.Core.Ipc.SettingsPipe` (Pipe), `SettingsMessages` (Nachrichten) und auf Seiten des Agents in `SettingsServer`:
+Umgesetzt in `NC2.InputFusion.Core.Ipc.SettingsPipe` (Pipe), `SettingsMessages` (Nachrichten) und auf Seiten des Agents in `SettingsServer`:
 
 - **Pipe-Name:** `\\.\pipe\InputFusion.Settings.<SID des Benutzers>`. Die SID im Namen sorgt dafür, dass bei mehreren angemeldeten Benutzern jeder seinen eigenen Agent erreicht. Der Agent nimmt beliebig viele Verbindungen gleichzeitig an.
 - **ACL** als SDDL `D:P(A;;GA;;;<SID>)(A;;GA;;;SY)S:(ML;;NW;;;ME)`: nur der Benutzer selbst und SYSTEM, ohne Vererbung, dazu ausdrücklich die Integritätsstufe **Mittel**. Der Agent läuft erhöht, die Einstellungen aus dem Startmenü nicht; ohne die Stufe Mittel trüge die Pipe die hohe Stufe des Agents, und die Einstellungen kämen nicht heran.
@@ -40,7 +40,7 @@ Umgesetzt in `InputFusion.Core.Ipc.SettingsPipe` (Pipe), `SettingsMessages` (Nac
 
 ## Stand Tray und Einstellungen ↔ Dienst
 
-Umgesetzt in `InputFusion.Core.Ipc.ClientPipe`, auf Seiten des Dienstes in `ClientSettingsServer` und `ClientStatus`. Genutzt vom [Tray](client.md#tray) und den [Einstellungen des Notebooks](einstellungen.md#stand-einstellungen-des-notebooks).
+Umgesetzt in `NC2.InputFusion.Core.Ipc.ClientPipe`, auf Seiten des Dienstes in `ClientSettingsServer` und `ClientStatus`. Genutzt vom [Tray](client.md#tray) und den [Einstellungen des Notebooks](einstellungen.md#stand-einstellungen-des-notebooks).
 
 - **Pipe-Name:** `\\.\pipe\InputFusion.Client`, ohne SID: Es gibt einen Dienst je Rechner, nicht einen je Benutzer. Beliebig viele Verbindungen gleichzeitig.
 - **ACL** als SDDL `O:<eigenes Konto>D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;<eigenes Konto>)(A;;0x120183;;;IU)S:(ML;;NW;;;ME)`: Besitzer ist ausdrücklich der Dienst. SYSTEM, Administratoren und das eigene Konto dürfen alles; beim Entwickeln legt der Benutzer so selbst weitere Exemplare an. Interaktive Benutzer dürfen lesen, schreiben und die Berechtigungen lesen, aber **keine Exemplare anlegen** (`FILE_CREATE_PIPE_INSTANCE`, das in `GENERIC_WRITE` steckt). Dazu die Integritätsstufe **Mittel**, damit auch nicht erhöhte Prozesse schreiben dürfen. Angelegt wie die Pipe des Agents über `CreateNamedPipe` (`SddlPipe`), nur lokal erreichbar. Die Clients öffnen sie deshalb mit genau diesen Rechten statt mit `PipeDirection.InOut`, das Exemplare anlegen will und abgewiesen würde.
@@ -52,7 +52,7 @@ Umgesetzt in `InputFusion.Core.Ipc.ClientPipe`, auf Seiten des Dienstes in `Clie
 
 ## Stand Dienst ↔ Injector (Phase 2, Schritt 1)
 
-Umgesetzt in `InputFusion.Core.Ipc.InputPipe` und über Unit-Test und einen lokalen Durchlauf verifiziert:
+Umgesetzt in `NC2.InputFusion.Core.Ipc.InputPipe` und über Unit-Test und einen lokalen Durchlauf verifiziert:
 
 - **Dieselbe Rahmung wie im Netz:** Die Pipe trägt genau die Eingabe-Frames, die der Host schickt. Der Dienst (Pipe-Server) reicht sie unverändert an den Injector (Pipe-Client) weiter und in der Gegenrichtung dessen `SwitchBackRequest` an den Host; beide nutzen `MessageConnection` über dem Pipe-Strom. Für diese binäre Strecke gibt es deshalb kein eigenes JSON — das bleibt der Einstellungs-IPC vorbehalten.
 - **ACL:** Der Server erlaubt immer SYSTEM mit Vollzugriff. Im Produktivfall laufen Dienst und Injector beide als SYSTEM (der Dienst startet den Injector per `CreateProcessAsUser` mit dupliziertem SYSTEM-Token), also bleibt es bei SYSTEM. Zum Entwickeln laufen beide als der angemeldete Benutzer; dann wird dessen SID zusätzlich erlaubt, sonst käme der Injector nicht an die Pipe.

@@ -1,6 +1,6 @@
-using InputFusion.Core.Net;
+using NC2.InputFusion.Core.Net;
 
-namespace InputFusion.Tests;
+namespace NC2.InputFusion.Tests;
 
 public class AttemptRaceTests
 {

@@ -1,7 +1,7 @@
 ﻿using System.IO;
-using InputFusion.Core.Diagnostics;
+using NC2.InputFusion.Core.Diagnostics;
 
-namespace InputFusion.Host;
+namespace NC2.InputFusion.Host;
 
 /// <summary>
 /// Protokoll des Agents: in die Konsole, falls eine da ist (<c>--console</c>), und immer nach

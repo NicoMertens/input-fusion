@@ -1,10 +1,10 @@
 ﻿using System.Text;
-using InputFusion.Core.Config;
-using InputFusion.Core.Ipc;
-using InputFusion.Core.Layout;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Config;
+using NC2.InputFusion.Core.Ipc;
+using NC2.InputFusion.Core.Layout;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Tests;
+namespace NC2.InputFusion.Tests;
 
 public class SettingsMessagesTests
 {

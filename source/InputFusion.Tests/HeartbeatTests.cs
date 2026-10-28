@@ -1,9 +1,9 @@
 ﻿using System.Net;
 using System.Net.Sockets;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Tests;
+namespace NC2.InputFusion.Tests;
 
 /// <summary>
 /// Prüft den Heartbeat über eine echte TCP-Verbindung auf localhost: Ein Gegenüber, das schweigt (Notebook

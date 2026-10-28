@@ -2,12 +2,12 @@
 using System.Security.AccessControl;
 using System.Security.Principal;
 
-namespace InputFusion.Core.Ipc;
+namespace NC2.InputFusion.Core.Ipc;
 
 /// <summary>
 /// Named Pipe zwischen Dienst und Injector auf dem Notebook. Der Dienst hostet (Server), der Injector
 /// verbindet sich (Client). Übertragen werden dieselben Frames wie im Netzwerk, siehe
-/// <c>InputFusion.Core.Net.MessageConnection</c>; der Dienst reicht die Host-Frames nur weiter.
+/// <c>NC2.InputFusion.Core.Net.MessageConnection</c>; der Dienst reicht die Host-Frames nur weiter.
 ///
 /// <para>Die ACL erlaubt immer SYSTEM. Laufen beide Enden als SYSTEM (Produktivfall: der Dienst startet
 /// den Injector per <c>CreateProcessAsUser</c> mit dupliziertem SYSTEM-Token), bleibt es bei SYSTEM.

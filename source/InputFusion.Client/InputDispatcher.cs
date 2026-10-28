@@ -1,9 +1,9 @@
 ﻿using Windows.Win32;
-using InputFusion.Core.Layout;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Layout;
+using NC2.InputFusion.Core.Protocol;
 using System.Drawing;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Setzt empfangene Protokoll-Nachrichten in lokale Eingaben um. Geteilt zwischen dem Durchstich-Client

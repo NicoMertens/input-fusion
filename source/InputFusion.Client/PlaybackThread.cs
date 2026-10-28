@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Ein eigener Thread für alles, was Eingaben abspielt oder den Cursor setzt. Er sitzt immer auf dem aktuellen

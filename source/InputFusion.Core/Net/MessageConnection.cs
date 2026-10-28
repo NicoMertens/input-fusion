@@ -3,14 +3,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Core.Net;
+namespace NC2.InputFusion.Core.Net;
 
 /// <summary>
 /// Eine Verbindung, die Nachrichten über einen beliebigen Strom rahmt und entrahmt. Über TCP steht sie
 /// zwischen PC und Notebook (siehe <see cref="FromTcp"/>), über eine Named Pipe zwischen Dienst und
-/// Injector (siehe <c>InputFusion.Core.Ipc.InputPipe</c>). Zwischen PC und Notebook schaltet die
+/// Injector (siehe <c>NC2.InputFusion.Core.Ipc.InputPipe</c>). Zwischen PC und Notebook schaltet die
 /// <see cref="Handshake"/> danach die Verschlüsselung ein (<see cref="EnableEncryption"/>); die Pipes bleiben
 /// im Klartext, dort spricht nur der eigene Rechner.
 /// </summary>

@@ -3,9 +3,9 @@ using System.IO;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Core.Net;
+namespace NC2.InputFusion.Core.Net;
 
 /// <summary>
 /// Gegenseitige Anmeldung mit dem gemeinsamen Schlüssel, bevor irgendeine Eingabe fließt, und danach die

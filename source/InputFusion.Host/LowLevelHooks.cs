@@ -6,7 +6,7 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
 
-namespace InputFusion.Host;
+namespace NC2.InputFusion.Host;
 
 /// <summary>
 /// Globale Low-Level-Hooks für Maus und Tastatur. Statisch, weil die Callbacks als

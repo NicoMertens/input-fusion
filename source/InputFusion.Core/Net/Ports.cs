@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
 
-namespace InputFusion.Core.Net;
+namespace NC2.InputFusion.Core.Net;
 
 /// <summary>
 /// TCP-Port zwischen Host und Client. Bewusst nicht 15100/15101 des Vorbilds, damit InputFusion neben

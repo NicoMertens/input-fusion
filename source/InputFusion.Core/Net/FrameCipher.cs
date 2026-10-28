@@ -1,9 +1,9 @@
 using System.Buffers.Binary;
 using System.IO;
 using System.Security.Cryptography;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Core.Net;
+namespace NC2.InputFusion.Core.Net;
 
 /// <summary>
 /// Verschlüsselt die Frames einer Richtung mit AES-GCM. Der Typ wandert mit in den verschlüsselten Teil, außen

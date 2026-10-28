@@ -7,6 +7,8 @@
     <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
     <!-- Stilregeln aus der .editorconfig im Wurzelverzeichnis als Warnungen im Build melden. -->
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Namespaces tragen NC2 als Firma vorn, Projekt- und Assembly-Namen bleiben ohne. -->
+    <RootNamespace>NC2.$(MSBuildProjectName)</RootNamespace>
     <Product>InputFusion</Product>
     <Version>0.12.0</Version>
   </PropertyGroup>

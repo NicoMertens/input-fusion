@@ -1,7 +1,7 @@
-<Window x:Class="InputFusion.Settings.MainWindow"
+<Window x:Class="NC2.InputFusion.Settings.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="clr-namespace:InputFusion.Settings"
+        xmlns:local="clr-namespace:NC2.InputFusion.Settings"
         Title="InputFusion – Einstellungen" Width="980" Height="680" MinWidth="720" MinHeight="480"
         Icon="pack://application:,,,/InputFusion.Host.ico" WindowStartupLocation="CenterScreen">
     <TabControl x:Name="Tabs" Style="{StaticResource NavTabControl}">

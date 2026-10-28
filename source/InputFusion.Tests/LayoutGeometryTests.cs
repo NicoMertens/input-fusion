@@ -1,6 +1,6 @@
-﻿using InputFusion.Core.Layout;
+﻿using NC2.InputFusion.Core.Layout;
 
-namespace InputFusion.Tests;
+namespace NC2.InputFusion.Tests;
 
 public class LayoutGeometryTests
 {

@@ -3,7 +3,7 @@ using System.Security.Principal;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 
-namespace InputFusion.Core.Ipc;
+namespace NC2.InputFusion.Core.Ipc;
 
 /// <summary>
 /// Prüft die Gegenseite einer Pipe über das Token ihres Prozesses. Eine ACL schützt nur die Pipe des echten Servers;

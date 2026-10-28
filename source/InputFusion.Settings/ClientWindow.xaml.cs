@@ -4,14 +4,14 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.Win32;
-using InputFusion.Core.Config;
-using InputFusion.Core.Display;
-using InputFusion.Core.Ipc;
-using InputFusion.Core.Layout;
-using InputFusion.Core.Net;
-using InputFusion.Core.Shell;
+using NC2.InputFusion.Core.Config;
+using NC2.InputFusion.Core.Display;
+using NC2.InputFusion.Core.Ipc;
+using NC2.InputFusion.Core.Layout;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Shell;
 
-namespace InputFusion.Settings;
+namespace NC2.InputFusion.Settings;
 
 /// <summary>
 /// Die Einstellungen auf dem Notebook: die PCs, mit denen sich der Dienst verbindet, sein Zustand und eine Vorschau

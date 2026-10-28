@@ -1,7 +1,7 @@
 using System.IO.Pipes;
 using System.Security.Principal;
 
-namespace InputFusion.Core.Ipc;
+namespace NC2.InputFusion.Core.Ipc;
 
 /// <summary>
 /// Named Pipe zwischen dem Dienst auf dem Notebook und den Prozessen im Benutzerkontext: Tray und Einstellungen.

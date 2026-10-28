@@ -1,4 +1,4 @@
-namespace InputFusion.Core.Shell;
+namespace NC2.InputFusion.Core.Shell;
 
 /// <summary>
 /// Meldet Abbruch und Wiederverbindung als Benachrichtigung am Tray-Symbol, auf PC und Notebook. Ein Abbruch erscheint

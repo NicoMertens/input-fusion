@@ -2,11 +2,11 @@
 using System.IO.Pipes;
 using System.Net.Sockets;
 using System.Text;
-using InputFusion.Core.Ipc;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Ipc;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Reicht für die Dauer einer Host-Verbindung Frames zwischen Host und <see cref="Injector"/> weiter — die

@@ -5,7 +5,7 @@ using Windows.Win32.Foundation;
 using Windows.Win32.Security;
 using Windows.Win32.System.Threading;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Startet einen Prozess aus dem Dienst heraus in einer Benutzersitzung, als SYSTEM oder als der angemeldete

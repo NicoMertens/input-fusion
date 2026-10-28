@@ -1,6 +1,6 @@
 ﻿using System.Buffers.Binary;
 
-namespace InputFusion.Core.Protocol;
+namespace NC2.InputFusion.Core.Protocol;
 
 /// <summary>
 /// Rahmt Nachrichten für den TCP-Strom: [ushort Nutzlastlänge][byte Typ][Nutzlast].

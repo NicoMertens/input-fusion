@@ -1,9 +1,9 @@
 ﻿using System.Globalization;
-using InputFusion.Core.Config;
-using InputFusion.Core.Layout;
-using InputFusion.Core.Net;
+using NC2.InputFusion.Core.Config;
+using NC2.InputFusion.Core.Layout;
+using NC2.InputFusion.Core.Net;
 
-namespace InputFusion.Simulator;
+namespace NC2.InputFusion.Simulator;
 
 /// <summary>
 /// Startparameter:

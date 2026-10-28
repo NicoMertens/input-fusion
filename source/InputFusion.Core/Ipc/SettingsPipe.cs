@@ -1,7 +1,7 @@
 ﻿using System.IO.Pipes;
 using System.Security.Principal;
 
-namespace InputFusion.Core.Ipc;
+namespace NC2.InputFusion.Core.Ipc;
 
 /// <summary>
 /// Named Pipe zwischen den Einstellungen und dem Agent auf dem PC. Der Agent hostet, die Einstellungen

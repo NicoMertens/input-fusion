@@ -1,11 +1,11 @@
 ﻿using System.IO;
 using System.IO.Pipes;
 using System.Windows.Threading;
-using InputFusion.Core.Ipc;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Ipc;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Settings;
+namespace NC2.InputFusion.Settings;
 
 /// <summary>
 /// Hält die Pipe zum Agent (<see cref="SettingsPipe"/>) bzw. zum Dienst (<see cref="ClientPipe"/>) und verbindet neu,

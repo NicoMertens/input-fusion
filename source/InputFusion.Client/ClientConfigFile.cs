@@ -1,9 +1,9 @@
 ﻿using System.IO;
 using System.Security.AccessControl;
 using System.Security.Principal;
-using InputFusion.Core.Config;
+using NC2.InputFusion.Core.Config;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Die <see cref="ClientConfig"/> des Dienstes in <c>%ProgramData%\InputFusion\client.json</c>, ACL nur für SYSTEM und

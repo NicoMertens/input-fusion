@@ -1,9 +1,9 @@
 using System.IO;
 using System.Security.Cryptography;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Tests;
+namespace NC2.InputFusion.Tests;
 
 public class FrameCipherTests
 {

@@ -1,4 +1,4 @@
-namespace InputFusion.Core.Diagnostics;
+namespace NC2.InputFusion.Core.Diagnostics;
 
 /// <summary>
 /// Die letzten Zeilen eines Protokolls im Speicher, für den Reiter Diagnose der Einstellungen. Auf dem Notebook geht das

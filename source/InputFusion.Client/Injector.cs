@@ -1,10 +1,10 @@
 ﻿using System.IO;
 using System.IO.Pipes;
-using InputFusion.Core.Ipc;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Ipc;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Der Injector läuft in der Benutzersitzung und spielt die Eingaben ab, die der Dienst über die Pipe

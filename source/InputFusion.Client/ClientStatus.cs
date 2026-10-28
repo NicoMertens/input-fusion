@@ -1,10 +1,10 @@
-﻿using InputFusion.Core.Config;
-using InputFusion.Core.Diagnostics;
-using InputFusion.Core.Ipc;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
+﻿using NC2.InputFusion.Core.Config;
+using NC2.InputFusion.Core.Diagnostics;
+using NC2.InputFusion.Core.Ipc;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Der Zustand des Dienstes für Tray und Einstellungen. <see cref="ClientService"/> schreibt, der

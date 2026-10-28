@@ -9,7 +9,7 @@ Alle Monitore beider Rechner liegen frei angeordnet auf einer Fläche, wie in de
 
 ## Layout-Engine
 
-Die Engine liegt in `InputFusion.Core` unter dem Namespace `InputFusion.Core.Layout`. Dieser Namespace bleibt bewusst frei von Win32-Aufrufen. Die Engine ist reine Logik (Rechtecke rein, Übergänge raus) und damit voll unit-testbar. Das ist wichtig, weil sie der fehleranfälligste Teil ist.
+Die Engine liegt in `InputFusion.Core` unter dem Namespace `NC2.InputFusion.Core.Layout`. Dieser Namespace bleibt bewusst frei von Win32-Aufrufen. Die Engine ist reine Logik (Rechtecke rein, Übergänge raus) und damit voll unit-testbar. Das ist wichtig, weil sie der fehleranfälligste Teil ist.
 
 `MonitorLayout` hält die Host-Monitore, die Client-Monitore und den Versatz der Client-Gruppe:
 
@@ -18,7 +18,7 @@ Die Engine liegt in `InputFusion.Core` unter dem Namespace `InputFusion.Core.Lay
 - **`Transitions`:** Jeder Abschnitt, an dem ein verschobener Client-Monitor genau an einer Host-Kante anliegt, ist ein `EdgeTransition` mit Seite, Host-Monitor, Client-Monitor und dem gemeinsamen Bereich `From`…`To` entlang der Kante.
 - **`TryLeaveHost`** prüft eine Mausbewegung des Hosts gegen die Übergänge: Der Cursor stand vorher auf dem Host-Monitor, im Bereich des Übergangs, und drückt über dessen Kante hinaus. Bewegungen entlang der Kante wechseln nicht. Ein Ereignis ganz ohne Bewegung auf dem Randpixel zählt als Drücken nach außen: Klemmt Windows die Zielposition im Hook schon auf den Rand, käme sonst nie eine Bewegung nach außen an. Ob es klemmt, ist am echten Rechner noch zu prüfen. Der Eintrittspunkt auf dem Client liegt auf derselben Höhe bzw. Breite der gemeinsamen Fläche, nicht proportional umgerechnet: So verhält es sich wie zwischen zwei Monitoren unter Windows, und an jedem Punkt des Abschnitts liegen beide Monitore ja wirklich nebeneinander.
 - **`ReturnEdges`** sind dieselben Abschnitte aus Sicht des Clients und in dessen Koordinaten (`ReturnEdge`: Seite des Client-Monitors, Pixelspalte bzw. -zeile der Kante, Bereich). `ReturnEdge.IsHit` gilt, wenn der Cursor genau auf der Kante steht und nach außen drückt; Windows hält ihn dort fest. **`TryReturn`** rechnet den Austrittspunkt des Clients zurück auf den Host, `ReturnInset` (2) Pixel innerhalb der Host-Kante.
-- **Geräte-IDs** misst `InputFusion.Core.Display.MonitorEnumerator`: `EnumDisplayMonitors`, `GetMonitorInfo`, `GetDpiForMonitor` und als ID der Gerätepfad des Monitors aus `EnumDisplayDevices` mit `EDD_GET_DEVICE_INTERFACE_NAME` (Hersteller, Modell, Anschluss), nicht `\\.\DISPLAYn`, dessen Nummer beim An- und Abdocken wechselt. Die Rechtecke sind physische Pixel, weil alle Programme per Manifest Per-Monitor-V2-aware sind.
+- **Geräte-IDs** misst `NC2.InputFusion.Core.Display.MonitorEnumerator`: `EnumDisplayMonitors`, `GetMonitorInfo`, `GetDpiForMonitor` und als ID der Gerätepfad des Monitors aus `EnumDisplayDevices` mit `EDD_GET_DEVICE_INTERFACE_NAME` (Hersteller, Modell, Anschluss), nicht `\\.\DISPLAYn`, dessen Nummer beim An- und Abdocken wechselt. Die Rechtecke sind physische Pixel, weil alle Programme per Manifest Per-Monitor-V2-aware sind.
 - **`CombinationKey`** bildet aus den Geräte-IDs beider Seiten den Schlüssel, unter dem eine Anordnung gespeichert wird. `IsValid` ist falsch, wenn eine gespeicherte Anordnung nicht mehr passt, etwa nach einer Auflösungsänderung.
 
 Wie sich DPI und gemischte Skalierung auf die Koordinaten auswirken, steht unter [Fallstricke](fallstricke.md).

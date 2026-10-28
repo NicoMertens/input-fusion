@@ -1,4 +1,4 @@
-namespace InputFusion.Core.Net;
+namespace NC2.InputFusion.Core.Net;
 
 /// <summary>
 /// Mehrere Versuche zugleich, etwa der Verbindungsaufbau zu allen eingetragenen PCs: Der erste erfolgreiche gewinnt,

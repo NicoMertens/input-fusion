@@ -1,4 +1,4 @@
-﻿namespace InputFusion.Core.Layout;
+﻿namespace NC2.InputFusion.Core.Layout;
 
 /// <summary>
 /// Anordnung der Client-Monitore um die Host-Monitore. Die Host-Monitore stehen fest auf ihren

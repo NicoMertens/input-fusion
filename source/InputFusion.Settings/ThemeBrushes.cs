@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 
-namespace InputFusion.Settings;
+namespace NC2.InputFusion.Settings;
 
 /// <summary>
 /// Schlüssel der Farben aus dem Fluent-Theme, die der Code setzt. Immer per <see cref="FrameworkElement.SetResourceReference"/>,

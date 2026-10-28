@@ -2,13 +2,13 @@
 using System.Text;
 using Windows.Win32;
 using Windows.Win32.UI.WindowsAndMessaging;
-using InputFusion.Core.Layout;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
-using InputFusion.Core.Shell;
+using NC2.InputFusion.Core.Layout;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Shell;
 using System.Drawing;
 
-namespace InputFusion.Host;
+namespace NC2.InputFusion.Host;
 
 /// <summary>
 /// Steuert eine Verbindung: Überschreitet die Maus eine Übergangskante aus dem <see cref="MonitorLayout"/>, wird in

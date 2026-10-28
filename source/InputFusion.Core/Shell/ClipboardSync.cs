@@ -1,6 +1,6 @@
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Core.Shell;
+namespace NC2.InputFusion.Core.Shell;
 
 /// <summary>
 /// Abgleich der Zwischenablage mit der Gegenseite beim Wechsel. Gesendet wird nur, was sich seit dem letzten Abgleich

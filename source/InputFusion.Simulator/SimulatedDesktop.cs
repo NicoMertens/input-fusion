@@ -1,8 +1,8 @@
-﻿using InputFusion.Core.Layout;
+﻿using NC2.InputFusion.Core.Layout;
 using KeyInterop = System.Windows.Input.KeyInterop;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Simulator;
+namespace NC2.InputFusion.Simulator;
 
 /// <summary>
 /// Der simulierte Client: wendet empfangene Nachrichten auf einen virtuellen Cursor und eine Liste

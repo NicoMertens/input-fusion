@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using Windows.Win32;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Hält einen Prozess der eigenen exe in der aktiven Konsolensitzung am Leben: den Injector als SYSTEM, das

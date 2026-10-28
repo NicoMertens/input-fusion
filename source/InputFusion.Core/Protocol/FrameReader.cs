@@ -1,6 +1,6 @@
 ﻿using System.Buffers.Binary;
 
-namespace InputFusion.Core.Protocol;
+namespace NC2.InputFusion.Core.Protocol;
 
 /// <summary>
 /// Setzt aus einem Byte-Strom, der in beliebigen Stücken ankommt, vollständige Frames zusammen.

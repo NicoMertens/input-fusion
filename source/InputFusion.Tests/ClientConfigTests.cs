@@ -1,7 +1,7 @@
 using System.Text;
-using InputFusion.Core.Config;
+using NC2.InputFusion.Core.Config;
 
-namespace InputFusion.Tests;
+namespace NC2.InputFusion.Tests;
 
 public class ClientConfigTests
 {

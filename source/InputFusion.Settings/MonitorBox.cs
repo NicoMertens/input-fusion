@@ -2,9 +2,9 @@
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
-using InputFusion.Core.Layout;
+using NC2.InputFusion.Core.Layout;
 
-namespace InputFusion.Settings;
+namespace NC2.InputFusion.Settings;
 
 /// <summary>Ein Monitor als beschriftetes Rechteck in Layout-Pixeln, für die Anordnung auf beiden Seiten und die Vorschau des Notebooks.</summary>
 internal static class MonitorBox

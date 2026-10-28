@@ -1,11 +1,11 @@
 ﻿using System.IO;
 using System.Net.Sockets;
-using InputFusion.Core.Display;
-using InputFusion.Core.Layout;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Display;
+using NC2.InputFusion.Core.Layout;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Meldet dem Host die Monitore dieser Sitzung: sofort und danach bei jeder Änderung (Andocken, Auflösung).

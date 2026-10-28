@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Hosting.WindowsServices;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Der Windows-Dienst. Nimmt die PCs aus <see cref="ClientConfigFile"/> und startet den Injector als

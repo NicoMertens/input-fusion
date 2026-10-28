@@ -1,9 +1,9 @@
 ﻿using System.IO;
 using System.Net.Sockets;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Durchstich-Client für Phase 1: verbindet sich zum Host und spielt die empfangenen Eingaben

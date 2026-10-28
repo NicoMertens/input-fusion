@@ -1,7 +1,7 @@
 ﻿using System.Text;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Tests;
+namespace NC2.InputFusion.Tests;
 
 public class ClientInfoTests
 {

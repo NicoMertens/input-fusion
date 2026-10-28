@@ -1,8 +1,8 @@
 ﻿using System.Buffers.Binary;
 using System.Text;
-using InputFusion.Core.Layout;
+using NC2.InputFusion.Core.Layout;
 
-namespace InputFusion.Core.Protocol;
+namespace NC2.InputFusion.Core.Protocol;
 
 public enum ButtonState : Byte { Up = 0, Down = 1 }
 

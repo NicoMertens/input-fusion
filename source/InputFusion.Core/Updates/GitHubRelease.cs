@@ -2,7 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace InputFusion.Core.Updates;
+namespace NC2.InputFusion.Core.Updates;
 
 /// <summary>Was der Client aus der GitHub-API über das neueste Release braucht.</summary>
 public sealed record GitHubRelease(

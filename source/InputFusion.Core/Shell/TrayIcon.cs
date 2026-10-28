@@ -6,7 +6,7 @@ using Windows.Win32.Foundation;
 using Windows.Win32.UI.Shell;
 using Windows.Win32.UI.WindowsAndMessaging;
 
-namespace InputFusion.Core.Shell;
+namespace NC2.InputFusion.Core.Shell;
 
 /// <summary>Ein Eintrag im Kontextmenü des Tray-Symbols. Der erste ist zugleich die Aktion beim Doppelklick.</summary>
 public sealed record TrayCommand(String Text, Action Action);

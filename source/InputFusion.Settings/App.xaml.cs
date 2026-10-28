@@ -3,10 +3,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
-using InputFusion.Core.Ipc;
-using InputFusion.Core.Shell;
+using NC2.InputFusion.Core.Ipc;
+using NC2.InputFusion.Core.Shell;
 
-namespace InputFusion.Settings;
+namespace NC2.InputFusion.Settings;
 
 public partial class App : Application
 {

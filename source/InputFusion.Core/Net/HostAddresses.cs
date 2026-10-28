@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 
-namespace InputFusion.Core.Net;
+namespace NC2.InputFusion.Core.Net;
 
 /// <summary>Adressen des Hosts für den Verbindungsaufbau und für die Anzeige.</summary>
 public static class HostAddresses

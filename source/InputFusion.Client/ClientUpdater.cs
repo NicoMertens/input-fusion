@@ -4,10 +4,10 @@ using System.IO.Compression;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
-using InputFusion.Core.Protocol;
-using InputFusion.Core.Updates;
+using NC2.InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Updates;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Selbst-Update des Dienstes aus den GitHub-Releases. Velopack passt hier nicht: Es installiert pro Benutzer nach

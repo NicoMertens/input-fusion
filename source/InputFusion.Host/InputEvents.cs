@@ -1,4 +1,4 @@
-﻿namespace InputFusion.Host;
+﻿namespace NC2.InputFusion.Host;
 
 /// <summary>Was die Hooks beobachten, bevor der Controller daraus Netzwerknachrichten macht.</summary>
 public abstract record InputEvent;

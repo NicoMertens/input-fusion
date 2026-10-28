@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.ServiceProcess;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Der Helfer, der ein geladenes Update einspielt (<c>--apply-update &lt;quelle&gt; &lt;ziel&gt;</c>). Läuft als SYSTEM

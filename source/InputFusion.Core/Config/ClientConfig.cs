@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using InputFusion.Core.Net;
+using NC2.InputFusion.Core.Net;
 
-namespace InputFusion.Core.Config;
+namespace NC2.InputFusion.Core.Config;
 
 /// <summary>
 /// Ein PC, mit dem sich das Notebook verbinden darf. <see cref="Host"/> ist sein Rechnername, per DNS aufgelöst;

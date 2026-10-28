@@ -5,7 +5,7 @@ using System.Security;
 using System.Security.Principal;
 using System.Text;
 
-namespace InputFusion.Host;
+namespace NC2.InputFusion.Host;
 
 /// <summary>
 /// Erhöhter Start einer installierten Kopie. Velopack installiert ohne Adminrechte nach <c>%LOCALAPPDATA%</c> und

@@ -1,6 +1,6 @@
 using System.IO;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Packt die Einstellungen aus, die der Release als einzelne Datei in die Client-exe einbettet. So bringen Setup per

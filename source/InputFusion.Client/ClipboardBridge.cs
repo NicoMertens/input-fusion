@@ -1,9 +1,9 @@
 using System.IO;
 using System.Net.Sockets;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Vermittelt die Zwischenablage zwischen Host und <see cref="ClientTray"/>. Der Dienst liest und schreibt sie nicht

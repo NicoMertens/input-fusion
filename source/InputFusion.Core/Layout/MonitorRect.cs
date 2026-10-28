@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace InputFusion.Core.Layout;
+namespace NC2.InputFusion.Core.Layout;
 
 /// <summary>
 /// Ein Monitor als Rechteck in physischen Pixeln auf der gemeinsamen Fläche, plus DPI und Geräte-ID.

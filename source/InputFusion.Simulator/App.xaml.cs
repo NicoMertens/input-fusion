@@ -1,6 +1,6 @@
 ﻿using System.Windows;
 
-namespace InputFusion.Simulator;
+namespace NC2.InputFusion.Simulator;
 
 public partial class App : Application
 {

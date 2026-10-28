@@ -3,7 +3,7 @@ using Windows.Win32.Foundation;
 using Windows.Win32.System.Memory;
 using Windows.Win32.System.Ole;
 
-namespace InputFusion.Core.Shell;
+namespace NC2.InputFusion.Core.Shell;
 
 /// <summary>
 /// Unicode-Text der Zwischenablage über die Win32-API, ohne WinForms und WPF (AOT-fähig). Braucht kein Fenster:

@@ -2,9 +2,9 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using InputFusion.Core.Net;
+using NC2.InputFusion.Core.Net;
 
-namespace InputFusion.Core.Config;
+namespace NC2.InputFusion.Core.Config;
 
 /// <summary>
 /// Konfiguration des Agents in <c>%LOCALAPPDATA%\InputFusion\config.json</c>. Der Agent ist ihr einziger Besitzer;

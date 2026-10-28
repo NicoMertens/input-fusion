@@ -7,7 +7,7 @@ using Windows.Win32.Security;
 using Windows.Win32.Storage.FileSystem;
 using Windows.Win32.System.Pipes;
 
-namespace InputFusion.Core.Ipc;
+namespace NC2.InputFusion.Core.Ipc;
 
 /// <summary>
 /// Legt einen Pipe-Server mit einem Security-Descriptor aus SDDL an, nur lokal erreichbar, beliebig viele Exemplare.

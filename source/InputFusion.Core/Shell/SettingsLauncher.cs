@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 
-namespace InputFusion.Core.Shell;
+namespace NC2.InputFusion.Core.Shell;
 
 /// <summary>
 /// Startet die Einstellungen aus dem Tray von Host oder Client, als derselbe Benutzer. Sie halten selbst nur eine

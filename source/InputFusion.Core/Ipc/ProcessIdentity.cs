@@ -4,7 +4,7 @@ using Windows.Win32.Foundation;
 using Windows.Win32.Security;
 using Windows.Win32.System.Threading;
 
-namespace InputFusion.Core.Ipc;
+namespace NC2.InputFusion.Core.Ipc;
 
 /// <summary>Das Token eines anderen Prozesses als <see cref="WindowsIdentity"/>, für die Prüfung der Gegenseite einer Pipe.</summary>
 internal static unsafe class ProcessIdentity

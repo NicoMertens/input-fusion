@@ -1,7 +1,7 @@
-using InputFusion.Core.Config;
-using InputFusion.Core.Net;
+using NC2.InputFusion.Core.Config;
+using NC2.InputFusion.Core.Net;
 
-namespace InputFusion.Tests;
+namespace NC2.InputFusion.Tests;
 
 public class PortsTests
 {

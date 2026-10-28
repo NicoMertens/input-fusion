@@ -1,11 +1,11 @@
 ﻿using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using InputFusion.Core.Config;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Config;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Die Dienst-Rolle: hält Injector und Tray-Symbol am Leben und die Verbindung zu einem der eingetragenen PCs. Ohne

@@ -3,7 +3,7 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.RemoteDesktop;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>Die Sitzung, in der der Benutzer vor dem Notebook sitzt, und wer dort angemeldet ist.</summary>
 internal static unsafe class ActiveSession

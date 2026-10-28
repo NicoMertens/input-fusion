@@ -4,9 +4,9 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
-using InputFusion.Core.Ipc;
+using NC2.InputFusion.Core.Ipc;
 
-namespace InputFusion.Settings;
+namespace NC2.InputFusion.Settings;
 
 /// <summary>
 /// Der Reiter Diagnose, auf PC und Notebook gleich: Verbindung, Laufzeit, Nachrichten pro Sekunde, letzte Störung und die

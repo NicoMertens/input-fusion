@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using InputFusion.Core.Layout;
+using NC2.InputFusion.Core.Layout;
 
-namespace InputFusion.Core.Protocol;
+namespace NC2.InputFusion.Core.Protocol;
 
 /// <summary>
 /// Die Anordnung, mit der der Host rechnet, als JSON im Frame-Typ <see cref="MessageType.Arrangement"/>. Der Client

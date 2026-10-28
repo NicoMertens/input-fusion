@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Shapes;
 
-namespace InputFusion.Settings;
+namespace NC2.InputFusion.Settings;
 
 /// <summary>
 /// Zeigt, ob die Gegenseite verbunden ist: grün mit Titel und Angaben, sonst grau. Beide Einstellungsfenster nutzen

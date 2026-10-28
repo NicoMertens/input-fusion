@@ -1,6 +1,6 @@
-﻿using InputFusion.Client;
-using InputFusion.Core.Config;
-using InputFusion.Core.Net;
+﻿using NC2.InputFusion.Client;
+using NC2.InputFusion.Core.Config;
+using NC2.InputFusion.Core.Net;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.Extensions.Logging.EventLog;
 

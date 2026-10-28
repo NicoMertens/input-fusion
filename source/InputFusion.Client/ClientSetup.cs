@@ -4,11 +4,11 @@ using System.Globalization;
 using System.IO;
 using System.Security.Principal;
 using System.ServiceProcess;
-using InputFusion.Core.Config;
-using InputFusion.Core.Net;
-using InputFusion.Core.Protocol;
+using NC2.InputFusion.Core.Config;
+using NC2.InputFusion.Core.Net;
+using NC2.InputFusion.Core.Protocol;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Die exe installiert sich selbst, wenn sie per Doppelklick außerhalb des Installationsordners startet: erst eine

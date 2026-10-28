@@ -1,4 +1,4 @@
-﻿<Window x:Class="InputFusion.Simulator.MainWindow"
+﻿<Window x:Class="NC2.InputFusion.Simulator.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="InputFusion Simulator" Width="1200" Height="720" Background="#1E1E1E">

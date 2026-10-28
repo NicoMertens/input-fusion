@@ -1,7 +1,7 @@
 ﻿using System.Text;
-using InputFusion.Core.Updates;
+using NC2.InputFusion.Core.Updates;
 
-namespace InputFusion.Tests;
+namespace NC2.InputFusion.Tests;
 
 public class ReleaseCheckTests
 {

@@ -1,4 +1,4 @@
-﻿namespace InputFusion.Core.Layout;
+﻿namespace NC2.InputFusion.Core.Layout;
 
 /// <summary>
 /// Reine Geometrie für das Multimonitor-Layout: welcher Monitor einen Punkt enthält und wie ein

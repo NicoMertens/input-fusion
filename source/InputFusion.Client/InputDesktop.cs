@@ -2,7 +2,7 @@
 using Windows.Win32.Foundation;
 using Windows.Win32.System.StationsAndDesktops;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>
 /// Desktop-Wechsel nach VNC-Muster. Gesperrter Bildschirm und Anmeldung liegen auf dem Desktop „Winlogon“, die

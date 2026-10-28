@@ -1,6 +1,6 @@
-using InputFusion.Core.Shell;
+using NC2.InputFusion.Core.Shell;
 
-namespace InputFusion.Tests;
+namespace NC2.InputFusion.Tests;
 
 public class ConnectionNotifierTests
 {

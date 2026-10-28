@@ -2,7 +2,7 @@
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
 
-namespace InputFusion.Host;
+namespace NC2.InputFusion.Host;
 
 /// <summary>
 /// Installiert die Hooks auf einem eigenen Thread mit eigener Nachrichtenschleife. Die Schleife ist

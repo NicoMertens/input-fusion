@@ -1,4 +1,4 @@
-﻿namespace InputFusion.Core.Protocol;
+﻿namespace NC2.InputFusion.Core.Protocol;
 
 /// <summary>Typ-Byte im Frame-Kopf. Werte sind fest, damit sich das Protokoll über Versionen verträgt.</summary>
 public enum MessageType : Byte

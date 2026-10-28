@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 
-namespace InputFusion.Client;
+namespace NC2.InputFusion.Client;
 
 /// <summary>Beendet vor dem Kopieren alles, was Dateien im Installationsordner sperren könnte.</summary>
 internal static class ClientProcesses
