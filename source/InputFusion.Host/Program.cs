@@ -278,7 +278,7 @@ internal static class Program
         LowLevelHooks.Drain();
         HookListener hooks = new HookListener();
         hooks.Start();
-        RemoteController controller = new RemoteController(conn, state, options.Absolute, options.Observe, options.Diag);
+        RemoteController controller = new RemoteController(conn, state, options);
         try
         {
             await controller.RunAsync(ct);

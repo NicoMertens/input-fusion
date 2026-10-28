@@ -16,37 +16,20 @@ namespace NC2.InputFusion.Host;
 /// eingefroren, weil der Hook die Eingabe verschluckt; die Bewegung kommt dann aus Raw Input. Zurück über eine
 /// Rückkehrkante des Clients, per Strg+Alt+F12 oder bei Verbindungsabbruch. Kein TLS; das ist Phase 4.
 /// </summary>
-internal sealed class RemoteController(MessageConnection connection, HostState state, Boolean absolute, Boolean observe, Boolean diag)
+internal sealed class RemoteController(MessageConnection connection, HostState state, HostOptions options)
 {
     private const UInt16 VkF11 = 0x7A;
     private const UInt16 VkF12 = 0x7B;
-    private const UInt16 VkL = 0x4C;
-    private const UInt16 VkLeftWin = 0x5B;
-    private const UInt16 VkRightWin = 0x5C;
 
     private Int32 _desktopWidth, _desktopHeight, _desktopLeft, _desktopTop;
     private Int32 _parkX, _parkY;
     // Wo der Host-Cursor beim Verlassen stand; dorthin kehrt er bei Strg+Alt+F12 oder Verbindungsabbruch zurück.
     private Int32 _returnX, _returnY;
     private Double _virtualX, _virtualY;
-    private Boolean _ctrlDown, _altDown;
 
-    // Alle Tasten, die der Hook gerade als gedrückt sieht (down ohne up). Damit lässt sich beim Wechsel
-    // der Modifier-Zustand des Hosts an den Client mitschicken. Wird nur auf dem Hook-Thread berührt.
-    private readonly Dictionary<UInt16, KeyInputEvent> _physicalDown = new();
-    // Tasten, die als "down" an den Client gingen und dort noch gedrückt sind. Beim Verlassen werden sie
-    // losgelassen, sonst bleiben sie auf der Gegenseite kleben. Hook-Thread und PumpIncoming greifen zu.
-    private readonly Dictionary<UInt16, KeyEvent> _clientDown = new();
-    // Dasselbe für Maustasten, unter derselben Sperre wie _clientDown.
-    private readonly HashSet<Byte> _clientButtonsDown = new();
-    // Maustasten, die der Hook gerade als gedrückt sieht. Solange eine gehalten wird, wechselt die Maus nicht auf den
-    // Client: Das Loslassen käme dort an, und auf dem PC bliebe die Taste gedrückt.
-    private readonly HashSet<Byte> _physicalButtonsDown = new();
-
+    private readonly PressedInput _pressed = new();
     private readonly ClipboardSync _clipboard = new(Log.Write);
-
-    private Int32 _recenters, _held, _maxDrift;
-    private readonly String _diagPath = Path.Combine(Path.GetTempPath(), "inputfusion-diag.log");
+    private readonly ParkDiagnostics? _parkDiagnostics = options.Diag ? new ParkDiagnostics() : null;
 
     private String? _endReason;
 
@@ -62,9 +45,9 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         _desktopTop = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_YVIRTUALSCREEN);
         _desktopWidth = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXVIRTUALSCREEN);
         _desktopHeight = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CYVIRTUALSCREEN);
-        if (diag)
+        if (_parkDiagnostics is not null)
         {
-            Log.Write($"Diagnose aktiv, Protokoll in {_diagPath}. Maus über eine Übergangskante bewegen.");
+            Log.Write($"Diagnose aktiv, Protokoll in {_parkDiagnostics.FilePath}. Maus über eine Übergangskante bewegen.");
         }
 
         // Alles läuft über ein gemeinsames Token: Endet die Verbindung oder schweigt der Client, bricht das
@@ -82,25 +65,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         {
             await foreach (InputEvent e in LowLevelHooks.Events.ReadAllAsync(token))
             {
-                switch (e)
-                {
-                    case MouseMoveEvent move:
-                        await HandleMove(move, token);
-                        break;
-                    case RawMouseMoveEvent raw when state.IsRemote && !observe:
-                        await SendMove(raw.Dx, raw.Dy, token);
-                        break;
-                    case MouseButtonEvent button:
-                        await HandleButton(button, token);
-                        break;
-                    case MouseWheelEvent wheel when state.IsRemote:
-                        await connection.SendAsync(MessageType.MouseWheel,
-                            new MouseWheel(wheel.Delta, wheel.Horizontal).ToPayload(), token);
-                        break;
-                    case KeyInputEvent key:
-                        await HandleKey(key, token);
-                        break;
-                }
+                await HandleAsync(e, token);
             }
         }
         finally
@@ -121,47 +86,68 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         }
     }
 
+    private async Task HandleAsync(InputEvent e, CancellationToken ct)
+    {
+        switch (e)
+        {
+            case MouseMoveEvent move:
+                await HandleMove(move, ct);
+                break;
+            case RawMouseMoveEvent raw when state.IsRemote && !options.Observe:
+                await SendMove(raw.Dx, raw.Dy, ct);
+                break;
+            case MouseButtonEvent button:
+                _pressed.Track(button);
+                if (state.IsRemote)
+                {
+                    await connection.SendAsync(MessageType.MouseButton, _pressed.ForwardButton(button).ToPayload(), ct);
+                }
+                break;
+            case MouseWheelEvent wheel when state.IsRemote:
+                await connection.SendAsync(MessageType.MouseWheel,
+                    new MouseWheel(wheel.Delta, wheel.Horizontal).ToPayload(), ct);
+                break;
+            case KeyInputEvent key:
+                await HandleKey(key, ct);
+                break;
+        }
+    }
+
     /// <summary>
     /// Schickt dem Client die Kanten, über die er zurückkehrt, und danach die Anordnung für seine Einstellungen. Ohne
     /// Layout keine Kanten, dann bleibt nur Strg+Alt+F12. Ältere Clients übergehen die Anordnung.
     /// </summary>
-    private async Task SendLayoutAsync(MonitorLayout? layout, CancellationToken ct)
+    private Task SendLayoutAsync(MonitorLayout? layout, CancellationToken ct) => IgnoreConnectionLossAsync(async () =>
     {
-        try
-        {
-            await connection.SendAsync(MessageType.ReturnEdges, ReturnEdgeList.ToPayload(layout?.ReturnEdges ?? []), ct);
-            await connection.SendAsync(MessageType.Arrangement, ClientArrangement.From(layout).ToPayload(), ct);
-        }
-        catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or OperationCanceledException or ObjectDisposedException)
-        {
-        }
-    }
+        await connection.SendAsync(MessageType.ReturnEdges, ReturnEdgeList.ToPayload(layout?.ReturnEdges ?? []), ct);
+        await connection.SendAsync(MessageType.Arrangement, ClientArrangement.From(layout).ToPayload(), ct);
+    });
 
-    /// <summary>Schickt dem Client den neuen Schlüssel; verschlüsselt mit dem alten, unter dem die Verbindung steht.</summary>
-    private async Task SendKeyAsync(String key, CancellationToken ct)
-    {
-        try
-        {
-            await connection.SendAsync(MessageType.KeyChange, Encoding.UTF8.GetBytes(key), ct);
-        }
-        catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or OperationCanceledException or ObjectDisposedException)
-        {
-            // Die Verbindung ist weg; HostState speichert den Schlüssel beim Abbruch trotzdem.
-        }
-    }
+    /// <summary>
+    /// Schickt dem Client den neuen Schlüssel; verschlüsselt mit dem alten, unter dem die Verbindung steht. Ist die
+    /// Verbindung weg, speichert HostState den Schlüssel beim Abbruch trotzdem.
+    /// </summary>
+    private Task SendKeyAsync(String key, CancellationToken ct) => IgnoreConnectionLossAsync(
+        async () => await connection.SendAsync(MessageType.KeyChange, Encoding.UTF8.GetBytes(key), ct));
 
     /// <summary>
     /// Schickt dem Client den Text der Zwischenablage, wenn er sich seit dem letzten Abgleich geändert hat. Nebenher,
     /// damit Lesen und Senden den Wechsel nicht aufhalten; die Stücke reihen sich zwischen die Eingaben.
     /// </summary>
-    private async Task SendClipboardAsync(CancellationToken ct)
+    private Task SendClipboardAsync(CancellationToken ct) => IgnoreConnectionLossAsync(async () =>
+    {
+        foreach (Byte[] chunk in _clipboard.TakeChanged())
+        {
+            await connection.SendAsync(MessageType.ClipboardText, chunk, ct);
+        }
+    });
+
+    /// <summary>Für Sendungen nebenher: Scheitern sie, weil die Verbindung weg ist, endet sie ohnehin.</summary>
+    private static async Task IgnoreConnectionLossAsync(Func<Task> send)
     {
         try
         {
-            foreach (Byte[] chunk in _clipboard.TakeChanged())
-            {
-                await connection.SendAsync(MessageType.ClipboardText, chunk, ct);
-            }
+            await send();
         }
         catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or OperationCanceledException or ObjectDisposedException)
         {
@@ -205,15 +191,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
                 }
                 else if (type == MessageType.SwitchBackRequest && state.IsRemote)
                 {
-                    state.IsRemote = false;
-                    LowLevelHooks.Swallow = false;
-                    await ReleaseClientInputAsync(linked.Token);
-                    SwitchBackRequest request = SwitchBackRequest.FromPayload(payload);
-                    (Int32 x, Int32 y) = state.Layout is { } layout && layout.TryReturn(request.Side, request.X, request.Y, out (Int32 X, Int32 Y) point)
-                        ? point
-                        : (_returnX, _returnY);
-                    PInvoke.SetCursorPos(x, y);
-                    Log.Write($"Remote-Modus aus (Client an der Kante {request.Side}), zurück bei ({x}, {y})");
+                    await SwitchBackAsync(SwitchBackRequest.FromPayload(payload), linked.Token);
                 }
             }
 
@@ -239,13 +217,26 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
     /// <summary>Der erste Grund zählt; was danach scheitert, ist nur die Folge.</summary>
     private void SetEndReason(String reason) => Interlocked.CompareExchange(ref _endReason, reason, null);
 
+    /// <summary>Der Client hat die Maus über eine Rückkehrkante geschoben; sie erscheint an der passenden Stelle des PCs.</summary>
+    private async Task SwitchBackAsync(SwitchBackRequest request, CancellationToken ct)
+    {
+        state.IsRemote = false;
+        LowLevelHooks.Swallow = false;
+        await ReleaseClientInputAsync(ct);
+        (Int32 x, Int32 y) = state.Layout is { } layout && layout.TryReturn(request.Side, request.X, request.Y, out (Int32 X, Int32 Y) point)
+            ? point
+            : (_returnX, _returnY);
+        PInvoke.SetCursorPos(x, y);
+        Log.Write($"Remote-Modus aus (Client an der Kante {request.Side}), zurück bei ({x}, {y})");
+    }
+
     private async Task HandleMove(MouseMoveEvent move, CancellationToken ct)
     {
         if (!state.IsRemote)
         {
             // Ohne gemeldete Client-Monitore gibt es kein Layout und damit keinen Übergang. Mit gehaltener Maustaste,
             // etwa beim Ziehen eines Fensters an den Rand, bleibt die Maus auf dem PC.
-            if (_physicalButtonsDown.Count == 0 && state.Layout is { } layout && layout.TryLeaveHost(move.X, move.Y, move.Dx, move.Dy, out _, out (Int32 X, Int32 Y) entry))
+            if (!_pressed.AnyButtonDown && state.Layout is { } layout && layout.TryLeaveHost(move.X, move.Y, move.Dx, move.Dy, out _, out (Int32 X, Int32 Y) entry))
             {
                 await EnterRemote(entry, move.X - move.Dx, move.Y - move.Dy, ct);
             }
@@ -254,7 +245,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         }
 
         // Im Beobachtungsmodus läuft der Cursor frei, die Bewegung aus dem Hook stimmt.
-        if (observe)
+        if (options.Observe)
         {
             await SendMove(move.Dx, move.Dy, ct);
             return;
@@ -264,9 +255,9 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         // Der Cursor steht dabei nicht sicher im Parkpunkt: Eine Bewegung, die der Hook kurz vor dem
         // Umschalten noch durchgelassen hat, kann Windows erst nach dem SetCursorPos umsetzen. Dann friert
         // er am Rand ein. Deshalb hier zurück in die Mitte holen.
-        if (diag)
+        if (_parkDiagnostics is not null)
         {
-            Measure(move);
+            _parkDiagnostics.Recenter(move, _parkX, _parkY);
         }
         else if (move.X - move.Dx != _parkX || move.Y - move.Dy != _parkY)
         {
@@ -281,7 +272,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
             return;
         }
 
-        if (absolute)
+        if (options.Absolute)
         {
             _virtualX = Math.Clamp(_virtualX + dx, 0, _desktopWidth);
             _virtualY = Math.Clamp(_virtualY + dy, 0, _desktopHeight);
@@ -297,79 +288,9 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         }
     }
 
-    /// <summary>
-    /// Misst, wie oft SetCursorPos wirklich hält: wie weit der Cursor vor dem Zurücksetzen aus der Mitte
-    /// gelaufen ist (Drift) und ob er direkt nach dem Zurücksetzen tatsächlich in der Mitte steht.
-    /// Bei eingefrorener Maus bleibt die Drift klein; zieht RDP den Cursor weg, wird sie groß.
-    /// </summary>
-    private void Measure(MouseMoveEvent move)
-    {
-        Int32 drift = Math.Max(Math.Abs(move.X - _parkX), Math.Abs(move.Y - _parkY));
-        _maxDrift = Math.Max(_maxDrift, drift);
-
-        PInvoke.SetCursorPos(_parkX, _parkY);
-        PInvoke.GetCursorPos(out Point after);
-        Boolean held = Math.Abs(after.X - _parkX) <= 2 && Math.Abs(after.Y - _parkY) <= 2;
-        if (held)
-        {
-            _held++;
-        }
-
-        _recenters++;
-
-        if (_recenters % 60 == 0)
-        {
-            String line = $"{DateTime.Now:HH:mm:ss}  SetCursorPos direkt gehalten: {_held}/{_recenters} "
-                + $"({100 * _held / _recenters} %), groesste Drift aus der Mitte: {_maxDrift}px";
-            Log.Write(line);
-            try { File.AppendAllText(_diagPath, line + Environment.NewLine); } catch (IOException) { }
-            _maxDrift = 0;
-        }
-    }
-
-    private async Task HandleButton(MouseButtonEvent button, CancellationToken ct)
-    {
-        if (button.Down)
-        {
-            _physicalButtonsDown.Add(button.Button);
-        }
-        else
-        {
-            _physicalButtonsDown.Remove(button.Button);
-        }
-
-        if (!state.IsRemote)
-        {
-            return;
-        }
-
-        lock (_clientDown)
-        {
-            if (button.Down)
-            {
-                _clientButtonsDown.Add(button.Button);
-            }
-            else
-            {
-                _clientButtonsDown.Remove(button.Button);
-            }
-        }
-        await connection.SendAsync(MessageType.MouseButton,
-            new MouseButton(button.Button, button.Down ? ButtonState.Down : ButtonState.Up).ToPayload(), ct);
-    }
-
     private async Task HandleKey(KeyInputEvent key, CancellationToken ct)
     {
-        TrackModifier(key);
-        if (key.Down)
-        {
-            _physicalDown[key.VirtualKey] = key;
-        }
-        else
-        {
-            _physicalDown.Remove(key.VirtualKey);
-        }
-
+        _pressed.Track(key);
         if (key.Down && await TryHandleHotkeyAsync(key.VirtualKey, ct))
         {
             return;
@@ -377,13 +298,13 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
 
         if (state.IsRemote)
         {
-            await SendKeyToClientAsync(key, ct);
+            await connection.SendAsync(MessageType.Key, _pressed.ForwardKey(key).ToPayload(), ct);
         }
     }
 
     private async Task<Boolean> TryHandleHotkeyAsync(UInt16 virtualKey, CancellationToken ct)
     {
-        Boolean ctrlAlt = _ctrlDown && _altDown;
+        Boolean ctrlAlt = _pressed.CtrlAltDown;
         if (ctrlAlt && virtualKey == VkF12 && state.IsRemote)
         {
             await ExitRemote(ct);
@@ -392,7 +313,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
 
         // Win+L sperrt den PC immer; ein Low-Level-Hook sieht die Tasten, kann es aber nicht verhindern. Das Notebook
         // sperrt sich mit, auch wenn die Maus gerade auf dem PC ist.
-        if (virtualKey == VkL && (_physicalDown.ContainsKey(VkLeftWin) || _physicalDown.ContainsKey(VkRightWin)))
+        if (_pressed.IsLockCombination(virtualKey))
         {
             await LockBothAsync(ct);
             return true;
@@ -429,23 +350,6 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         }
     }
 
-    private async Task SendKeyToClientAsync(KeyInputEvent key, CancellationToken ct)
-    {
-        KeyEvent ev = new KeyEvent(key.VirtualKey, key.ScanCode, key.Down ? ButtonState.Down : ButtonState.Up, key.Extended);
-        lock (_clientDown)
-        {
-            if (key.Down)
-            {
-                _clientDown[key.VirtualKey] = ev;
-            }
-            else
-            {
-                _clientDown.Remove(key.VirtualKey);
-            }
-        }
-        await connection.SendAsync(MessageType.Key, ev.ToPayload(), ct);
-    }
-
     /// <summary>
     /// Lässt auf dem Client alle Tasten und Maustasten los, die noch als gedrückt gelten. Wird beim Verlassen des
     /// Remote-Modus aufgerufen, damit Modifier (etwa das Strg+Alt des Austritts-Hotkeys) nicht kleben bleiben und ein
@@ -453,16 +357,8 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
     /// </summary>
     private async Task ReleaseClientInputAsync(CancellationToken ct)
     {
-        KeyEvent[] ups;
-        Byte[] buttons;
-        lock (_clientDown)
-        {
-            ups = _clientDown.Values.Select(ev => ev with { State = ButtonState.Up }).ToArray();
-            buttons = _clientButtonsDown.ToArray();
-            _clientDown.Clear();
-            _clientButtonsDown.Clear();
-        }
-        foreach (KeyEvent up in ups)
+        (KeyEvent[] keys, Byte[] buttons) = _pressed.ReleaseOnClient();
+        foreach (KeyEvent up in keys)
         {
             await connection.SendAsync(MessageType.Key, up.ToPayload(), ct);
         }
@@ -470,27 +366,6 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         foreach (Byte button in buttons)
         {
             await connection.SendAsync(MessageType.MouseButton, new MouseButton(button, ButtonState.Up).ToPayload(), ct);
-        }
-    }
-
-    private static Boolean IsModifier(UInt16 vk) => vk is
-        0x10 or 0xA0 or 0xA1 or   // Umschalt (Shift)
-        0x11 or 0xA2 or 0xA3 or   // Strg (Control)
-        0x12 or 0xA4 or 0xA5 or   // Alt (Menu)
-        0x5B or 0x5C;             // Windows
-
-    private void TrackModifier(KeyInputEvent key)
-    {
-        Boolean isCtrl = key.VirtualKey is 0x11 or 0xA2 or 0xA3;
-        Boolean isAlt = key.VirtualKey is 0x12 or 0xA4 or 0xA5;
-        if (isCtrl)
-        {
-            _ctrlDown = key.Down;
-        }
-
-        if (isAlt)
-        {
-            _altDown = key.Down;
         }
     }
 
@@ -510,45 +385,27 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
         }
         state.IsRemote = true;
 
-        if (observe)
-        {
-            // Maus nicht kapern, nur die Deltas verfolgen. Zum Testen in die Mitte setzen, damit in jede Richtung
-            // Platz bleibt. Über RDP hält das evtl. nicht, dann hilft Strg+Alt+F11.
-            PInvoke.SetCursorPos(_parkX, _parkY);
-        }
-        else
+        // Im Beobachtungsmodus die Maus nicht kapern, nur die Deltas verfolgen. Zum Testen in die Mitte setzen, damit
+        // in jede Richtung Platz bleibt. Über RDP hält das evtl. nicht, dann hilft Strg+Alt+F11.
+        if (!options.Observe)
         {
             LowLevelHooks.Swallow = true;
-            PInvoke.SetCursorPos(_parkX, _parkY);
         }
-        Log.Write($"Remote-Modus an{(observe ? " (Beobachtung)" : "")}, Eintritt beim Client bei ({entry.X}, {entry.Y})");
+        PInvoke.SetCursorPos(_parkX, _parkY);
+        Log.Write($"Remote-Modus an{(options.Observe ? " (Beobachtung)" : "")}, Eintritt beim Client bei ({entry.X}, {entry.Y})");
 
         await connection.SendAsync(MessageType.SwitchToClient, new SwitchToClient(entry.X, entry.Y).ToPayload(), ct);
         _ = Task.Run(() => SendClipboardAsync(ct), CancellationToken.None);
 
-        // Modifier, die beim Übertreten gehalten werden (z. B. Umschalt beim Ziehen über die Kante, oder das
-        // Strg+Alt des F11-Hotkeys), an den Client mitschicken, damit der Zustand drüben stimmt.
-        foreach ((UInt16 vk, KeyInputEvent k) in _physicalDown)
+        foreach (KeyEvent down in _pressed.ForwardHeldModifiers())
         {
-            if (!IsModifier(vk))
-            {
-                continue;
-            }
-
-            KeyEvent down = new KeyEvent(k.VirtualKey, k.ScanCode, ButtonState.Down, k.Extended);
-            lock (_clientDown)
-            {
-                _clientDown[vk] = down;
-            }
-
             await connection.SendAsync(MessageType.Key, down.ToPayload(), ct);
         }
     }
 
     /// <summary>
     /// Verlässt den Remote-Modus, damit die Windows-Taste auf dem Notebook nicht gedrückt hängen bleibt, und lässt das
-    /// Notebook sich sperren. Auf dem Sperrbildschirm des PCs sieht der Hook die Tasten nicht mehr los gehen; deshalb
-    /// hier vergessen, sonst sperrte nach dem Entsperren schon das nächste L.
+    /// Notebook sich sperren.
     /// </summary>
     private async Task LockBothAsync(CancellationToken ct)
     {
@@ -557,9 +414,7 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
             await ExitRemote(ct);
         }
 
-        _physicalDown.Remove(VkLeftWin);
-        _physicalDown.Remove(VkRightWin);
-        _physicalDown.Remove(VkL);
+        _pressed.ForgetLockCombination();
         Log.Write("Win+L: sperre auch das Notebook.");
         await connection.SendAsync(MessageType.LockWorkstation, ReadOnlyMemory<Byte>.Empty, ct);
     }
