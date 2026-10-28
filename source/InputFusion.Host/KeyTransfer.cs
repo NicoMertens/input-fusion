@@ -5,7 +5,8 @@ namespace NC2.InputFusion.Host;
 /// <summary>
 /// Ändert den Schlüssel. Ohne Client gilt er ab der nächsten Verbindung. Mit Client geht er erst an ihn und wird
 /// gespeichert, wenn er ihn übernommen hat; sonst sperrte sich das Notebook aus, wenn es ihn nicht speichern kann.
-/// Läuft unter dem Lock von <see cref="HostState"/>, weil beide die Konfiguration schreiben und speichern.
+/// Läuft unter dem Lock von <see cref="HostState"/>, weil beide die Konfiguration schreiben und speichern; HostState
+/// ruft auch mit gehaltenem Lock herein, er muss also wiedereintrittsfähig bleiben.
 /// </summary>
 internal sealed class KeyTransfer(HostConfig config, Lock configLock, Func<Boolean> clientConnected)
 {
