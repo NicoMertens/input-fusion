@@ -45,17 +45,17 @@ public partial class DiagnosticsPanel : UserControl
     public void Show(DiagnosticsMessage? diagnostics)
     {
         DateTime now = DateTime.UtcNow;
-        Connection.Text = diagnostics is null ? "–"
-            : diagnostics.ConnectedSince is { } since ? $"verbunden seit {since.ToLocalTime():HH:mm:ss}, {Describe(DateTimeOffset.Now - since)}"
-            : "nicht verbunden";
-        RoundTrip.Text = diagnostics?.RoundTripMs is { } ms ? $"{ms.ToString("0.0", CultureInfo.CurrentCulture)} ms"
-            : diagnostics is { Connected: true } ? "noch keine Antwort; Gegenseiten vor Version 0.8.0 antworten nicht"
-            : "–";
+        Connection.Text = DescribeConnection(diagnostics);
+        RoundTrip.Text = DescribeRoundTrip(diagnostics);
         Rates.Text = diagnostics is { Connected: true } ? DescribeRates(diagnostics, now) : "–";
-        LastError.Text = diagnostics is null ? "–"
-            : diagnostics.LastError is { } error ? $"{diagnostics.LastErrorAt?.ToLocalTime():HH:mm:ss}  {error}"
-            : "keine";
+        LastError.Text = DescribeLastError(diagnostics);
+        ShowLog(diagnostics);
+        _last = diagnostics;
+        _lastAt = now;
+    }
 
+    private void ShowLog(DiagnosticsMessage? diagnostics)
+    {
         String log = diagnostics is null ? "" : String.Join(Environment.NewLine, diagnostics.Log);
         if (LogLines.Text != log)
         {
@@ -74,10 +74,22 @@ public partial class DiagnosticsPanel : UserControl
         LogHint.Text = diagnostics is null ? ""
             : _logPath is null ? "Das ganze Protokoll des Dienstes steht in der Ereignisanzeige unter Windows-Protokolle › Anwendung, Quelle InputFusion.Client."
             : $"Das ganze Protokoll steht in {_logPath}.";
-
-        _last = diagnostics;
-        _lastAt = now;
     }
+
+    private static String DescribeConnection(DiagnosticsMessage? diagnostics) =>
+        diagnostics is null ? "–"
+        : diagnostics.ConnectedSince is { } since ? $"verbunden seit {since.ToLocalTime():HH:mm:ss}, {Describe(DateTimeOffset.Now - since)}"
+        : "nicht verbunden";
+
+    private static String DescribeRoundTrip(DiagnosticsMessage? diagnostics) =>
+        diagnostics?.RoundTripMs is { } ms ? $"{ms.ToString("0.0", CultureInfo.CurrentCulture)} ms"
+        : diagnostics is { Connected: true } ? "noch keine Antwort; Gegenseiten vor Version 0.8.0 antworten nicht"
+        : "–";
+
+    private static String DescribeLastError(DiagnosticsMessage? diagnostics) =>
+        diagnostics is null ? "–"
+        : diagnostics.LastError is { } error ? $"{diagnostics.LastErrorAt?.ToLocalTime():HH:mm:ss}  {error}"
+        : "keine";
 
     private void Request()
     {

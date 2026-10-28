@@ -1,0 +1,17 @@
+<UserControl x:Class="NC2.InputFusion.Settings.ArrangementPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <DockPanel Margin="32,24,32,24">
+        <TextBlock DockPanel.Dock="Top" Text="Anordnung" Style="{StaticResource PageTitle}" />
+        <TextBlock x:Name="LayoutHint" DockPanel.Dock="Top" Margin="0,0,0,12" Style="{StaticResource Hint}" />
+        <TextBlock x:Name="LayoutMessage" DockPanel.Dock="Bottom" Margin="0,8,0,0" Style="{StaticResource Hint}" />
+        <Border Style="{StaticResource Card}" Padding="0" Margin="0" ClipToBounds="True">
+            <Viewbox Stretch="Uniform" Margin="16">
+                <Canvas x:Name="Arrangement" Background="Transparent"
+                        MouseMove="OnArrangementMouseMove" MouseLeftButtonUp="OnArrangementMouseUp"
+                        LostMouseCapture="OnArrangementLostCapture" />
+            </Viewbox>
+        </Border>
+    </DockPanel>
+</UserControl>

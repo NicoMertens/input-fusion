@@ -1,0 +1,76 @@
+<UserControl x:Class="NC2.InputFusion.Settings.HostConnectionPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:NC2.InputFusion.Settings"
+             Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="32,24,32,24">
+            <TextBlock Text="Verbindung" Style="{StaticResource PageTitle}" />
+
+            <local:ConnectionCard x:Name="ClientCard" Glyph="&#xE7F8;" Margin="0,0,0,12" />
+
+            <Border Style="{StaticResource Card}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.ColumnSpan="2" Text="Dieser PC" Style="{StaticResource CardTitle}" />
+                    <TextBlock Grid.Row="1" Text="PC-Name" Margin="0,4,24,4" Style="{StaticResource Hint}" />
+                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="MachineName" IsReadOnly="True" BorderThickness="0"
+                             Background="Transparent" Padding="0" Margin="0,4" FontSize="14" />
+                    <TextBlock Grid.Row="2" Text="IP-Adressen" Margin="0,4,24,4" Style="{StaticResource Hint}" />
+                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="Addresses" IsReadOnly="True" BorderThickness="0"
+                             Background="Transparent" Padding="0" Margin="0,4" FontSize="14" TextWrapping="Wrap" />
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Port (TCP)" Style="{StaticResource CardTitle}" />
+                    <DockPanel HorizontalAlignment="Left">
+                        <Button x:Name="ApplyPort" Style="{StaticResource IconButton}" Content="&#xE73E;"
+                                ToolTip="Port übernehmen" Click="OnApplyPort" IsEnabled="False" />
+                        <TextBox x:Name="Port" Width="110" FontSize="14" TextChanged="OnPortChanged" />
+                    </DockPanel>
+                    <TextBlock x:Name="PortMessage" Margin="0,8,0,0" Style="{StaticResource Hint}" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Schlüssel" Style="{StaticResource CardTitle}" />
+                    <DockPanel>
+                        <Button x:Name="ApplyKey" Style="{StaticResource IconButton}" Content="&#xE73E;"
+                                ToolTip="Schlüssel übernehmen" Click="OnApplyKey" IsEnabled="False" />
+                        <Button Style="{StaticResource IconButton}" Content="&#xE8C8;"
+                                ToolTip="In die Zwischenablage kopieren" Click="OnCopyKey" />
+                        <Button Style="{StaticResource IconButton}" Content="&#xE72C;"
+                                ToolTip="Neuen Schlüssel erzeugen" Click="OnGenerateKey" />
+                        <ToggleButton x:Name="ShowKey" Style="{StaticResource IconToggleButton}" Content="&#xE7B3;"
+                                      ToolTip="Schlüssel anzeigen" Click="OnShowKey" />
+                        <Grid x:Name="KeyField">
+                            <TextBox x:Name="Key" FontFamily="Consolas" FontSize="15" TextChanged="OnKeyChanged"
+                                     Visibility="Collapsed" />
+                            <PasswordBox x:Name="HiddenKey" FontFamily="Consolas" FontSize="15"
+                                         PasswordChanged="OnHiddenKeyChanged" />
+                        </Grid>
+                    </DockPanel>
+                    <TextBlock x:Name="KeyMessage" Margin="0,8,0,0" Style="{StaticResource Hint}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Margin="4,4,4,0" Style="{StaticResource Hint}">
+                Auf dem Notebook PC-Name (oder IP), Port und Schlüssel eintragen: beim Installieren im Setup, danach
+                in dessen Einstellungen (Tray-Symbol, als Administrator).
+                Einen neuen Schlüssel übernimmt ein verbundenes Notebook selbst; sonst gilt er ab der nächsten
+                Verbindung und muss dort eingetragen werden. Ein geänderter Port gilt ab der nächsten Verbindung.
+            </TextBlock>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

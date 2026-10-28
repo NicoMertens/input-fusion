@@ -48,100 +48,107 @@ internal sealed class SimulatedDesktop(IReadOnlyList<MonitorRect> monitors)
 
     public void Apply(MessageType type, Byte[] payload)
     {
-        String? log = null;
+        String? log;
         lock (_lock)
         {
-            switch (type)
-            {
-                case MessageType.SwitchToClient:
-                    Active = true;
-                    SwitchToClient entry = SwitchToClient.FromPayload(payload);
-                    MoveTo(entry.X, entry.Y);
-                    log = $"Steuerung übernommen, Eintritt bei ({_x}, {_y})";
-                    break;
-
-                case MessageType.ReturnEdges:
-                    _returnEdges = ReturnEdgeList.FromPayload(payload);
-                    log = _returnEdges.Length == 0
-                        ? "Keine Rückkehrkanten"
-                        : "Rückkehrkanten: " + String.Join(", ", _returnEdges.Select(e => $"{e.Side} {e.Edge} [{e.From}, {e.To})"));
-                    break;
-
-                case MessageType.Heartbeat:
-                    break;
-
-                case MessageType.LockWorkstation:
-                    Active = false;
-                    _pressed.Clear();
-                    log = "Win+L auf dem Host: Ein echtes Notebook würde sich jetzt sperren";
-                    break;
-
-                case MessageType.SwitchToHost:
-                    Active = false;
-                    log = _pressed.Count == 0
-                        ? "Steuerung an den Host zurückgegeben"
-                        : $"Steuerung zurück, aber noch gedrückt: {String.Join(", ", _pressed)}";
-                    break;
-
-                case MessageType.MouseMoveRelative:
-                    MouseMoveRelative rel = MouseMoveRelative.FromPayload(payload);
-                    MoveTo(_x + rel.Dx, _y + rel.Dy);
-                    MoveCount++;
-                    log = CheckExit(rel.Dx, rel.Dy);
-                    break;
-
-                case MessageType.MouseMoveAbsolute:
-                    MouseMoveAbsolute abs = MouseMoveAbsolute.FromPayload(payload);
-                    (Int32 ax, Int32 ay) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, abs.X, abs.Y);
-                    (Int32 bx, Int32 by) = (_x, _y);
-                    MoveTo(ax, ay);
-                    MoveCount++;
-                    log = CheckExit(_x - bx, _y - by);
-                    break;
-
-                case MessageType.MouseButton:
-                    MouseButton button = MouseButton.FromPayload(payload);
-                    String name = $"Maus {(button.Button < _buttonNames.Length ? _buttonNames[button.Button] : button.Button.ToString())}";
-                    Toggle(name, button.State == ButtonState.Down);
-                    log = $"{name} {(button.State == ButtonState.Down ? "gedrückt" : "losgelassen")} bei ({_x}, {_y})";
-                    break;
-
-                case MessageType.MouseWheel:
-                    MouseWheel wheel = MouseWheel.FromPayload(payload);
-                    log = $"{(wheel.Horizontal ? "Querrad" : "Rad")} {wheel.Delta:+#;-#;0}";
-                    break;
-
-                case MessageType.Key:
-                    KeyEvent key = KeyEvent.FromPayload(payload);
-                    String keyName = KeyInterop.KeyFromVirtualKey(key.VirtualKey).ToString();
-                    Toggle(keyName, key.State == ButtonState.Down);
-                    log = $"Taste {keyName} {(key.State == ButtonState.Down ? "unten" : "oben")}"
-                        + $" (VK 0x{key.VirtualKey:X2}, Scan 0x{key.ScanCode:X2}{(key.Extended ? ", erweitert" : "")})";
-                    break;
-
-                case MessageType.ClipboardText:
-                    // Der Simulator gleicht die Zwischenablage nicht ab; je Stück eine Zeile füllte nur das Protokoll.
-                    break;
-
-                case MessageType.Arrangement:
-                    // Nur für die Einstellungen des Notebooks; die Rückkehrkanten kommen getrennt.
-                    break;
-
-                case MessageType.KeyChange:
-                    // Ohne Antwort speichert der Host den Schlüssel nach kurzer Wartezeit; ein neu gestarteter Simulator liest ihn aus dessen Konfiguration.
-                    log = "Neuer Schlüssel vom Host; der Simulator übernimmt ihn erst nach einem Neustart";
-                    break;
-
-                default:
-                    log = $"Unbekannte Nachricht {type} ({payload.Length} Bytes)";
-                    break;
-            }
+            log = Dispatch(type, payload);
         }
 
         if (log is not null)
         {
             Logged?.Invoke(log);
         }
+    }
+
+    private String? Dispatch(MessageType type, Byte[] payload) => type switch
+    {
+        MessageType.SwitchToClient => OnSwitchToClient(payload),
+        MessageType.ReturnEdges => OnReturnEdges(payload),
+        MessageType.LockWorkstation => OnLockWorkstation(),
+        MessageType.SwitchToHost => OnSwitchToHost(),
+        MessageType.MouseMoveRelative => OnMouseMoveRelative(payload),
+        MessageType.MouseMoveAbsolute => OnMouseMoveAbsolute(payload),
+        MessageType.MouseButton => OnMouseButton(payload),
+        MessageType.MouseWheel => OnMouseWheel(payload),
+        MessageType.Key => OnKey(payload),
+        // Ohne Antwort speichert der Host den Schlüssel nach kurzer Wartezeit; ein neu gestarteter Simulator liest ihn aus dessen Konfiguration.
+        MessageType.KeyChange => "Neuer Schlüssel vom Host; der Simulator übernimmt ihn erst nach einem Neustart",
+        // Die Zwischenablage gleicht der Simulator nicht ab, je Stück eine Zeile füllte nur das Protokoll;
+        // die Anordnung ist nur für die Einstellungen des Notebooks, die Rückkehrkanten kommen getrennt.
+        MessageType.Heartbeat or MessageType.ClipboardText or MessageType.Arrangement => null,
+        _ => $"Unbekannte Nachricht {type} ({payload.Length} Bytes)",
+    };
+
+    private String OnSwitchToClient(Byte[] payload)
+    {
+        Active = true;
+        SwitchToClient entry = SwitchToClient.FromPayload(payload);
+        MoveTo(entry.X, entry.Y);
+        return $"Steuerung übernommen, Eintritt bei ({_x}, {_y})";
+    }
+
+    private String OnReturnEdges(Byte[] payload)
+    {
+        _returnEdges = ReturnEdgeList.FromPayload(payload);
+        return _returnEdges.Length == 0
+            ? "Keine Rückkehrkanten"
+            : "Rückkehrkanten: " + String.Join(", ", _returnEdges.Select(e => $"{e.Side} {e.Edge} [{e.From}, {e.To})"));
+    }
+
+    private String OnLockWorkstation()
+    {
+        Active = false;
+        _pressed.Clear();
+        return "Win+L auf dem Host: Ein echtes Notebook würde sich jetzt sperren";
+    }
+
+    private String OnSwitchToHost()
+    {
+        Active = false;
+        return _pressed.Count == 0
+            ? "Steuerung an den Host zurückgegeben"
+            : $"Steuerung zurück, aber noch gedrückt: {String.Join(", ", _pressed)}";
+    }
+
+    private String? OnMouseMoveRelative(Byte[] payload)
+    {
+        MouseMoveRelative rel = MouseMoveRelative.FromPayload(payload);
+        MoveTo(_x + rel.Dx, _y + rel.Dy);
+        MoveCount++;
+        return CheckExit(rel.Dx, rel.Dy);
+    }
+
+    private String? OnMouseMoveAbsolute(Byte[] payload)
+    {
+        MouseMoveAbsolute abs = MouseMoveAbsolute.FromPayload(payload);
+        (Int32 ax, Int32 ay) = LayoutGeometry.DenormalizeFromVirtualDesktop(monitors, abs.X, abs.Y);
+        (Int32 bx, Int32 by) = (_x, _y);
+        MoveTo(ax, ay);
+        MoveCount++;
+        return CheckExit(_x - bx, _y - by);
+    }
+
+    private String OnMouseButton(Byte[] payload)
+    {
+        MouseButton button = MouseButton.FromPayload(payload);
+        String name = $"Maus {(button.Button < _buttonNames.Length ? _buttonNames[button.Button] : button.Button.ToString())}";
+        Toggle(name, button.State == ButtonState.Down);
+        return $"{name} {(button.State == ButtonState.Down ? "gedrückt" : "losgelassen")} bei ({_x}, {_y})";
+    }
+
+    private static String OnMouseWheel(Byte[] payload)
+    {
+        MouseWheel wheel = MouseWheel.FromPayload(payload);
+        return $"{(wheel.Horizontal ? "Querrad" : "Rad")} {wheel.Delta:+#;-#;0}";
+    }
+
+    private String OnKey(Byte[] payload)
+    {
+        KeyEvent key = KeyEvent.FromPayload(payload);
+        String keyName = KeyInterop.KeyFromVirtualKey(key.VirtualKey).ToString();
+        Toggle(keyName, key.State == ButtonState.Down);
+        return $"Taste {keyName} {(key.State == ButtonState.Down ? "unten" : "oben")}"
+            + $" (VK 0x{key.VirtualKey:X2}, Scan 0x{key.ScanCode:X2}{(key.Extended ? ", erweitert" : "")})";
     }
 
     /// <summary>Verbindung weg: Steuerung und gedrückte Tasten verwerfen, wie es der echte Injector tut.</summary>

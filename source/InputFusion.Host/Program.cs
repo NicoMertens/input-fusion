@@ -1,7 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using Windows.Win32;
-using Windows.Win32.UI.WindowsAndMessaging;
 using NC2.InputFusion.Core.Config;
 using NC2.InputFusion.Core.Net;
 using NC2.InputFusion.Core.Protocol;
@@ -24,59 +23,86 @@ internal static class Program
             .OnBeforeUninstallFastCallback(_ => ElevatedStartup.Uninstall())
             .Run();
 
-        // Ein Agent je Sitzung; ein zweiter Start öffnet nur die Einstellungen. Läuft der Agent erhöht, darf ein
-        // nicht erhöhter Prozess dessen Mutex nicht öffnen; auch das heißt: läuft schon.
-        Mutex instance;
-        Boolean first;
-        try
-        {
-            instance = new Mutex(initiallyOwned: true, InstanceMutexName, out first);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            SettingsLauncher.Open(Log.Write);
-            return;
-        }
-        using Mutex firstInstance = instance;
-        if (!first)
+        Mutex? instance = AcquireInstance();
+        if (instance is null)
         {
             SettingsLauncher.Open(Log.Write);
             return;
         }
 
-        // Eine installierte Kopie startet sich erhöht über die geplante Aufgabe, siehe ElevatedStartup. Den Mutex
-        // vorher freigeben, sonst hielte die Instanz aus der Aufgabe sich für die zweite.
         UpdateService updates = new UpdateService();
-        if (updates.IsInstalled && !ElevatedStartup.IsElevated
-            && (ElevatedStartup.TaskExists() || ElevatedStartup.Install(Environment.ProcessPath!, HostConfig.LoadOrCreate().Port)))
+        if (ShouldRunElevated(updates))
         {
-            instance.ReleaseMutex();
-            instance.Dispose();
-            if (ElevatedStartup.StartTask())
-            {
-                return;
-            }
-
-            Log.Write("Geplante Aufgabe ließ sich nicht starten; der Host läuft ohne Adminrechte.");
-            instance = new Mutex(initiallyOwned: true, InstanceMutexName, out first);
-            if (!first)
+            instance = HandOverToElevatedTask(instance);
+            if (instance is null)
             {
                 return;
             }
         }
 
-        Boolean absolute = args.Contains("--absolute");
-        // In einer RDP-Sitzung lässt sich die Maus nicht kapern, deshalb dort automatisch nur beobachten.
-        // --observe erzwingt das auch lokal, --capture erzwingt das Kapern trotz RDP (zum Ausprobieren).
-        Boolean remoteSession = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_REMOTESESSION) != 0;
-        // Die Diagnose misst das Kapern, braucht es also; sie schaltet die Beobachtung ab.
-        Boolean diag = args.Contains("--diag");
-        Boolean observe = !diag && (args.Contains("--observe") || (remoteSession && !args.Contains("--capture")));
-        if (diag || args.Contains("--console"))
+        using Mutex owned = instance;
+        HostOptions options = HostOptions.Parse(args);
+        if (options.Diag || args.Contains("--console"))
         {
             PInvoke.AllocConsole();
         }
 
+        await RunAsync(options, updates);
+    }
+
+    /// <summary>
+    /// Ein Agent je Sitzung; ein zweiter Start öffnet nur die Einstellungen. Läuft der Agent erhöht, darf ein nicht
+    /// erhöhter Prozess dessen Mutex nicht öffnen; auch das heißt: läuft schon.
+    /// </summary>
+    private static Mutex? AcquireInstance()
+    {
+        try
+        {
+            Mutex instance = new Mutex(initiallyOwned: true, InstanceMutexName, out Boolean first);
+            if (first)
+            {
+                return instance;
+            }
+
+            instance.Dispose();
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+        return null;
+    }
+
+    /// <summary>Eine installierte Kopie startet sich erhöht über die geplante Aufgabe, siehe <see cref="ElevatedStartup"/>.</summary>
+    private static Boolean ShouldRunElevated(UpdateService updates) =>
+        updates.IsInstalled && !ElevatedStartup.IsElevated
+        && (ElevatedStartup.TaskExists() || ElevatedStartup.Install(Environment.ProcessPath!, HostConfig.LoadOrCreate().Port));
+
+    /// <summary>
+    /// Startet die geplante Aufgabe; der Mutex wird vorher freigegeben, sonst hielte die Instanz aus der Aufgabe sich
+    /// für die zweite. Liefert den neu belegten Mutex, wenn dieser Prozess doch selbst weiterlaufen muss.
+    /// </summary>
+    private static Mutex? HandOverToElevatedTask(Mutex instance)
+    {
+        instance.ReleaseMutex();
+        instance.Dispose();
+        if (ElevatedStartup.StartTask())
+        {
+            return null;
+        }
+
+        Log.Write("Geplante Aufgabe ließ sich nicht starten; der Host läuft ohne Adminrechte.");
+        Mutex again = new Mutex(initiallyOwned: true, InstanceMutexName, out Boolean first);
+        if (first)
+        {
+            return again;
+        }
+
+        again.Dispose();
+        return null;
+    }
+
+    private static async Task RunAsync(HostOptions options, UpdateService updates)
+    {
         using CancellationTokenSource cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
@@ -88,9 +114,7 @@ internal static class Program
             state.PortChanged += ElevatedStartup.UpdateFirewall;
         }
 
-        Log.Write($"InputFusion Host auf Port {state.Port}, Konfiguration {HostConfig.FilePath}. Modus: {(absolute ? "absolut" : "relativ")}"
-            + $"{(observe ? ", Beobachtung (kapert die Maus nicht)" : "")}"
-            + $"{(diag ? ", Diagnose" : "")}{(remoteSession ? " [RDP erkannt]" : "")}.");
+        Log.Write($"InputFusion Host auf Port {state.Port}, Konfiguration {HostConfig.FilePath}. Modus: {options.Describe()}.");
 
         TrayIcon tray = new TrayIcon($"Version {AppVersion.Current}",
             [new TrayCommand("Einstellungen …", () => SettingsLauncher.Open(Log.Write)), new TrayCommand("Beenden", cts.Cancel)],
@@ -107,7 +131,7 @@ internal static class Program
 
         try
         {
-            await ListenAsync(state, notifier, absolute, observe, diag, cts.Token);
+            await ListenAsync(state, notifier, options, cts.Token);
         }
         finally
         {
@@ -148,7 +172,7 @@ internal static class Program
     /// Ein Client zur Zeit. Nach jedem Abbruch wieder lauschen; sonst verbraucht schon ein Verbindungstest
     /// (Test-NetConnection) den einzigen Platz. Ein neuer Port bricht das Warten ab, damit gleich auf ihm gelauscht wird.
     /// </summary>
-    private static async Task ListenAsync(HostState state, ConnectionNotifier notifier, Boolean absolute, Boolean observe, Boolean diag, CancellationToken ct)
+    private static async Task ListenAsync(HostState state, ConnectionNotifier notifier, HostOptions options, CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {
@@ -190,7 +214,7 @@ internal static class Program
                 listener.Stop();
             }
 
-            await ServeAsync(tcp, state, notifier, absolute, observe, diag, ct);
+            await ServeAsync(tcp, state, notifier, options, ct);
         }
     }
 
@@ -216,8 +240,7 @@ internal static class Program
         return listener;
     }
 
-    private static async Task ServeAsync(TcpClient tcp, HostState state, ConnectionNotifier notifier, Boolean absolute, Boolean observe, Boolean diag,
-        CancellationToken ct)
+    private static async Task ServeAsync(TcpClient tcp, HostState state, ConnectionNotifier notifier, HostOptions options, CancellationToken ct)
     {
         using TcpClient owned = tcp;
         using MessageConnection conn = MessageConnection.FromTcp(tcp);
@@ -255,7 +278,7 @@ internal static class Program
         LowLevelHooks.Drain();
         HookListener hooks = new HookListener();
         hooks.Start();
-        RemoteController controller = new RemoteController(conn, state, absolute, observe, diag);
+        RemoteController controller = new RemoteController(conn, state, options.Absolute, options.Observe, options.Diag);
         try
         {
             await controller.RunAsync(ct);

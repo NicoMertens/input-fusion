@@ -1,13 +1,8 @@
 ﻿using System.Collections.Concurrent;
-using System.IO;
-using System.Net.Sockets;
-using System.Threading.Channels;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
-using NC2.InputFusion.Core.Net;
-using NC2.InputFusion.Core.Protocol;
 
 namespace NC2.InputFusion.Simulator;
 
@@ -20,8 +15,8 @@ public partial class MainWindow : Window
     private readonly SimulatorOptions _options;
     private readonly SimulatedDesktop _desktop;
     private readonly Ellipse _cursor;
+    private readonly SimulatorClient _client;
     private readonly Int32 _minX, _minY;
-    private String _connection = "Nicht verbunden";
 
     public MainWindow()
     {
@@ -38,11 +33,13 @@ public partial class MainWindow : Window
             _options = null!;
             _desktop = null!;
             _cursor = null!;
+            _client = null!;
             return;
         }
 
         _desktop = new SimulatedDesktop(_options.Monitors);
-        _desktop.Logged += line => _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  {line}");
+        _desktop.Logged += EnqueueLog;
+        _client = new SimulatorClient(_options, _desktop, EnqueueLog);
 
         _minX = _options.Monitors.Min(m => m.Left);
         _minY = _options.Monitors.Min(m => m.Top);
@@ -50,8 +47,11 @@ public partial class MainWindow : Window
 
         CompositionTarget.Rendering += (_, _) => Refresh();
         Closed += (_, _) => _cts.Cancel();
-        _ = Task.Run(() => RunNetworkAsync(_cts.Token));
+        _ = Task.Run(() => _client.RunAsync(_cts.Token));
     }
+
+    // Vom Netzwerk-Thread; die Liste füllt der UI-Thread je Frame.
+    private void EnqueueLog(String line) => _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  {line}");
 
     private Ellipse DrawDesktop()
     {
@@ -97,114 +97,6 @@ public partial class MainWindow : Window
         return cursor;
     }
 
-    private async Task RunNetworkAsync(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            try
-            {
-                using TcpClient tcp = new TcpClient();
-                _connection = $"Verbinde zu {_options.Host}:{_options.Port} …";
-                await tcp.ConnectAsync(_options.Host, _options.Port, ct);
-                using MessageConnection conn = MessageConnection.FromTcp(tcp);
-                HandshakeResult handshake = await Handshake.ClientAsync(conn, _options.Key, AppVersion.Current, ct);
-                if (handshake.Outcome != HandshakeOutcome.Accepted)
-                {
-                    _connection = handshake.Outcome == HandshakeOutcome.ProtocolMismatch
-                        ? $"Host spricht Protokoll {handshake.PeerProtocol} (Version {handshake.PeerVersion}), der Simulator {ProtocolVersion.Current}. Neuer Versuch …"
-                        : $"{_options.Host}:{_options.Port} hat die Anmeldung abgelehnt, stimmt der Schlüssel? Neuer Versuch …";
-                    await Task.Delay(3000, ct);
-                    continue;
-                }
-                await conn.SendAsync(MessageType.Monitors, MonitorList.ToPayload(_options.Monitors), ct);
-                await conn.SendAsync(MessageType.ClientInfo, new ClientInfo($"{Environment.MachineName} (Simulator)", null, Environment.UserName).ToPayload(), ct);
-                _connection = $"Verbunden mit {_options.Host}:{_options.Port}";
-                _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  {_connection}");
-
-                // Heartbeat zum Host, sonst trennt er nach dem Timeout; schweigt der Host, neu verbinden.
-                using CancellationTokenSource session = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                Task monitor = Task.Run(async () =>
-                {
-                    if (await conn.MonitorAsync(session.Token))
-                    {
-                        _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  Host antwortet nicht mehr");
-                        session.Cancel();
-                    }
-                }, CancellationToken.None);
-                try
-                {
-                    if (_options.DelayMs > 0)
-                    {
-                        await ReceiveDelayedAsync(conn, session.Token);
-                    }
-                    else
-                    {
-                        await foreach ((MessageType type, Byte[] payload) in conn.ReceiveAsync(session.Token))
-                        {
-                            _desktop.Apply(type, payload);
-                            if (_desktop.TryTakeExitRequest() is { } exit)
-                            {
-                                await conn.SendAsync(MessageType.SwitchBackRequest, exit.ToPayload(), session.Token);
-                            }
-                        }
-                    }
-                }
-                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-                {
-                }
-                finally
-                {
-                    session.Cancel();
-                    await monitor;
-                }
-
-                _desktop.Disconnected();
-                _pendingLog.Enqueue($"{DateTime.Now:HH:mm:ss.fff}  Verbindung vom Host beendet");
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-            catch (Exception ex) when (ex is SocketException or IOException)
-            {
-                _connection = $"Kein Host unter {_options.Host}:{_options.Port}, neuer Versuch …";
-            }
-
-            await Task.Delay(1000, ct).ContinueWith(_ => { }, TaskScheduler.Default);
-        }
-    }
-
-    /// <summary>Hält jede Nachricht um die eingestellte Latenz zurück, ohne den Durchsatz zu drosseln.</summary>
-    private async Task ReceiveDelayedAsync(MessageConnection conn, CancellationToken ct)
-    {
-        Channel<(DateTime Due, MessageType Type, Byte[] Payload)> delayed = Channel.CreateUnbounded<(DateTime Due, MessageType Type, Byte[] Payload)>();
-        Task apply = Task.Run(async () =>
-        {
-            await foreach ((DateTime due, MessageType type, Byte[] payload) in delayed.Reader.ReadAllAsync(ct))
-            {
-                TimeSpan wait = due - DateTime.UtcNow;
-                if (wait > TimeSpan.Zero)
-                {
-                    await Task.Delay(wait, ct);
-                }
-
-                _desktop.Apply(type, payload);
-                if (_desktop.TryTakeExitRequest() is { } exit)
-                {
-                    await conn.SendAsync(MessageType.SwitchBackRequest, exit.ToPayload(), ct);
-                }
-            }
-        }, ct);
-
-        await foreach ((MessageType type, Byte[] payload) in conn.ReceiveAsync(ct))
-        {
-            delayed.Writer.TryWrite((DateTime.UtcNow.AddMilliseconds(_options.DelayMs), type, payload));
-        }
-
-        delayed.Writer.Complete();
-        await apply;
-    }
-
     private void Refresh()
     {
         (Int32 x, Int32 y, Boolean active, String[] pressed, Int64 moves) = _desktop.Snapshot();
@@ -214,7 +106,7 @@ public partial class MainWindow : Window
         Canvas.SetTop(_cursor, y - _minY - _cursor.Height / 2);
 
         Status.Text = active ? "Simulator hat die Steuerung" : "Host hat die Steuerung";
-        Details.Text = $"{_connection}\nCursor ({x}, {y}) · {moves} Bewegungen"
+        Details.Text = $"{_client.Connection}\nCursor ({x}, {y}) · {moves} Bewegungen"
             + (_options.DelayMs > 0 ? $" · Latenz {_options.DelayMs} ms" : "");
         Pressed.Text = pressed.Length == 0 ? "–" : String.Join(", ", pressed);
 

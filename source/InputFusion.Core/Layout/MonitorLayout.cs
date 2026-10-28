@@ -105,25 +105,9 @@ public sealed class MonitorLayout
     public Boolean TryLeaveHost(Int32 x, Int32 y, Int32 dx, Int32 dy, out EdgeTransition transition, out (Int32 X, Int32 Y) clientPoint)
     {
         Int32 px = x - dx, py = y - dy;
-        // Klemmt Windows die Zielposition schon auf den Rand, kommt beim Drücken gegen die Kante ein Ereignis ganz
-        // ohne Bewegung an. Das zählt auf dem Randpixel als Drücken nach außen, eine Bewegung entlang der Kante nicht.
-        Boolean still = dx == 0 && dy == 0;
         foreach (EdgeTransition t in Transitions)
         {
-            MonitorRect h = t.HostMonitor;
-            if (!h.Contains(px, py))
-            {
-                continue;
-            }
-
-            Boolean crossing = t.Side switch
-            {
-                EdgeSide.Right => (dx > 0 || still) && x >= h.Right - 1 && py >= t.From && py < t.To,
-                EdgeSide.Left => (dx < 0 || still) && x <= h.Left && py >= t.From && py < t.To,
-                EdgeSide.Bottom => (dy > 0 || still) && y >= h.Bottom - 1 && px >= t.From && px < t.To,
-                _ => (dy < 0 || still) && y <= h.Top && px >= t.From && px < t.To,
-            };
-            if (!crossing)
+            if (!t.HostMonitor.Contains(px, py) || !IsCrossing(t, x, y, dx, dy))
             {
                 continue;
             }
@@ -136,6 +120,23 @@ public sealed class MonitorLayout
         transition = default;
         clientPoint = default;
         return false;
+    }
+
+    private static Boolean IsCrossing(EdgeTransition t, Int32 x, Int32 y, Int32 dx, Int32 dy)
+    {
+        MonitorRect h = t.HostMonitor;
+        // Klemmt Windows die Zielposition schon auf den Rand, kommt beim Drücken gegen die Kante ein Ereignis ganz
+        // ohne Bewegung an. Das zählt auf dem Randpixel als Drücken nach außen, eine Bewegung entlang der Kante nicht.
+        Boolean still = dx == 0 && dy == 0;
+        Boolean outward = t.Side switch
+        {
+            EdgeSide.Right => (dx > 0 || still) && x >= h.Right - 1,
+            EdgeSide.Left => (dx < 0 || still) && x <= h.Left,
+            EdgeSide.Bottom => (dy > 0 || still) && y >= h.Bottom - 1,
+            _ => (dy < 0 || still) && y <= h.Top,
+        };
+        Int32 along = t.Side.IsVertical() ? y - dy : x - dx;
+        return outward && along >= t.From && along < t.To;
     }
 
     /// <summary>Der Eintrittspunkt auf dem Client, wenn die Maus an der Stelle <paramref name="along"/> (Host-Koordinate

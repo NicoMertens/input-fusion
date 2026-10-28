@@ -370,57 +370,80 @@ internal sealed class RemoteController(MessageConnection connection, HostState s
             _physicalDown.Remove(key.VirtualKey);
         }
 
-        if (key.Down && _ctrlDown && _altDown && key.VirtualKey == VkF12 && state.IsRemote)
+        if (key.Down && await TryHandleHotkeyAsync(key.VirtualKey, ct))
         {
-            await ExitRemote(ct);
-            return;
-        }
-
-        // Win+L sperrt den PC immer; ein Low-Level-Hook sieht die Tasten, kann es aber nicht verhindern. Das Notebook
-        // sperrt sich mit, auch wenn die Maus gerade auf dem PC ist.
-        if (key.Down && key.VirtualKey == VkL && (_physicalDown.ContainsKey(VkLeftWin) || _physicalDown.ContainsKey(VkRightWin)))
-        {
-            await LockBothAsync(ct);
-            return;
-        }
-
-        // Strg+Alt+F11: Remote ein-/ausschalten, ohne die Kante zu treffen. Zum Testen, wenn das Parken nicht
-        // greift (RDP): Der Client-Cursor erscheint in der Mitte des ersten Übergangs.
-        if (key.Down && _ctrlDown && _altDown && key.VirtualKey == VkF11)
-        {
-            if (state.IsRemote)
-            {
-                await ExitRemote(ct);
-            }
-            else if (state.Layout is { Transitions.Count: > 0 } layout)
-            {
-                EdgeTransition t = layout.Transitions[0];
-                PInvoke.GetCursorPos(out Point p);
-                await EnterRemote(layout.EntryPoint(t, (t.From + t.To) / 2), p.X, p.Y, ct);
-            }
-            else
-            {
-                Log.Write("Strg+Alt+F11: noch kein Layout, der Client hat seine Monitore nicht gemeldet.");
-            }
             return;
         }
 
         if (state.IsRemote)
         {
-            KeyEvent ev = new KeyEvent(key.VirtualKey, key.ScanCode, key.Down ? ButtonState.Down : ButtonState.Up, key.Extended);
-            lock (_clientDown)
-            {
-                if (key.Down)
-                {
-                    _clientDown[key.VirtualKey] = ev;
-                }
-                else
-                {
-                    _clientDown.Remove(key.VirtualKey);
-                }
-            }
-            await connection.SendAsync(MessageType.Key, ev.ToPayload(), ct);
+            await SendKeyToClientAsync(key, ct);
         }
+    }
+
+    private async Task<Boolean> TryHandleHotkeyAsync(UInt16 virtualKey, CancellationToken ct)
+    {
+        Boolean ctrlAlt = _ctrlDown && _altDown;
+        if (ctrlAlt && virtualKey == VkF12 && state.IsRemote)
+        {
+            await ExitRemote(ct);
+            return true;
+        }
+
+        // Win+L sperrt den PC immer; ein Low-Level-Hook sieht die Tasten, kann es aber nicht verhindern. Das Notebook
+        // sperrt sich mit, auch wenn die Maus gerade auf dem PC ist.
+        if (virtualKey == VkL && (_physicalDown.ContainsKey(VkLeftWin) || _physicalDown.ContainsKey(VkRightWin)))
+        {
+            await LockBothAsync(ct);
+            return true;
+        }
+
+        if (ctrlAlt && virtualKey == VkF11)
+        {
+            await ToggleRemoteAsync(ct);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Strg+Alt+F11: Remote ein-/ausschalten, ohne die Kante zu treffen. Zum Testen, wenn das Parken nicht greift
+    /// (RDP): Der Client-Cursor erscheint in der Mitte des ersten Übergangs.
+    /// </summary>
+    private async Task ToggleRemoteAsync(CancellationToken ct)
+    {
+        if (state.IsRemote)
+        {
+            await ExitRemote(ct);
+        }
+        else if (state.Layout is { Transitions.Count: > 0 } layout)
+        {
+            EdgeTransition t = layout.Transitions[0];
+            PInvoke.GetCursorPos(out Point p);
+            await EnterRemote(layout.EntryPoint(t, (t.From + t.To) / 2), p.X, p.Y, ct);
+        }
+        else
+        {
+            Log.Write("Strg+Alt+F11: noch kein Layout, der Client hat seine Monitore nicht gemeldet.");
+        }
+    }
+
+    private async Task SendKeyToClientAsync(KeyInputEvent key, CancellationToken ct)
+    {
+        KeyEvent ev = new KeyEvent(key.VirtualKey, key.ScanCode, key.Down ? ButtonState.Down : ButtonState.Up, key.Extended);
+        lock (_clientDown)
+        {
+            if (key.Down)
+            {
+                _clientDown[key.VirtualKey] = ev;
+            }
+            else
+            {
+                _clientDown.Remove(key.VirtualKey);
+            }
+        }
+        await connection.SendAsync(MessageType.Key, ev.ToPayload(), ct);
     }
 
     /// <summary>
