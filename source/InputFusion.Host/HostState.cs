@@ -13,16 +13,14 @@ namespace NC2.InputFusion.Host;
 /// Der Zustand des Agents an einer Stelle: Konfiguration, eigene Monitore, verbundener Client und das daraus
 /// berechnete Layout. Geschrieben von Netzwerk, Tray-Thread (Monitorwechsel) und Einstellungen, deshalb unter
 /// einem Lock; das Layout selbst ist unveränderlich und wird nur ausgetauscht, damit der Hook-Pfad es ohne
-/// Lock lesen kann.
+/// Lock lesen kann. Den Schlüsselwechsel führt <see cref="KeyTransfer"/>, die Diagnose <see cref="ConnectionDiagnostics"/>.
 /// </summary>
-internal sealed class HostState(HostConfig config)
+internal sealed class HostState
 {
-    // So lange wartet ein neuer Schlüssel auf die Antwort des Notebooks; ältere Clients antworten nie.
-    private static readonly TimeSpan _keyTransferTimeout = TimeSpan.FromSeconds(5);
-
+    private readonly HostConfig _config;
     private readonly Lock _lock = new();
-    private String? _pendingKey;
-    private String? _keyStatus;
+    private readonly KeyTransfer _keyTransfer;
+    private readonly ConnectionDiagnostics _diagnostics = new();
     private IReadOnlyList<MonitorRect> _hostMonitors = MonitorEnumerator.GetMonitors();
     private String? _clientAddress;
     private String _clientVersion = "";
@@ -30,11 +28,14 @@ internal sealed class HostState(HostConfig config)
     private ClientInfo? _clientInfo;
     private MonitorLayout? _layout;
     private Boolean _isRemote;
-    // Nur für die Diagnose: die Verbindung zum Client, seit wann sie steht, und die letzte Störung.
-    private MessageConnection? _connection;
-    private DateTimeOffset? _connectedSince;
-    private String? _lastError;
-    private DateTimeOffset? _lastErrorAt;
+
+    public HostState(HostConfig config)
+    {
+        _config = config;
+        _keyTransfer = new KeyTransfer(config, _lock, () => _clientAddress is not null);
+        _keyTransfer.Requested += key => KeyTransferRequested?.Invoke(key);
+        _keyTransfer.Changed += () => Changed?.Invoke();
+    }
 
     /// <summary>Irgendetwas hat sich geändert; die Einstellungen und der Tray holen sich den neuen Stand.</summary>
     public event Action? Changed;
@@ -67,7 +68,7 @@ internal sealed class HostState(HostConfig config)
         {
             lock (_lock)
             {
-                return config.Key;
+                return _config.Key;
             }
         }
     }
@@ -78,7 +79,7 @@ internal sealed class HostState(HostConfig config)
         {
             lock (_lock)
             {
-                return config.Port;
+                return _config.Port;
             }
         }
     }
@@ -96,115 +97,11 @@ internal sealed class HostState(HostConfig config)
         }
     }
 
-    /// <summary>
-    /// Null bei Erfolg, sonst der Grund der Ablehnung. Ohne Client gilt der Schlüssel ab der nächsten Verbindung. Mit
-    /// Client geht er erst an ihn und wird gespeichert, wenn er ihn übernommen hat (<see cref="KeyTransferred"/>); sonst
-    /// sperrte sich das Notebook aus, wenn es ihn nicht speichern kann.
-    /// </summary>
-    public String? SetKey(String key)
-    {
-        String? error = HostConfig.ValidateKey(key);
-        if (error is not null)
-        {
-            return error;
-        }
-
-        Boolean transfer;
-        lock (_lock)
-        {
-            if (_pendingKey is not null)
-            {
-                return "Der vorige Schlüssel wird noch an das Notebook übertragen.";
-            }
-
-            if (config.Key == key)
-            {
-                return null;
-            }
-
-            transfer = _clientAddress is not null;
-            _keyStatus = null;
-            if (transfer)
-            {
-                _pendingKey = key;
-            }
-            else
-            {
-                config.Key = key;
-                config.Save();
-            }
-        }
-
-        if (transfer)
-        {
-            Log.Write("Schlüssel geändert, übertrage ihn an das Notebook.");
-            KeyTransferRequested?.Invoke(key);
-            _ = FinishKeyTransferLaterAsync(key);
-        }
-        else
-        {
-            Log.Write("Schlüssel geändert, gilt ab der nächsten Verbindung.");
-        }
-        Changed?.Invoke();
-        return null;
-    }
+    /// <summary>Null bei Erfolg, sonst der Grund der Ablehnung; siehe <see cref="KeyTransfer"/>.</summary>
+    public String? SetKey(String key) => _keyTransfer.Set(key);
 
     /// <summary>Antwort des Clients auf den neuen Schlüssel: null, wenn er ihn gespeichert hat, sonst der Grund.</summary>
-    public void KeyTransferred(String? error)
-    {
-        String? key;
-        lock (_lock)
-        {
-            key = _pendingKey;
-        }
-
-        if (key is null)
-        {
-            return;
-        }
-
-        if (error is null)
-        {
-            FinishKeyTransfer(key, commit: true, "Das Notebook hat den neuen Schlüssel übernommen.");
-        }
-        else
-        {
-            FinishKeyTransfer(key, commit: false, $"Das Notebook hat den Schlüssel nicht übernommen, er bleibt unverändert: {error}");
-        }
-    }
-
-    /// <summary>
-    /// Ohne Antwort trotzdem speichern: Ein älterer Client versteht die Nachricht nicht, und der Nutzer will den Schlüssel
-    /// ändern. Dann muss er auf dem Notebook von Hand nachgetragen werden, wie vor der Übertragung.
-    /// </summary>
-    private async Task FinishKeyTransferLaterAsync(String key)
-    {
-        await Task.Delay(_keyTransferTimeout);
-        FinishKeyTransfer(key, commit: true,
-            "Das Notebook hat nicht geantwortet, vielleicht eine ältere Version. Den Schlüssel dort von Hand eintragen.");
-    }
-
-    /// <summary>Nur für die Übertragung von <paramref name="key"/>; ist sie schon beendet, bleibt alles, wie es ist.</summary>
-    private void FinishKeyTransfer(String key, Boolean commit, String status)
-    {
-        lock (_lock)
-        {
-            if (_pendingKey != key)
-            {
-                return;
-            }
-
-            _pendingKey = null;
-            _keyStatus = status;
-            if (commit)
-            {
-                config.Key = key;
-                config.Save();
-            }
-        }
-        Log.Write(status);
-        Changed?.Invoke();
-    }
+    public void KeyTransferred(String? error) => _keyTransfer.Answered(error);
 
     /// <summary>
     /// Null bei Erfolg, sonst der Grund der Ablehnung. Der Listener zieht sofort um, eine bestehende Verbindung bleibt.
@@ -220,7 +117,7 @@ internal sealed class HostState(HostConfig config)
 
         lock (_lock)
         {
-            if (config.Port == port)
+            if (_config.Port == port)
             {
                 return null;
             }
@@ -239,8 +136,8 @@ internal sealed class HostState(HostConfig config)
                 probe.Stop();
             }
 
-            config.Port = port;
-            config.Save();
+            _config.Port = port;
+            _config.Save();
         }
         Log.Write($"Port auf {port} geändert.");
         PortChanged?.Invoke(port);
@@ -266,16 +163,14 @@ internal sealed class HostState(HostConfig config)
 
     public void ClientConnected(String address, String version, MessageConnection connection)
     {
+        _diagnostics.Connected(connection);
         lock (_lock)
         {
-            _connection = connection;
-            _connectedSince = DateTimeOffset.Now;
             _clientAddress = address;
             _clientVersion = version;
             _clientMonitors = [];
             _clientInfo = null;
-            // Die Anmeldung mit dem Schlüssel hat geklappt; was beim vorigen Client daraus wurde, ist erledigt.
-            _keyStatus = null;
+            _keyTransfer.ClientConnected();
         }
         RebuildLayout();
     }
@@ -314,45 +209,20 @@ internal sealed class HostState(HostConfig config)
     public void ReportProtocolMismatch() => ProtocolMismatch?.Invoke();
 
     /// <summary>Merkt sich die Störung für die Diagnose; ins Protokoll schreibt sie der Aufrufer.</summary>
-    public void ReportError(String message)
-    {
-        lock (_lock)
-        {
-            _lastError = message;
-            _lastErrorAt = DateTimeOffset.Now;
-        }
-    }
+    public void ReportError(String message) => _diagnostics.ReportError(message);
 
-    public DiagnosticsMessage Diagnostics()
-    {
-        lock (_lock)
-        {
-            ConnectionStats? stats = _connection?.Stats;
-            return new DiagnosticsMessage(_connection is not null, _connectedSince, stats?.RoundTrip?.TotalMilliseconds,
-                stats?.SentFrames ?? 0, stats?.ReceivedFrames ?? 0, _lastError, _lastErrorAt, Log.Recent.Lines(), Log.FilePath);
-        }
-    }
+    public DiagnosticsMessage Diagnostics() => _diagnostics.ToMessage();
 
     public void ClientDisconnected()
     {
-        String? pendingKey;
+        _diagnostics.Disconnected();
         lock (_lock)
         {
-            _connection = null;
-            _connectedSince = null;
             _clientAddress = null;
             _clientMonitors = [];
             _clientInfo = null;
-            pendingKey = _pendingKey;
         }
-
-        // Ob der Client den Schlüssel noch gespeichert hat, ist offen. Speichern wie ohne Antwort; verbindet er sich nicht
-        // wieder, muss der Schlüssel dort von Hand nachgetragen werden.
-        if (pendingKey is not null)
-        {
-            FinishKeyTransfer(pendingKey, commit: true,
-                "Die Verbindung endete während der Übertragung. Verbindet sich das Notebook nicht wieder, den Schlüssel dort von Hand eintragen.");
-        }
+        _keyTransfer.ClientDisconnected();
         RebuildLayout();
     }
 
@@ -375,9 +245,9 @@ internal sealed class HostState(HostConfig config)
             }
 
             String combination = MonitorLayout.CombinationKey(_hostMonitors, _clientMonitors);
-            config.Layouts.RemoveAll(l => l.Combination == combination);
-            config.Layouts.Add(new SavedLayout(combination, x, y));
-            config.Save();
+            _config.Layouts.RemoveAll(l => l.Combination == combination);
+            _config.Layouts.Add(new SavedLayout(combination, x, y));
+            _config.Save();
             Volatile.Write(ref _layout, layout);
         }
         LayoutChanged?.Invoke(layout);
@@ -394,8 +264,9 @@ internal sealed class HostState(HostConfig config)
                 ? null
                 : new ClientStateInfo(_clientAddress, _clientVersion, _clientMonitors, layout?.OffsetX ?? 0, layout?.OffsetY ?? 0,
                     _clientInfo?.MachineName, _clientInfo?.OsVersion, _clientInfo?.UserName);
-            return new HostStateMessage(Environment.MachineName, AppVersion.Current, Addresses(), config.Port, config.Key, _hostMonitors, client,
-                _pendingKey, _keyStatus);
+            (String? pendingKey, String? keyStatus) = _keyTransfer.Current;
+            return new HostStateMessage(Environment.MachineName, AppVersion.Current, Addresses(), _config.Port, _config.Key, _hostMonitors, client,
+                pendingKey, keyStatus);
         }
     }
 
@@ -408,7 +279,7 @@ internal sealed class HostState(HostConfig config)
             if (_clientMonitors.Count > 0 && _hostMonitors.Count > 0)
             {
                 String combination = MonitorLayout.CombinationKey(_hostMonitors, _clientMonitors);
-                SavedLayout? saved = config.Layouts.FirstOrDefault(l => l.Combination == combination);
+                SavedLayout? saved = _config.Layouts.FirstOrDefault(l => l.Combination == combination);
                 if (saved is not null)
                 {
                     layout = new MonitorLayout(_hostMonitors, _clientMonitors, saved.OffsetX, saved.OffsetY);
